@@ -127,10 +127,13 @@ function loadMarketingData() {
   fetch(API_BASE + '/api/marketing', {
     headers: { 'Authorization': 'Bearer ' + getToken() }
   })
-    .then(r => r.json().then(body => ({ status: r.status, body })))
-    .then(({ status, body }) => {
+    .then(r => r.text().then(text => ({ status: r.status, text })))
+    .then(({ status, text }) => {
+      let body;
+      try { body = JSON.parse(text); } catch { body = { error: text.substring(0, 200) }; }
+
       if (status !== 200) {
-        const msg = body.error || 'Error al cargar datos';
+        const msg = body.error || 'Error ' + status;
         document.getElementById('data-source-badge').innerHTML = '<i class="bi bi-exclamation-triangle text-danger"></i> ' + msg;
         tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">' + msg + '</td></tr>';
         return;
@@ -139,8 +142,8 @@ function loadMarketingData() {
       document.getElementById('data-source-badge').innerHTML = '<i class="bi bi-database"></i> Google Sheets';
       renderDashboard();
     })
-    .catch(() => {
-      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Error de conexión con el servidor</td></tr>';
+    .catch((err) => {
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Error de red: ' + (err.message || 'desconocido') + '</td></tr>';
     });
 }
 
