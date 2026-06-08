@@ -97,6 +97,7 @@ function logout() {
 let currentRole = '';
 let chartsInstances = {};
 let marketingData = [];
+let gruposData = [];
 
 function switchView(viewName) {
   if (viewName === 'users' && currentRole !== 'admin') {
@@ -226,27 +227,51 @@ function deleteMarketingRow(rowIndex) {
   });
 }
 
-function populateSelects() {
-  const grupos = [...new Set(marketingData.map(r => r.grupo).filter(Boolean))];
-  const zonas = [...new Set(marketingData.map(r => r.zona).filter(Boolean))];
+function loadGrupos() {
+  fetch(API_BASE + '/api/grupos', {
+    headers: { 'Authorization': 'Bearer ' + getToken() }
+  })
+    .then(r => r.json().then(b => ({ status: r.status, body: b })))
+    .then(({ status, body }) => {
+      if (status === 200) gruposData = body.data || [];
+    })
+    .catch(() => {});
+}
 
-  ['mk-grupo', 'mk-zona'].forEach(id => {
-    const sel = document.getElementById(id);
-    const current = sel.value;
-    sel.innerHTML = '<option value="">Seleccionar...</option>';
-    const items = id === 'mk-grupo' ? grupos : zonas;
-    items.forEach(v => {
-      const opt = document.createElement('option');
-      opt.value = v;
-      opt.textContent = v;
-      sel.appendChild(opt);
-    });
-    const otro = document.createElement('option');
-    otro.value = '__otro__';
-    otro.textContent = 'Otro...';
-    sel.appendChild(otro);
-    sel.value = current;
+function populateSelects() {
+  const zonas = [...new Set(marketingData.map(r => r.zona).filter(Boolean))];
+  const grupos = [...new Set(gruposData.map(r => r.nombre).filter(Boolean))];
+
+  const selGrupo = document.getElementById('mk-grupo');
+  const currentGrupo = selGrupo.value;
+  selGrupo.innerHTML = '<option value="">Seleccionar...</option>';
+  grupos.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v;
+    opt.textContent = v;
+    selGrupo.appendChild(opt);
   });
+  const otro = document.createElement('option');
+  otro.value = '__otro__';
+  otro.textContent = 'Otro...';
+  selGrupo.appendChild(otro);
+  selGrupo.value = currentGrupo;
+
+  const selZona = document.getElementById('mk-zona');
+  const currentZona = selZona.value;
+  selZona.innerHTML = '<option value="">Seleccionar...</option>';
+  zonas.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v;
+    opt.textContent = v;
+    selZona.appendChild(opt);
+  });
+  const otroZ = document.createElement('option');
+  otroZ.value = '__otro__';
+  otroZ.textContent = 'Otro...';
+  selZona.appendChild(otroZ);
+  selZona.value = currentZona;
+
   toggleCustomInputs();
 }
 
@@ -336,13 +361,27 @@ function saveMarketingRow() {
   if (!data.fecha || !data.grupo) return alert('Fecha y Grupo son obligatorios.');
 
   const rowIndex = document.getElementById('mk-row-index').value;
-  try { bootstrap.Modal.getInstance(document.getElementById('mkModal')).hide(); } catch {}
+  const isNewGrupo = document.getElementById('mk-grupo').value === '__otro__' && data.grupo;
+  const isNewZona = document.getElementById('mk-zona').value === '__otro__' && data.zona;
 
-  if (rowIndex) {
-    updateMarketingRow(rowIndex, data);
-  } else {
-    addMarketingRow(data);
+  const save = () => {
+    const idx = document.getElementById('mk-row-index').value;
+    try { bootstrap.Modal.getInstance(document.getElementById('mkModal')).hide(); } catch {}
+    if (idx) { updateMarketingRow(idx, data); }
+    else { addMarketingRow(data); }
+  };
+
+  let chain = Promise.resolve();
+  if (isNewGrupo) {
+    chain = chain.then(() =>
+      fetch(API_BASE + '/api/grupos', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre: data.grupo, enlace: '', zona: data.zona })
+      }).then(() => loadGrupos())
+    );
   }
+  chain.then(save);
 }
 
 function openDetailModal(rowData) {
@@ -545,6 +584,94 @@ function deleteCode(id) {
     });
 }
 
+function openGestionGrupos() {
+  renderGrupos();
+  new bootstrap.Modal(document.getElementById('gruposModal')).show();
+}
+
+function renderGrupos() {
+  const tbody = document.getElementById('grupos-table-body');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  gruposData.forEach(g => {
+    const enlaceDisplay = g.enlace ? `<a href="${g.enlace}" target="_blank" class="small text-muted">${g.enlace.substring(0, 40)}...</a>` : '—';
+    tbody.innerHTML += `
+      <tr>
+        <td class="fw-medium text-dark">${g.nombre}</td>
+        <td class="small">${enlaceDisplay}</td>
+        <td><span class="badge-zone zone-${(g.zona||'').toLowerCase().replace(/ /g,'-')}">${g.zona || '—'}</span></td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-link text-primary p-0 me-2" onclick="editGrupo(${g.rowIndex})" title="Editar">
+            <i class="bi bi-pencil-fill"></i>
+          </button>
+          <button class="btn btn-sm btn-link text-danger p-0" onclick="deleteGrupo(${g.rowIndex})" title="Eliminar">
+            <i class="bi bi-trash3-fill"></i>
+          </button>
+        </td>
+      </tr>`;
+  });
+}
+
+function saveGrupo(e) {
+  e.preventDefault();
+  const nombre = document.getElementById('grupo-nombre').value.trim();
+  const enlace = document.getElementById('grupo-enlace').value.trim();
+  const zona = document.getElementById('grupo-zona').value.trim();
+  if (!nombre) return alert('El nombre del grupo es obligatorio.');
+
+  const rowIndex = document.getElementById('grupo-row-index').value;
+  const method = rowIndex ? 'PUT' : 'POST';
+  const url = rowIndex ? `/api/grupos/${rowIndex}` : '/api/grupos';
+
+  fetch(API_BASE + url, {
+    method,
+    headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nombre, enlace, zona })
+  })
+    .then(r => r.json())
+    .then(res => {
+      if (res.error) return alert(res.error);
+      document.getElementById('grupo-form').reset();
+      document.getElementById('grupo-row-index').value = '';
+      document.getElementById('grupo-cancel-btn').classList.add('d-none');
+      document.getElementById('grupo-save-btn').innerHTML = '<i class="bi bi-check-lg me-1"></i>Guardar Grupo';
+      loadGrupos();
+      renderGrupos();
+    });
+}
+
+function editGrupo(rowIndex) {
+  const g = gruposData.find(x => x.rowIndex === rowIndex);
+  if (!g) return;
+  document.getElementById('grupo-row-index').value = rowIndex;
+  document.getElementById('grupo-nombre').value = g.nombre;
+  document.getElementById('grupo-enlace').value = g.enlace || '';
+  document.getElementById('grupo-zona').value = g.zona || '';
+  document.getElementById('grupo-cancel-btn').classList.remove('d-none');
+  document.getElementById('grupo-save-btn').innerHTML = '<i class="bi bi-check-lg me-1"></i>Actualizar Grupo';
+}
+
+function cancelEditGrupo() {
+  document.getElementById('grupo-form').reset();
+  document.getElementById('grupo-row-index').value = '';
+  document.getElementById('grupo-cancel-btn').classList.add('d-none');
+  document.getElementById('grupo-save-btn').innerHTML = '<i class="bi bi-check-lg me-1"></i>Guardar Grupo';
+}
+
+function deleteGrupo(rowIndex) {
+  if (!confirm('¿Eliminar este grupo permanentemente?')) return;
+  fetch(API_BASE + '/api/grupos/' + rowIndex, {
+    method: 'DELETE',
+    headers: { 'Authorization': 'Bearer ' + getToken() }
+  })
+    .then(r => r.json())
+    .then(res => {
+      if (res.error) return alert(res.error);
+      loadGrupos();
+      renderGrupos();
+    });
+}
+
 function enterApp(user) {
   const initials = user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   document.getElementById('display-avatar').innerText = initials;
@@ -558,6 +685,7 @@ function enterApp(user) {
   const isAdmin = user.role === 'admin' || user.role === 'Admin';
   document.getElementById('btn-nav-users').style.display = isAdmin ? '' : 'none';
   loadMarketingData();
+  loadGrupos();
   if (isAdmin) {
     loadUsers();
   }

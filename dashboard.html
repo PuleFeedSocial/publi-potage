@@ -165,9 +165,14 @@
                             <h5 class="table-card-title">Desglose Detallado por Publicación</h5>
                             <span class="text-muted small">Google Sheets · click en fila para ver detalle</span>
                         </div>
-                        <button class="btn btn-sm btn-action-primary" onclick="openAddModal()">
-                            <i class="bi bi-plus-circle-fill me-1"></i> Agregar publicación
-                        </button>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="openGestionGrupos()">
+                                <i class="bi bi-gear me-1"></i> Grupos
+                            </button>
+                            <button class="btn btn-sm btn-action-primary" onclick="openAddModal()">
+                                <i class="bi bi-plus-circle-fill me-1"></i> Agregar publicación
+                            </button>
+                        </div>
                     </div>
                     <div class="table-responsive">
                         <table class="table custom-table mb-0">
@@ -367,6 +372,61 @@
                     <button type="button" class="btn btn-sm btn-action-primary" onclick="saveMarketingRow()">
                         <i class="bi bi-check-lg me-1"></i>Guardar
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="gruposModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content custom-modal">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-semibold text-dark">
+                        <i class="bi bi-diagram-3 me-2"></i>Gestionar Grupos
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-3">
+                    <form id="grupo-form" class="row g-2 mb-4 p-3 bg-light rounded" onsubmit="saveGrupo(event)">
+                        <input type="hidden" id="grupo-row-index">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label small fw-medium text-secondary">Nombre del Grupo</label>
+                            <input type="text" id="grupo-nombre" class="form-control custom-input" required>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label small fw-medium text-secondary">Enlace</label>
+                            <input type="url" id="grupo-enlace" class="form-control custom-input" placeholder="https://facebook.com/groups/...">
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label small fw-medium text-secondary">Zona</label>
+                            <input type="text" id="grupo-zona" class="form-control custom-input" placeholder="Laferrere">
+                        </div>
+                        <div class="col-12 mt-2 d-flex gap-2">
+                            <button type="submit" class="btn btn-sm btn-action-primary" id="grupo-save-btn">
+                                <i class="bi bi-check-lg me-1"></i>Guardar Grupo
+                            </button>
+                            <button type="button" class="btn btn-sm btn-light-muted d-none" id="grupo-cancel-btn" onclick="cancelEditGrupo()">
+                                Cancelar
+                            </button>
+                        </div>
+                    </form>
+                    <div class="table-responsive" style="max-height:300px;overflow-y:auto;">
+                        <table class="table custom-table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Enlace</th>
+                                    <th>Zona</th>
+                                    <th class="text-end">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="grupos-table-body">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-sm btn-light-muted" data-bs-dismiss="modal">Cerrar</button>
                 </div>
             </div>
         </div>
