@@ -159,7 +159,7 @@ function renderDashboard() {
   data.forEach(row => {
     let zClass = (row.zona || '').toLowerCase().replace(/ /g, '-');
     tbody.innerHTML += `
-      <tr>
+      <tr onclick="openDetailModal(${JSON.stringify(row).replace(/"/g,'&quot;')})" style="cursor:pointer;">
         <td class="fw-medium text-dark">${row.fecha || ''}</td>
         <td>${row.grupo || ''}</td>
         <td class="text-center">${row.publicaciones}</td>
@@ -171,6 +171,120 @@ function renderDashboard() {
       </tr>`;
   });
   initCharts(data);
+}
+
+function marketingFetch(method, body) {
+  return fetch(API_BASE + '/api/marketing', {
+    method, headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined
+  }).then(r => r.json());
+}
+
+function addMarketingRow(data) {
+  marketingFetch('POST', data).then(res => {
+    if (res.error) return alert(res.error);
+    loadMarketingData();
+  });
+}
+
+function updateMarketingRow(rowIndex, data) {
+  fetch(API_BASE + '/api/marketing/' + rowIndex, {
+    method: 'PUT',
+    headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  }).then(r => r.json()).then(res => {
+    if (res.error) return alert(res.error);
+    loadMarketingData();
+  });
+}
+
+function deleteMarketingRow(rowIndex) {
+  if (!confirm('¿Eliminar esta fila permanentemente?')) return;
+  fetch(API_BASE + '/api/marketing/' + rowIndex, {
+    method: 'DELETE',
+    headers: { 'Authorization': 'Bearer ' + getToken() }
+  }).then(r => r.json()).then(res => {
+    if (res.error) return alert(res.error);
+    loadMarketingData();
+  });
+}
+
+function openAddModal() {
+  document.getElementById('mk-modal-title').innerText = 'Agregar Publicación';
+  document.getElementById('mk-form').reset();
+  document.getElementById('mk-row-index').value = '';
+  document.getElementById('mk-delete-btn').classList.add('d-none');
+  new bootstrap.Modal(document.getElementById('mkModal')).show();
+}
+
+function openEditModal(row) {
+  document.getElementById('mk-modal-title').innerText = 'Editar Publicación';
+  document.getElementById('mk-row-index').value = row.rowIndex;
+  document.getElementById('mk-fecha').value = row.fecha || '';
+  document.getElementById('mk-grupo').value = row.grupo || '';
+  document.getElementById('mk-pubs').value = row.publicaciones;
+  document.getElementById('mk-vis').value = row.visualizaciones;
+  document.getElementById('mk-int').value = row.interacciones;
+  document.getElementById('mk-com').value = row.comentarios;
+  document.getElementById('mk-msj').value = row.mensajes;
+  document.getElementById('mk-zona').value = row.zona || '';
+  document.getElementById('mk-delete-btn').classList.remove('d-none');
+  document.getElementById('mk-delete-btn').onclick = () => {
+    bootstrap.Modal.getInstance(document.getElementById('mkModal')).hide();
+    deleteMarketingRow(row.rowIndex);
+  };
+  new bootstrap.Modal(document.getElementById('mkModal')).show();
+}
+
+function saveMarketingRow() {
+  const data = {
+    fecha: document.getElementById('mk-fecha').value.trim(),
+    grupo: document.getElementById('mk-grupo').value.trim(),
+    publicaciones: parseInt(document.getElementById('mk-pubs').value) || 0,
+    visualizaciones: parseInt(document.getElementById('mk-vis').value) || 0,
+    interacciones: parseInt(document.getElementById('mk-int').value) || 0,
+    comentarios: parseInt(document.getElementById('mk-com').value) || 0,
+    mensajes: parseInt(document.getElementById('mk-msj').value) || 0,
+    zona: document.getElementById('mk-zona').value.trim()
+  };
+  if (!data.fecha || !data.grupo) return alert('Fecha y Grupo son obligatorios.');
+
+  const rowIndex = document.getElementById('mk-row-index').value;
+  bootstrap.Modal.getInstance(document.getElementById('mkModal')).hide();
+
+  if (rowIndex) {
+    updateMarketingRow(rowIndex, data);
+  } else {
+    addMarketingRow(data);
+  }
+}
+
+function openDetailModal(row) {
+  const html = `
+    <div class="row g-3">
+      <div class="col-6 col-md-4"><div class="text-muted small">Fecha</div><div class="fw-medium">${row.fecha || '—'}</div></div>
+      <div class="col-6 col-md-4"><div class="text-muted small">Grupo</div><div class="fw-medium">${row.grupo || '—'}</div></div>
+      <div class="col-6 col-md-4"><div class="text-muted small">Publicaciones</div><div class="fw-medium">${row.publicaciones}</div></div>
+      <div class="col-6 col-md-4"><div class="text-muted small">Visualizaciones</div><div class="fw-medium">${row.visualizaciones}</div></div>
+      <div class="col-6 col-md-4"><div class="text-muted small">Interacciones</div><div class="fw-medium">${row.interacciones}</div></div>
+      <div class="col-6 col-md-4"><div class="text-muted small">Comentarios</div><div class="fw-medium">${row.comentarios}</div></div>
+      <div class="col-6 col-md-4"><div class="text-muted small">Mensajes</div><div class="fw-medium">${row.mensajes}</div></div>
+      <div class="col-6 col-md-4"><div class="text-muted small">Zona</div><div class="fw-medium">${row.zona || '—'}</div></div>
+    </div>`;
+
+  const footer = `
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+    <button type="button" class="btn btn-sm btn-action-primary" onclick="bootstrap.Modal.getInstance(document.getElementById('detailModal')).hide();openEditModal(${JSON.stringify(row).replace(/"/g,'&quot;')})">
+      <i class="bi bi-pencil-fill me-1"></i>Editar
+    </button>
+    <button type="button" class="btn btn-sm btn-outline-danger" onclick="if(confirm('¿Eliminar esta fila?')){bootstrap.Modal.getInstance(document.getElementById('detailModal')).hide();deleteMarketingRow(${row.rowIndex})}">
+      <i class="bi bi-trash3-fill me-1"></i>Eliminar
+    </button>`;
+
+  document.getElementById('detailModalLabel').innerHTML = '<i class="bi bi-eye me-2"></i>Detalle de Publicación';
+  document.getElementById('detailBody').innerHTML = html;
+  document.getElementById('detailFooter').innerHTML = footer;
+  new bootstrap.Modal(document.getElementById('detailModal')).show();
 }
 
 function initCharts(data) {
