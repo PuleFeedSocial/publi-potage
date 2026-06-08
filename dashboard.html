@@ -85,35 +85,45 @@
             </header>
 
             <div id="view-dashboard" class="view-section">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="text-muted small" id="data-source-badge">
+                            <i class="bi bi-database"></i> Google Sheets
+                        </span>
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="refreshMarketingData()" title="Recargar desde Google Sheets">
+                        <i class="bi bi-arrow-clockwise"></i> Recargar datos
+                    </button>
+                </div>
                 <div class="row row-cols-2 row-cols-md-3 row-cols-xl-5 g-3 g-md-4 mb-4" id="kpi-container">
                     <div class="col">
                         <div class="kpi-card">
                             <span class="kpi-title">Total Grupos</span>
-                            <span class="kpi-value text-dark">9</span>
+                            <span class="kpi-value text-dark" id="kpi-grupos">—</span>
                         </div>
                     </div>
                     <div class="col">
                         <div class="kpi-card">
-                            <span class="kpi-title">Publicaciones (7d)</span>
-                            <span class="kpi-value text-dark">17</span>
+                            <span class="kpi-title">Publicaciones</span>
+                            <span class="kpi-value text-dark" id="kpi-publicaciones">—</span>
                         </div>
                     </div>
                     <div class="col">
                         <div class="kpi-card">
                             <span class="kpi-title">Visualizaciones</span>
-                            <span class="kpi-value text-accent">1080</span>
+                            <span class="kpi-value text-accent" id="kpi-visualizaciones">—</span>
                         </div>
                     </div>
                     <div class="col">
                         <div class="kpi-card">
                             <span class="kpi-title">Interacciones</span>
-                            <span class="kpi-value text-success">238</span>
+                            <span class="kpi-value text-success" id="kpi-interacciones">—</span>
                         </div>
                     </div>
                     <div class="col">
                         <div class="kpi-card">
-                            <span class="kpi-title">Mensajes (7d)</span>
-                            <span class="kpi-value text-indigo">22</span>
+                            <span class="kpi-title">Mensajes</span>
+                            <span class="kpi-value text-indigo" id="kpi-mensajes">—</span>
                         </div>
                     </div>
                 </div>

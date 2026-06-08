@@ -96,30 +96,7 @@ function logout() {
 
 let currentRole = '';
 let chartsInstances = {};
-
-const localMarketingData = {
-  timeline: [
-    { fecha: '01/06/2026', publicaciones: 3, visualizaciones: 79, interacciones: 17, mensajes: 0 },
-    { fecha: '02/06/2026', publicaciones: 1, visualizaciones: 582, interacciones: 175, mensajes: 22 },
-    { fecha: '03/06/2026', publicaciones: 5, visualizaciones: 419, interacciones: 17, mensajes: 0 },
-    { fecha: '04/06/2026', publicaciones: 2, visualizaciones: 0, interacciones: 29, mensajes: 0 },
-    { fecha: '05/06/2026', publicaciones: 1, visualizaciones: 0, interacciones: 0, mensajes: 0 },
-    { fecha: '06/06/2026', publicaciones: 3, visualizaciones: 0, interacciones: 0, mensajes: 0 },
-    { fecha: '08/06/2026', publicaciones: 1, visualizaciones: 0, interacciones: 0, mensajes: 0 }
-  ],
-  tableRows: [
-    { fecha: '02/06/2026', grupo: 'Marketplace', pub: 1, vis: 582, int: 175, com: 0, msj: 22, zona: 'Todos' },
-    { fecha: '03/06/2026', grupo: 'Perfil Estandar', pub: 5, vis: 419, int: 17, com: 0, msj: 0, zona: 'Todos' },
-    { fecha: '04/06/2026', grupo: 'Compra y vende San Miguel', pub: 1, vis: 0, int: 29, com: 2, msj: 0, zona: 'San Miguel' },
-    { fecha: '06/06/2026', grupo: 'clasificados moreno,paso del rey, merlo,p', pub: 1, vis: 0, int: 0, com: 0, msj: 0, zona: 'San Miguel' },
-    { fecha: '06/06/2026', grupo: 'Clasificados de merlo', pub: 1, vis: 0, int: 0, com: 0, msj: 0, zona: 'Merlo' },
-    { fecha: '05/06/2026', grupo: 'MERLO NORTE CLASIFICADOS', pub: 1, vis: 0, int: 0, com: 0, msj: 0, zona: 'Merlo' },
-    { fecha: '03/06/2026', grupo: 'COMPRA Y VENTA SAN MIGUEL BS AS', pub: 2, vis: 0, int: 0, com: 0, msj: 0, zona: 'San Miguel' },
-    { fecha: '01/06/2026', grupo: 'Perfil Estandar', pub: 3, vis: 79, int: 17, com: 0, msj: 0, zona: 'Todos' },
-    { fecha: '04/06/2026', grupo: 'VENTAS Y CAMBIOS LAFERRERE', pub: 1, vis: 0, int: 0, com: 0, msj: 0, zona: 'Laferrere' },
-    { fecha: '08/06/2026', grupo: 'Cambios Merlo (zona oeste)', pub: 1, vis: 0, int: 0, com: 0, msj: 0, zona: 'Merlo' }
-  ]
-};
+let marketingData = [];
 
 function switchView(viewName) {
   if (viewName === 'users' && currentRole !== 'admin') {
@@ -143,38 +120,76 @@ function switchView(viewName) {
   }
 }
 
-function renderDashboard() {
-  const tbody = document.getElementById('marketing-table-body');
-  tbody.innerHTML = '';
-  localMarketingData.tableRows.forEach(row => {
-    let zClass = row.zona.toLowerCase().replace(/ /g, '-');
-    tbody.innerHTML += `
-      <tr>
-        <td class="fw-medium text-dark">${row.fecha}</td>
-        <td>${row.grupo}</td>
-        <td class="text-center">${row.pub}</td>
-        <td class="text-center fw-medium">${row.vis}</td>
-        <td class="text-center text-success fw-medium">${row.int}</td>
-        <td class="text-center">${row.com}</td>
-        <td class="text-center text-indigo fw-medium">${row.msj}</td>
-        <td><span class="badge-zone zone-${zClass}">${row.zona}</span></td>
-      </tr>`;
-  });
-  initCharts(localMarketingData.timeline);
+function loadMarketingData() {
+  fetch(API_BASE + '/api/marketing', {
+    headers: { 'Authorization': 'Bearer ' + getToken() }
+  })
+    .then(r => r.json())
+    .then(res => {
+      marketingData = res.data || [];
+      renderDashboard();
+    })
+    .catch(() => {
+      document.getElementById('marketing-table-body').innerHTML =
+        '<tr><td colspan="8" class="text-center text-muted">No se pudieron cargar los datos</td></tr>';
+    });
 }
 
-function initCharts(timeline) {
-  const labels = timeline.map(t => t.fecha.substring(0, 5));
+function refreshMarketingData() {
+  fetch(API_BASE + '/api/marketing/refresh', {
+    headers: { 'Authorization': 'Bearer ' + getToken() }
+  }).then(() => loadMarketingData()).catch(() => loadMarketingData());
+}
+
+function renderDashboard() {
+  const data = marketingData;
+  const grupos = [...new Set(data.map(r => r.grupo).filter(Boolean))];
+  const totalPubs = data.reduce((s, r) => s + r.publicaciones, 0);
+  const totalVis = data.reduce((s, r) => s + r.visualizaciones, 0);
+  const totalInt = data.reduce((s, r) => s + r.interacciones, 0);
+  const totalMsj = data.reduce((s, r) => s + r.mensajes, 0);
+  document.getElementById('kpi-grupos').innerText = grupos.length;
+  document.getElementById('kpi-publicaciones').innerText = totalPubs;
+  document.getElementById('kpi-visualizaciones').innerText = totalVis;
+  document.getElementById('kpi-interacciones').innerText = totalInt;
+  document.getElementById('kpi-mensajes').innerText = totalMsj;
+
+  const tbody = document.getElementById('marketing-table-body');
+  tbody.innerHTML = '';
+  data.forEach(row => {
+    let zClass = (row.zona || '').toLowerCase().replace(/ /g, '-');
+    tbody.innerHTML += `
+      <tr>
+        <td class="fw-medium text-dark">${row.fecha || ''}</td>
+        <td>${row.grupo || ''}</td>
+        <td class="text-center">${row.publicaciones}</td>
+        <td class="text-center fw-medium">${row.visualizaciones}</td>
+        <td class="text-center text-success fw-medium">${row.interacciones}</td>
+        <td class="text-center">${row.comentarios}</td>
+        <td class="text-center text-indigo fw-medium">${row.mensajes}</td>
+        <td><span class="badge-zone zone-${zClass}">${row.zona || ''}</span></td>
+      </tr>`;
+  });
+  initCharts(data);
+}
+
+function initCharts(data) {
+  const fechas = [...new Set(data.map(r => r.fecha).filter(Boolean))].sort();
+  const labels = fechas.map(f => f.substring(0, 5));
+  const pubs = fechas.map(f => data.filter(r => r.fecha === f).reduce((s, r) => s + r.publicaciones, 0));
+  const vis = fechas.map(f => data.filter(r => r.fecha === f).reduce((s, r) => s + r.visualizaciones, 0));
+  const ints = fechas.map(f => data.filter(r => r.fecha === f).reduce((s, r) => s + r.interacciones, 0));
+  const msjs = fechas.map(f => data.filter(r => r.fecha === f).reduce((s, r) => s + r.mensajes, 0));
 
   chartsInstances.pubs = new Chart(document.getElementById('chartPublicaciones'), {
     type: 'line',
-    data: { labels, datasets: [{ data: timeline.map(t => t.publicaciones), borderColor: '#0f172a', borderWidth: 2, tension: 0.3, pointRadius: 2, fill: false }] },
+    data: { labels, datasets: [{ data: pubs, borderColor: '#0f172a', borderWidth: 2, tension: 0.3, pointRadius: 2, fill: false }] },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
   });
 
   chartsInstances.ints = new Chart(document.getElementById('chartInteracciones'), {
     type: 'line',
-    data: { labels, datasets: [{ data: timeline.map(t => t.interacciones), borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.04)', borderWidth: 2, tension: 0.3, fill: true }] },
+    data: { labels, datasets: [{ data: ints, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.04)', borderWidth: 2, tension: 0.3, fill: true }] },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
   });
 
@@ -182,8 +197,8 @@ function initCharts(timeline) {
     type: 'bar',
     data: {
       labels, datasets: [
-        { label: 'Vis', data: timeline.map(t => t.visualizaciones), backgroundColor: '#93c5fd', borderRadius: 4 },
-        { label: 'Msj', data: timeline.map(t => t.mensajes), backgroundColor: '#6366f1', borderRadius: 4 }
+        { label: 'Vis', data: vis, backgroundColor: '#93c5fd', borderRadius: 4 },
+        { label: 'Msj', data: msjs, backgroundColor: '#6366f1', borderRadius: 4 }
       ]
     },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 10 } } } }
@@ -334,7 +349,7 @@ function enterApp(user) {
   badge.innerText = user.role === 'admin' ? 'Admin' : user.role;
   const isAdmin = user.role === 'admin' || user.role === 'Admin';
   document.getElementById('btn-nav-users').style.display = isAdmin ? '' : 'none';
-  renderDashboard();
+  loadMarketingData();
   if (isAdmin) {
     loadUsers();
   }

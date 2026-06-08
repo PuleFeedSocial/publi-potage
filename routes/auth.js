@@ -2,29 +2,10 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const getDb = require('../database');
+const { authenticate, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 const SECRET = process.env.JWT_SECRET || 'Potage_S3cr3t_K3y_2026';
-
-function authenticate(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Token requerido.' });
-  }
-  try {
-    req.user = jwt.verify(authHeader.split(' ')[1], SECRET);
-    next();
-  } catch {
-    return res.status(401).json({ error: 'Token inválido o expirado.' });
-  }
-}
-
-function requireAdmin(req, res, next) {
-  if (!req.user.role || req.user.role.toLowerCase() !== 'admin') {
-    return res.status(403).json({ error: 'Acceso denegado. Se requiere rol de administrador.' });
-  }
-  next();
-}
 
 router.post('/register', async (req, res) => {
   try {
