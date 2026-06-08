@@ -226,18 +226,59 @@ function deleteMarketingRow(rowIndex) {
   });
 }
 
+function populateSelects() {
+  const grupos = [...new Set(marketingData.map(r => r.grupo).filter(Boolean))];
+  const zonas = [...new Set(marketingData.map(r => r.zona).filter(Boolean))];
+
+  ['mk-grupo', 'mk-zona'].forEach(id => {
+    const sel = document.getElementById(id);
+    const current = sel.value;
+    sel.innerHTML = '<option value="">Seleccionar...</option>';
+    const items = id === 'mk-grupo' ? grupos : zonas;
+    items.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v;
+      opt.textContent = v;
+      sel.appendChild(opt);
+    });
+    const otro = document.createElement('option');
+    otro.value = '__otro__';
+    otro.textContent = 'Otro...';
+    sel.appendChild(otro);
+    sel.value = current;
+  });
+  toggleCustomInputs();
+}
+
+function toggleCustomInputs() {
+  ['mk-grupo', 'mk-zona'].forEach(id => {
+    const sel = document.getElementById(id);
+    const custom = document.getElementById(id + '-custom');
+    if (sel.value === '__otro__') {
+      custom.classList.remove('d-none');
+    } else {
+      custom.classList.add('d-none');
+    }
+  });
+}
+
 function openAddModal() {
   document.getElementById('mk-modal-title').innerHTML = '<i class="bi bi-plus-circle-fill me-2"></i>Agregar Publicación';
   document.getElementById('mk-row-index').value = '';
   document.getElementById('mk-fecha').value = '';
   document.getElementById('mk-grupo').value = '';
+  document.getElementById('mk-grupo-custom').value = '';
+  document.getElementById('mk-grupo-custom').classList.add('d-none');
   document.getElementById('mk-pubs').value = 0;
   document.getElementById('mk-vis').value = 0;
   document.getElementById('mk-int').value = 0;
   document.getElementById('mk-com').value = 0;
   document.getElementById('mk-msj').value = 0;
   document.getElementById('mk-zona').value = '';
+  document.getElementById('mk-zona-custom').value = '';
+  document.getElementById('mk-zona-custom').classList.add('d-none');
   document.getElementById('mk-delete-btn').classList.add('d-none');
+  populateSelects();
   new bootstrap.Modal(document.getElementById('mkModal')).show();
 }
 
@@ -247,31 +288,50 @@ function openEditModal(rowData) {
   document.getElementById('mk-modal-title').innerHTML = '<i class="bi bi-pencil-fill me-2"></i>Editar Publicación';
   document.getElementById('mk-row-index').value = row.rowIndex;
   document.getElementById('mk-fecha').value = row.fecha || '';
-  document.getElementById('mk-grupo').value = row.grupo || '';
   document.getElementById('mk-pubs').value = row.publicaciones;
   document.getElementById('mk-vis').value = row.visualizaciones;
   document.getElementById('mk-int').value = row.interacciones;
   document.getElementById('mk-com').value = row.comentarios;
   document.getElementById('mk-msj').value = row.mensajes;
-  document.getElementById('mk-zona').value = row.zona || '';
   document.getElementById('mk-delete-btn').classList.remove('d-none');
   document.getElementById('mk-delete-btn').onclick = () => {
     bootstrap.Modal.getInstance(document.getElementById('mkModal')).hide();
     deleteMarketingRow(row.rowIndex);
   };
+  populateSelects();
+  if (row.grupo && ![...document.getElementById('mk-grupo').options].some(o => o.value === row.grupo)) {
+    document.getElementById('mk-grupo').value = '__otro__';
+    document.getElementById('mk-grupo-custom').value = row.grupo;
+  } else {
+    document.getElementById('mk-grupo').value = row.grupo || '';
+  }
+  if (row.zona && ![...document.getElementById('mk-zona').options].some(o => o.value === row.zona)) {
+    document.getElementById('mk-zona').value = '__otro__';
+    document.getElementById('mk-zona-custom').value = row.zona;
+  } else {
+    document.getElementById('mk-zona').value = row.zona || '';
+  }
+  toggleCustomInputs();
   new bootstrap.Modal(document.getElementById('mkModal')).show();
+}
+
+function mkFieldValue(id) {
+  const sel = document.getElementById(id);
+  const custom = document.getElementById(id + '-custom');
+  if (sel.value === '__otro__') return custom.value.trim();
+  return sel.value;
 }
 
 function saveMarketingRow() {
   const data = {
     fecha: document.getElementById('mk-fecha').value.trim(),
-    grupo: document.getElementById('mk-grupo').value.trim(),
+    grupo: mkFieldValue('mk-grupo'),
     publicaciones: parseInt(document.getElementById('mk-pubs').value) || 0,
     visualizaciones: parseInt(document.getElementById('mk-vis').value) || 0,
     interacciones: parseInt(document.getElementById('mk-int').value) || 0,
     comentarios: parseInt(document.getElementById('mk-com').value) || 0,
     mensajes: parseInt(document.getElementById('mk-msj').value) || 0,
-    zona: document.getElementById('mk-zona').value.trim()
+    zona: mkFieldValue('mk-zona')
   };
   if (!data.fecha || !data.grupo) return alert('Fecha y Grupo son obligatorios.');
 

@@ -324,9 +324,11 @@
                             <input type="text" id="mk-fecha" class="form-control custom-input" placeholder="01/06/2026">
                         </div>
                         <div class="col-6">
-                            <label class="form-label small fw-medium text-secondary">Grupo</label>
-                            <input type="text" id="mk-grupo" class="form-control custom-input"
-                                placeholder="Marketplace">
+                            <label class="form-label small fw-medium text-secondary">Grupo / Canal</label>
+                            <select id="mk-grupo" class="form-select custom-input" onchange="toggleCustomInputs()">
+                                <option value="">Seleccionar...</option>
+                            </select>
+                            <input type="text" id="mk-grupo-custom" class="form-control custom-input d-none mt-1" placeholder="Nuevo grupo...">
                         </div>
                         <div class="col-6 col-md-4">
                             <label class="form-label small fw-medium text-secondary">Publicaciones</label>
@@ -350,7 +352,10 @@
                         </div>
                         <div class="col-6 col-md-4">
                             <label class="form-label small fw-medium text-secondary">Zona</label>
-                            <input type="text" id="mk-zona" class="form-control custom-input" placeholder="Todos">
+                            <select id="mk-zona" class="form-select custom-input" onchange="toggleCustomInputs()">
+                                <option value="">Seleccionar...</option>
+                            </select>
+                            <input type="text" id="mk-zona-custom" class="form-control custom-input d-none mt-1" placeholder="Nueva zona...">
                         </div>
                     </div>
                 </div>
