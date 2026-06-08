@@ -31,7 +31,9 @@ async function runSeed() {
 
   const codes = ['111111', '222222', '333333', '444444', '555555'];
   for (const code of codes) {
-    await db.run('INSERT INTO activation_codes (code) VALUES (?)', [code]);
+    try {
+      await db.run('INSERT INTO activation_codes (code) VALUES (?)', [code]);
+    } catch { }
   }
 
   console.log('Seed completado: admin + 5 códigos de activación creados.');
