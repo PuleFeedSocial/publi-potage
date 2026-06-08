@@ -168,10 +168,15 @@ function renderDashboard() {
 
   const tbody = document.getElementById('marketing-table-body');
   tbody.innerHTML = '';
-  data.forEach(row => {
+  data.forEach((row, idx) => {
     let zClass = (row.zona || '').toLowerCase().replace(/ /g, '-');
-    tbody.innerHTML += `
-      <tr onclick='openDetailModal(${encodeURIComponent(JSON.stringify(row))})' style="cursor:pointer;">
+    const tr = document.createElement('tr');
+    tr.style.cursor = 'pointer';
+    tr.dataset.row = JSON.stringify(row);
+    tr.addEventListener('click', function() {
+      openDetailModal(JSON.parse(this.dataset.row));
+    });
+    tr.innerHTML = `
         <td class="fw-medium text-dark">${row.fecha || ''}</td>
         <td>${row.grupo || ''}</td>
         <td class="text-center">${row.publicaciones}</td>
@@ -179,8 +184,8 @@ function renderDashboard() {
         <td class="text-center text-success fw-medium">${row.interacciones}</td>
         <td class="text-center">${row.comentarios}</td>
         <td class="text-center text-indigo fw-medium">${row.mensajes}</td>
-        <td><span class="badge-zone zone-${zClass}">${row.zona || ''}</span></td>
-      </tr>`;
+        <td><span class="badge-zone zone-${zClass}">${row.zona || ''}</span></td>`;
+    tbody.appendChild(tr);
   });
   initCharts(data);
 }
@@ -297,7 +302,7 @@ function openDetailModal(rowData) {
 
   const footer = `
     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
-    <button type="button" class="btn btn-sm btn-action-primary" onclick="bootstrap.Modal.getInstance(document.getElementById('detailModal')).hide();openEditModal('${encodeURIComponent(JSON.stringify(row))}')">
+    <button type="button" class="btn btn-sm btn-action-primary" id="detail-edit-btn">
       <i class="bi bi-pencil-fill me-1"></i>Editar
     </button>
     <button type="button" class="btn btn-sm btn-outline-danger" onclick="if(confirm('¿Eliminar esta fila?')){bootstrap.Modal.getInstance(document.getElementById('detailModal')).hide();deleteMarketingRow(${row.rowIndex})}">
@@ -307,6 +312,10 @@ function openDetailModal(rowData) {
   document.getElementById('detailModalLabel').innerHTML = '<i class="bi bi-eye me-2"></i>Detalle de Publicación';
   document.getElementById('detailBody').innerHTML = html;
   document.getElementById('detailFooter').innerHTML = footer;
+  document.getElementById('detail-edit-btn').onclick = function() {
+    bootstrap.Modal.getInstance(document.getElementById('detailModal')).hide();
+    openEditModal(row);
+  };
   new bootstrap.Modal(document.getElementById('detailModal')).show();
 }
 
