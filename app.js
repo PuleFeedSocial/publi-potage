@@ -659,10 +659,12 @@ function renderGrupos() {
   const tbody = document.getElementById('grupos-table-body');
   if (!tbody) return;
   tbody.innerHTML = '';
-  gruposData.forEach(g => {
+  gruposData.forEach((g, i) => {
     const enlaceDisplay = g.enlace ? `<a href="${g.enlace}" target="_blank" class="small text-muted">${g.enlace.substring(0, 40)}...</a>` : '—';
-    tbody.innerHTML += `
-      <tr>
+    const tr = document.createElement('tr');
+    tr.style.animation = `fadeSlideUp 0.3s ease-out forwards`;
+    tr.style.animationDelay = (i * 0.04) + 's';
+    tr.innerHTML = `
         <td class="fw-medium text-dark">${g.nombre}</td>
         <td class="small">${enlaceDisplay}</td>
         <td><span class="badge-zone zone-${(g.zona||'').toLowerCase().replace(/ /g,'-')}">${g.zona || '—'}</span></td>
@@ -673,8 +675,8 @@ function renderGrupos() {
           <button class="btn btn-sm btn-link text-danger p-0" onclick="deleteGrupo(${g.rowIndex})" title="Eliminar">
             <i class="bi bi-trash3-fill"></i>
           </button>
-        </td>
-      </tr>`;
+        </td>`;
+    tbody.appendChild(tr);
   });
 }
 

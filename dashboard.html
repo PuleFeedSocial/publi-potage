@@ -424,19 +424,19 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body pt-3">
-                    <form id="grupo-form" class="row g-2 mb-4 p-3 bg-light rounded" onsubmit="saveGrupo(event)">
+                    <form id="grupo-form" class="row g-2 mb-4 p-3 grupo-form-inline" onsubmit="saveGrupo(event)">
                         <input type="hidden" id="grupo-row-index">
                         <div class="col-12 col-md-4">
                             <label class="form-label small fw-medium text-secondary">Nombre del Grupo</label>
-                            <input type="text" id="grupo-nombre" class="form-control custom-input" required>
+                            <input type="text" id="grupo-nombre" class="form-control" required>
                         </div>
                         <div class="col-12 col-md-4">
                             <label class="form-label small fw-medium text-secondary">Enlace</label>
-                            <input type="url" id="grupo-enlace" class="form-control custom-input" placeholder="https://facebook.com/groups/...">
+                            <input type="url" id="grupo-enlace" class="form-control" placeholder="https://facebook.com/groups/...">
                         </div>
                         <div class="col-12 col-md-4">
                             <label class="form-label small fw-medium text-secondary">Zona</label>
-                            <input type="text" id="grupo-zona" class="form-control custom-input" placeholder="Laferrere">
+                            <input type="text" id="grupo-zona" class="form-control" placeholder="Laferrere">
                         </div>
                         <div class="col-12 mt-2 d-flex gap-2">
                             <button type="submit" class="btn btn-sm btn-action-primary" id="grupo-save-btn">

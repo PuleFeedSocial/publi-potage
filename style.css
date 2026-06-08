@@ -352,6 +352,143 @@ body {
     border-radius: var(--radius-lg) !important;
     box-shadow: var(--shadow-sm);
     background: var(--bg-card);
+    opacity: 0;
+    animation: fadeSlideUp 0.5s ease-out forwards;
+    animation-delay: 0.25s;
+    transition: box-shadow 0.3s ease;
+}
+
+.filter-card:hover {
+    box-shadow: var(--shadow-hover);
+}
+
+.filter-card .form-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.filter-card .input-group-sm .form-control,
+.filter-card .input-group-sm .btn {
+    border-radius: 8px;
+}
+
+.filter-card .input-group-sm .form-control {
+    border: 1px solid var(--border-color);
+    background: #f8fafc;
+    font-size: 0.85rem;
+    padding: 6px 12px;
+    transition: var(--transition-smooth);
+}
+
+.filter-card .input-group-sm .form-control:focus {
+    background: #fff;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
+    outline: none;
+}
+
+.filter-card .input-group-sm .btn {
+    border: 1px solid var(--border-color);
+    background: #f8fafc;
+    color: var(--text-muted);
+    padding: 6px 10px;
+    transition: var(--transition-smooth);
+}
+
+.filter-card .input-group-sm .btn:hover {
+    background: var(--primary-color);
+    color: #fff;
+    border-color: var(--primary-color);
+}
+
+.filter-card .form-select-sm {
+    border: 1px solid var(--border-color);
+    background: #f8fafc url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e") no-repeat right 10px center/12px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    padding: 6px 30px 6px 12px;
+    transition: var(--transition-smooth);
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.filter-card .form-select-sm:focus {
+    background-color: #fff;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
+    outline: none;
+}
+
+.filter-card .form-select-sm:hover {
+    border-color: var(--accent-color);
+}
+
+#results-count {
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.grupo-form-inline {
+    background: #f8fafc;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    transition: var(--transition-smooth);
+}
+
+.grupo-form-inline:focus-within {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.06);
+}
+
+.grupo-form-inline .form-control,
+.grupo-form-inline .form-select {
+    border: 1px solid var(--border-color);
+    background: #fff;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    padding: 8px 12px;
+    transition: var(--transition-smooth);
+}
+
+.grupo-form-inline .form-control:focus,
+.grupo-form-inline .form-select:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
+    outline: none;
+}
+
+#grupos-table-body tr {
+    transition: background 0.2s ease;
+}
+
+#grupos-table-body tr:hover {
+    background: #f8fafc;
+}
+
+#grupos-table-body .btn-link {
+    text-decoration: none;
+    padding: 4px 6px !important;
+    border-radius: 6px;
+    transition: var(--transition-smooth);
+    font-size: 0.85rem;
+}
+
+#grupos-table-body .btn-link:hover {
+    background: var(--border-color);
+    transform: translateY(-1px);
+}
+
+#grupos-table-body .btn-link.text-danger:hover {
+    background: #fef2f2;
+}
+
+#grupos-table-body .btn-link.text-primary:hover {
+    background: #eff6ff;
 }
 
 .data-table-card {
