@@ -289,12 +289,15 @@ body {
     background: var(--bg-card);
     border: none;
     border-radius: var(--radius-lg);
-    padding: 24px;
+    padding: 24px 28px;
     box-shadow: var(--shadow-sm);
     transition: var(--transition-smooth);
     height: 100%;
     min-width: 0;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .kpi-card:hover {
@@ -1074,6 +1077,15 @@ body {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
         gap: 12px;
+        margin-left: 0;
+        margin-right: 0;
+        width: 100%;
+    }
+
+    #kpi-container .col {
+        padding-left: 0;
+        padding-right: 0;
+        min-width: 0;
     }
 
     /* Si tienes un número impar de KPIs (como 5), la última tarjeta ocupa el ancho completo para balancear */
@@ -1082,10 +1094,11 @@ body {
     }
 
     .kpi-card {
-        padding: 16px 12px;
+        padding: 16px 16px;
         display: flex;
         flex-direction: column;
         justify-content: center;
+        min-width: 0;
     }
 
     .kpi-title {
