@@ -159,7 +159,7 @@ function renderDashboard() {
   data.forEach(row => {
     let zClass = (row.zona || '').toLowerCase().replace(/ /g, '-');
     tbody.innerHTML += `
-      <tr onclick="openDetailModal(${JSON.stringify(row).replace(/"/g,'&quot;')})" style="cursor:pointer;">
+      <tr onclick='openDetailModal(${encodeURIComponent(JSON.stringify(row))})' style="cursor:pointer;">
         <td class="fw-medium text-dark">${row.fecha || ''}</td>
         <td>${row.grupo || ''}</td>
         <td class="text-center">${row.publicaciones}</td>
@@ -210,15 +210,24 @@ function deleteMarketingRow(rowIndex) {
 }
 
 function openAddModal() {
-  document.getElementById('mk-modal-title').innerText = 'Agregar Publicación';
-  document.getElementById('mk-form').reset();
+  document.getElementById('mk-modal-title').innerHTML = '<i class="bi bi-plus-circle-fill me-2"></i>Agregar Publicación';
   document.getElementById('mk-row-index').value = '';
+  document.getElementById('mk-fecha').value = '';
+  document.getElementById('mk-grupo').value = '';
+  document.getElementById('mk-pubs').value = 0;
+  document.getElementById('mk-vis').value = 0;
+  document.getElementById('mk-int').value = 0;
+  document.getElementById('mk-com').value = 0;
+  document.getElementById('mk-msj').value = 0;
+  document.getElementById('mk-zona').value = '';
   document.getElementById('mk-delete-btn').classList.add('d-none');
   new bootstrap.Modal(document.getElementById('mkModal')).show();
 }
 
-function openEditModal(row) {
-  document.getElementById('mk-modal-title').innerText = 'Editar Publicación';
+function openEditModal(rowData) {
+  if (typeof rowData === 'string') rowData = JSON.parse(decodeURIComponent(rowData));
+  const row = rowData;
+  document.getElementById('mk-modal-title').innerHTML = '<i class="bi bi-pencil-fill me-2"></i>Editar Publicación';
   document.getElementById('mk-row-index').value = row.rowIndex;
   document.getElementById('mk-fecha').value = row.fecha || '';
   document.getElementById('mk-grupo').value = row.grupo || '';
@@ -250,7 +259,7 @@ function saveMarketingRow() {
   if (!data.fecha || !data.grupo) return alert('Fecha y Grupo son obligatorios.');
 
   const rowIndex = document.getElementById('mk-row-index').value;
-  bootstrap.Modal.getInstance(document.getElementById('mkModal')).hide();
+  try { bootstrap.Modal.getInstance(document.getElementById('mkModal')).hide(); } catch {}
 
   if (rowIndex) {
     updateMarketingRow(rowIndex, data);
@@ -259,7 +268,9 @@ function saveMarketingRow() {
   }
 }
 
-function openDetailModal(row) {
+function openDetailModal(rowData) {
+  if (typeof rowData === 'string') rowData = JSON.parse(decodeURIComponent(rowData));
+  const row = rowData;
   const html = `
     <div class="row g-3">
       <div class="col-6 col-md-4"><div class="text-muted small">Fecha</div><div class="fw-medium">${row.fecha || '—'}</div></div>
@@ -274,7 +285,7 @@ function openDetailModal(row) {
 
   const footer = `
     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
-    <button type="button" class="btn btn-sm btn-action-primary" onclick="bootstrap.Modal.getInstance(document.getElementById('detailModal')).hide();openEditModal(${JSON.stringify(row).replace(/"/g,'&quot;')})">
+    <button type="button" class="btn btn-sm btn-action-primary" onclick="bootstrap.Modal.getInstance(document.getElementById('detailModal')).hide();openEditModal('${encodeURIComponent(JSON.stringify(row))}')">
       <i class="bi bi-pencil-fill me-1"></i>Editar
     </button>
     <button type="button" class="btn btn-sm btn-outline-danger" onclick="if(confirm('¿Eliminar esta fila?')){bootstrap.Modal.getInstance(document.getElementById('detailModal')).hide();deleteMarketingRow(${row.rowIndex})}">
