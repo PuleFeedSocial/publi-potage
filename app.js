@@ -311,6 +311,8 @@ function openDetailModal(rowData) {
 }
 
 function initCharts(data) {
+  Object.values(chartsInstances).forEach(c => { try { c.destroy(); } catch {} });
+  chartsInstances = {};
   const fechas = [...new Set(data.map(r => r.fecha).filter(Boolean))].sort();
   const labels = fechas.map(f => f.substring(0, 5));
   const pubs = fechas.map(f => data.filter(r => r.fecha === f).reduce((s, r) => s + r.publicaciones, 0));
