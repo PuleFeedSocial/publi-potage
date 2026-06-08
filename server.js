@@ -20,7 +20,7 @@ app.use('/api/auth', authRoutes);
 async function runSeed() {
   const db = await getDb();
 
-  const existing = await db.get('SELECT id FROM users WHERE role = ?', ['admin']);
+  const existing = await db.get('SELECT id FROM users WHERE email = ?', ['admin@potage.com']);
   if (existing) return;
 
   const adminEmail = 'admin@potage.com';
