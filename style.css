@@ -62,16 +62,16 @@ body {
    SIDEBAR
    ============================================================ */
 .app-container {
-    display: flex;
+    position: relative;
     min-height: 100vh;
 }
 
 .sidebar {
-    position: fixed;
+    position: absolute;
     top: 0;
     left: 0;
+    bottom: 0;
     width: var(--sidebar-width);
-    height: 100vh;
     background: var(--bg-sidebar);
     padding: 32px 24px;
     z-index: 1000;
@@ -79,6 +79,7 @@ body {
     display: flex;
     flex-direction: column;
     transition: transform 0.3s ease;
+    overflow-y: auto;
 }
 
 .sidebar-header {
@@ -451,6 +452,24 @@ body {
 #results-count {
     font-weight: 500;
     transition: all 0.3s ease;
+}
+
+.filter-period {
+    font-size: 0.75rem !important;
+    padding: 4px 8px !important;
+    border-radius: 6px !important;
+    font-weight: 500 !important;
+}
+
+.filter-period.active {
+    background: var(--primary-color) !important;
+    color: #fff !important;
+    border-color: var(--primary-color) !important;
+}
+
+.filter-period:hover:not(.active) {
+    border-color: var(--primary-color) !important;
+    color: var(--primary-color) !important;
 }
 
 .grupo-form-inline {

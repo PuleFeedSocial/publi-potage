@@ -98,6 +98,7 @@ let currentRole = '';
 let chartsInstances = {};
 let marketingData = [];
 let gruposData = [];
+let filterPeriod = 'all';
 
 function switchView(viewName) {
   if (viewName === 'users' && currentRole !== 'admin') {
@@ -226,6 +227,22 @@ function populateFilterDropdowns() {
   }
 }
 
+function parseDate(str) {
+  if (!str) return null;
+  const parts = str.split('/');
+  if (parts.length !== 3) return null;
+  const d = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function setPeriod(days) {
+  filterPeriod = days;
+  document.querySelectorAll('.filter-period').forEach(b => {
+    b.classList.toggle('active', b.dataset.period === days);
+  });
+  applyFilters();
+}
+
 function applyFilters() {
   const search = (document.getElementById('filter-search').value || '').toLowerCase();
   const grupo = document.getElementById('filter-grupo').value;
@@ -239,6 +256,16 @@ function applyFilters() {
   if (grupo) filtered = filtered.filter(r => r.grupo === grupo);
   if (zona) filtered = filtered.filter(r => r.zona === zona);
   if (fecha) filtered = filtered.filter(r => r.fecha === fecha);
+
+  if (filterPeriod && filterPeriod !== 'all') {
+    const now = new Date();
+    const limit = new Date(now);
+    limit.setDate(limit.getDate() - parseInt(filterPeriod));
+    filtered = filtered.filter(r => {
+      const d = parseDate(r.fecha);
+      return d && d >= limit;
+    });
+  }
 
   renderDashboard(filtered);
   const countEl = document.getElementById('results-count');
@@ -254,7 +281,13 @@ function clearFilters() {
   document.getElementById('filter-grupo').value = '';
   document.getElementById('filter-zona').value = '';
   document.getElementById('filter-fecha').value = '';
+  filterPeriod = 'all';
+  document.querySelectorAll('.filter-period').forEach(b => {
+    b.classList.toggle('active', b.dataset.period === 'all');
+  });
   renderDashboard(marketingData);
+  const countEl = document.getElementById('results-count');
+  if (countEl) countEl.innerText = marketingData.length + ' resultados';
 }
 
 function marketingFetch(method, body) {

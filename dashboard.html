@@ -166,7 +166,7 @@
                 <div class="card filter-card mb-3">
                     <div class="card-body py-2">
                         <div class="row g-2 align-items-end">
-                            <div class="col-12 col-md-4">
+                            <div class="col-12 col-md-3">
                                 <label class="form-label small mb-1 text-secondary">Buscar</label>
                                 <div class="input-group input-group-sm">
                                     <input type="text" class="form-control" id="filter-search" placeholder="Buscar en toda la tabla..."
@@ -179,20 +179,28 @@
                                     </button>
                                 </div>
                             </div>
-                            <div class="col-6 col-md-3">
+                            <div class="col-6 col-md-2">
                                 <label class="form-label small mb-1 text-secondary">Grupo</label>
                                 <select class="form-select form-select-sm" id="filter-grupo" onchange="applyFilters()">
                                     <option value="">Todos</option>
                                 </select>
                             </div>
-                            <div class="col-6 col-md-3">
+                            <div class="col-6 col-md-2">
                                 <label class="form-label small mb-1 text-secondary">Zona</label>
                                 <select class="form-select form-select-sm" id="filter-zona" onchange="applyFilters()">
                                     <option value="">Todas</option>
                                 </select>
                             </div>
                             <div class="col-6 col-md-2">
-                                <label class="form-label small mb-1 text-secondary">Fecha</label>
+                                <label class="form-label small mb-1 text-secondary">Período</label>
+                                <div class="btn-group btn-group-sm w-100" role="group">
+                                    <button type="button" class="btn btn-outline-secondary filter-period active" data-period="all" onclick="setPeriod('all')">Todo</button>
+                                    <button type="button" class="btn btn-outline-secondary filter-period" data-period="7" onclick="setPeriod('7')">7d</button>
+                                    <button type="button" class="btn btn-outline-secondary filter-period" data-period="30" onclick="setPeriod('30')">30d</button>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-2">
+                                <label class="form-label small mb-1 text-secondary">Fecha exacta</label>
                                 <input type="text" class="form-control form-control-sm" id="filter-fecha" placeholder="dd/mm/aaaa"
                                     onchange="applyFilters()" onkeydown="if(event.key==='Enter')applyFilters()">
                             </div>
