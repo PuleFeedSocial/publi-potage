@@ -263,6 +263,11 @@ body {
 #kpi-container .col {
     opacity: 0;
     animation: fadeSlideUp 0.5s ease-out forwards;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    /* Quitamos el relleno de Bootstrap porque ya usamos 'gap' en el grid */
+    min-width: 0;
 }
 
 #kpi-container .col:nth-child(1) {
