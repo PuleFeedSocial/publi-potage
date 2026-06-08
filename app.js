@@ -121,17 +121,26 @@ function switchView(viewName) {
 }
 
 function loadMarketingData() {
+  const tbody = document.getElementById('marketing-table-body');
+  tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Cargando...</td></tr>';
+
   fetch(API_BASE + '/api/marketing', {
     headers: { 'Authorization': 'Bearer ' + getToken() }
   })
-    .then(r => r.json())
-    .then(res => {
-      marketingData = res.data || [];
+    .then(r => r.json().then(body => ({ status: r.status, body })))
+    .then(({ status, body }) => {
+      if (status !== 200) {
+        const msg = body.error || 'Error al cargar datos';
+        document.getElementById('data-source-badge').innerHTML = '<i class="bi bi-exclamation-triangle text-danger"></i> ' + msg;
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">' + msg + '</td></tr>';
+        return;
+      }
+      marketingData = body.data || [];
+      document.getElementById('data-source-badge').innerHTML = '<i class="bi bi-database"></i> Google Sheets';
       renderDashboard();
     })
     .catch(() => {
-      document.getElementById('marketing-table-body').innerHTML =
-        '<tr><td colspan="8" class="text-center text-muted">No se pudieron cargar los datos</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Error de conexión con el servidor</td></tr>';
     });
 }
 
