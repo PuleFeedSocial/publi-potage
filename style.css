@@ -347,6 +347,13 @@ body {
     width: 100%;
 }
 
+.filter-card {
+    border: none !important;
+    border-radius: var(--radius-lg) !important;
+    box-shadow: var(--shadow-sm);
+    background: var(--bg-card);
+}
+
 .data-table-card {
     border: none !important;
     border-radius: var(--radius-lg) !important;

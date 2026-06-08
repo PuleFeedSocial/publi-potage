@@ -141,7 +141,8 @@ function loadMarketingData() {
       }
       marketingData = body.data || [];
       document.getElementById('data-source-badge').innerHTML = '<i class="bi bi-database"></i> Google Sheets';
-      renderDashboard();
+      populateFilterDropdowns();
+      applyFilters();
     })
     .catch((err) => {
       tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Error de red: ' + (err.message || 'desconocido') + '</td></tr>';
@@ -154,8 +155,8 @@ function refreshMarketingData() {
   }).then(() => loadMarketingData()).catch(() => loadMarketingData());
 }
 
-function renderDashboard() {
-  const data = marketingData;
+function renderDashboard(data) {
+  data = data || marketingData;
   const grupos = [...new Set(data.map(r => r.grupo).filter(Boolean))];
   const totalPubs = data.reduce((s, r) => s + r.publicaciones, 0);
   const totalVis = data.reduce((s, r) => s + r.visualizaciones, 0);
@@ -189,6 +190,71 @@ function renderDashboard() {
     tbody.appendChild(tr);
   });
   initCharts(data);
+}
+
+function populateFilterDropdowns() {
+  const grupos = [...new Set(marketingData.map(r => r.grupo).filter(Boolean))];
+  const zonas = [...new Set(marketingData.map(r => r.zona).filter(Boolean))];
+
+  const selGrupo = document.getElementById('filter-grupo');
+  if (selGrupo) {
+    const current = selGrupo.value;
+    selGrupo.innerHTML = '<option value="">Todos</option>';
+    grupos.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v; opt.textContent = v;
+      selGrupo.appendChild(opt);
+    });
+    selGrupo.value = current;
+  }
+
+  const selZona = document.getElementById('filter-zona');
+  if (selZona) {
+    const current = selZona.value;
+    selZona.innerHTML = '<option value="">Todas</option>';
+    zonas.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v; opt.textContent = v;
+      selZona.appendChild(opt);
+    });
+    selZona.value = current;
+  }
+
+  const filterFecha = document.getElementById('filter-fecha');
+  if (filterFecha && filterFecha.value && !marketingData.some(r => r.fecha === filterFecha.value)) {
+    filterFecha.value = '';
+  }
+}
+
+function applyFilters() {
+  const search = (document.getElementById('filter-search').value || '').toLowerCase();
+  const grupo = document.getElementById('filter-grupo').value;
+  const zona = document.getElementById('filter-zona').value;
+  const fecha = document.getElementById('filter-fecha').value;
+
+  let filtered = marketingData;
+  if (search) {
+    filtered = filtered.filter(r => Object.values(r).some(v => String(v).toLowerCase().includes(search)));
+  }
+  if (grupo) filtered = filtered.filter(r => r.grupo === grupo);
+  if (zona) filtered = filtered.filter(r => r.zona === zona);
+  if (fecha) filtered = filtered.filter(r => r.fecha === fecha);
+
+  renderDashboard(filtered);
+  const countEl = document.getElementById('results-count');
+  if (countEl) {
+    const total = marketingData.length;
+    const showing = filtered.length;
+    countEl.innerText = showing === total ? total + ' resultados' : showing + ' de ' + total + ' resultados';
+  }
+}
+
+function clearFilters() {
+  document.getElementById('filter-search').value = '';
+  document.getElementById('filter-grupo').value = '';
+  document.getElementById('filter-zona').value = '';
+  document.getElementById('filter-fecha').value = '';
+  renderDashboard(marketingData);
 }
 
 function marketingFetch(method, body) {
