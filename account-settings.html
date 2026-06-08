@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ajustes de Cuenta — Potage SRL</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="app-container">
+        <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="logo-box">
+                        <i class="bi bi-layers-half text-dark fs-4"></i>
+                        <span class="logo-text">Potage SRL</span>
+                    </div>
+                    <button class="sidebar-toggle" onclick="toggleSidebar()">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+            </div>
+
+            <nav class="sidebar-menu">
+                <a href="dashboard.html" class="menu-item" id="btn-nav-dashboard">
+                    <i class="bi bi-grid-1x2-fill"></i>
+                    <span>Dashboard Mkt</span>
+                </a>
+                <a href="dashboard.html" class="menu-item" id="btn-nav-users" onclick="localStorage.setItem('navTarget','users');window.location='dashboard.html'">
+                    <i class="bi bi-people-fill"></i>
+                    <span>Gestión Usuarios</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-profile-summary">
+                    <div class="avatar" id="display-avatar">VA</div>
+                    <div class="user-info">
+                        <div class="user-name" id="display-user-name">Víctor Alejandro</div>
+                        <div class="user-role-badge badge-admin" id="display-user-role">Admin</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-navbar">
+                <div class="d-flex align-items-center gap-3">
+                    <button class="sidebar-toggle" onclick="toggleSidebar()">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <div class="page-context">
+                        <h1 class="page-title">Ajustes de la Cuenta</h1>
+                    <p class="page-subtitle text-muted">Gestioná tu información personal y contraseña</p>
+                </div>
+                </div>
+                <div class="top-navbar-actions">
+                    <div class="dropdown">
+                        <button class="btn profile-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="avatar-sm" id="nav-avatar">VA</span>
+                            <span class="fw-medium" id="nav-user-name">Víctor</span>
+                            <i class="bi bi-chevron-down ms-1"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 mt-2">
+                            <li><a class="dropdown-item" href="account-settings.html">
+                                <i class="bi bi-gear me-2"></i>Ajustes de la cuenta
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="#" onclick="logout()">
+                                <i class="bi bi-box-arrow-right me-2"></i>Cerrar Sesión
+                            </a></li>
+                        </ul>
+                    </div>
+                </div>
+            </header>
+
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="card data-table-card h-100">
+                        <div class="card-header-clean">
+                            <h5 class="table-card-title">Datos de la Cuenta</h5>
+                            <span class="text-muted small">Información de tu perfil</span>
+                        </div>
+                        <div class="card-body p-4">
+                            <div class="mb-3">
+                                <label class="form-label small fw-medium text-secondary">Nombre Completo</label>
+                                <input type="text" id="settings-name" class="form-control custom-input" disabled>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-medium text-secondary">Correo Electrónico</label>
+                                <input type="email" id="settings-email" class="form-control custom-input" disabled>
+                            </div>
+                            <div class="mb-0">
+                                <label class="form-label small fw-medium text-secondary">Rol Asignado</label>
+                                <input type="text" id="settings-role" class="form-control custom-input" disabled>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card data-table-card h-100">
+                        <div class="card-header-clean">
+                            <h5 class="table-card-title">Cambiar Contraseña</h5>
+                            <span class="text-muted small">Actualizá tu clave de acceso</span>
+                        </div>
+                        <div class="card-body p-4">
+                            <form id="change-password-form" onsubmit="handleChangePassword(event)">
+                                <div class="mb-3">
+                                    <label class="form-label small fw-medium text-secondary">Contraseña Actual</label>
+                                    <div class="input-group">
+                                        <input type="password" id="current-password" class="form-control custom-input" required minlength="6">
+                                        <button class="btn btn-outline-secondary password-toggle" type="button" onclick="togglePassword('current-password', this)">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small fw-medium text-secondary">Nueva Contraseña</label>
+                                    <div class="input-group">
+                                        <input type="password" id="new-password" class="form-control custom-input" required minlength="6">
+                                        <button class="btn btn-outline-secondary password-toggle" type="button" onclick="togglePassword('new-password', this)">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="mb-4">
+                                    <label class="form-label small fw-medium text-secondary">Confirmar Nueva Contraseña</label>
+                                    <div class="input-group">
+                                        <input type="password" id="confirm-password" class="form-control custom-input" required minlength="6">
+                                        <button class="btn btn-outline-secondary password-toggle" type="button" onclick="togglePassword('confirm-password', this)">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-action-primary w-100">
+                                    <i class="bi bi-check-lg me-1"></i> Actualizar Contraseña
+                                </button>
+                            </form>
+                            <div id="password-feedback" class="mt-3 small d-none"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="app.js"></script>
+    <script>
+        function toggleSidebar() {
+            document.querySelector('.sidebar').classList.toggle('open');
+            document.querySelector('.sidebar-overlay').classList.toggle('show');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const session = getCurrentSession();
+            if (!session) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const initials = session.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+            document.getElementById('display-avatar').innerText = initials;
+            document.getElementById('display-user-name').innerText = session.name;
+            document.getElementById('nav-avatar').innerText = initials;
+            document.getElementById('nav-user-name').innerText = session.name.split(' ')[0];
+            currentRole = session.role;
+            const badge = document.getElementById('display-user-role');
+            const isAdmin = session.role === 'admin' || session.role === 'Admin';
+            badge.className = 'user-role-badge ' + (isAdmin ? 'badge-admin' : 'badge-colab');
+            badge.innerText = isAdmin ? 'Admin' : session.role;
+            document.getElementById('btn-nav-users').style.display = isAdmin ? '' : 'none';
+
+            apiFetch('/api/auth/me').then(({ status, body }) => {
+                if (status !== 200) return;
+                document.getElementById('settings-name').value = body.name || '';
+                document.getElementById('settings-email').value = body.email || '';
+                document.getElementById('settings-role').value = body.role || '';
+            });
+        });
+
+        function handleChangePassword(e) {
+            e.preventDefault();
+            const feedback = document.getElementById('password-feedback');
+            feedback.classList.add('d-none');
+
+            const current = document.getElementById('current-password').value;
+            const newPw = document.getElementById('new-password').value;
+            const confirm = document.getElementById('confirm-password').value;
+
+            if (!current || !newPw || !confirm) {
+                showFeedback('Completá todos los campos.', 'danger');
+                return;
+            }
+
+            if (newPw.length < 6) {
+                showFeedback('La nueva contraseña debe tener al menos 6 caracteres.', 'danger');
+                return;
+            }
+
+            if (newPw !== confirm) {
+                showFeedback('Las contraseñas nuevas no coinciden.', 'danger');
+                return;
+            }
+
+            apiFetch('/api/auth/change-password', {
+                method: 'POST',
+                body: JSON.stringify({ currentPassword: current, newPassword: newPw })
+            }).then(({ status, body }) => {
+                if (status !== 200) {
+                    showFeedback(body.error || 'Error al cambiar la contraseña.', 'danger');
+                    return;
+                }
+                showFeedback('Contraseña actualizada correctamente.', 'success');
+                document.getElementById('change-password-form').reset();
+            });
+        }
+
+        function showFeedback(msg, type) {
+            const el = document.getElementById('password-feedback');
+            el.className = 'mt-3 small alert alert-' + type + ' py-2 px-3 mb-0';
+            el.innerText = msg;
+            el.classList.remove('d-none');
+        }
+
+        function togglePassword(inputId, btn) {
+            const input = document.getElementById(inputId);
+            const isPassword = input.type === 'password';
+            input.type = isPassword ? 'text' : 'password';
+            btn.innerHTML = isPassword ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
+        }
+    </script>
+</body>
+
+</html>
