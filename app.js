@@ -759,4 +759,9 @@ function enterApp(user) {
   }
   document.getElementById('current-page-title').innerText = 'Dashboard de Marketing';
   document.getElementById('current-page-subtitle').innerText = 'Rendimiento en tiempo real de cuentas de Facebook';
+
+  setInterval(() => {
+    loadMarketingData();
+    loadGrupos();
+  }, 60000);
 }

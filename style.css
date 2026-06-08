@@ -293,6 +293,8 @@ body {
     box-shadow: var(--shadow-sm);
     transition: var(--transition-smooth);
     height: 100%;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .kpi-card:hover {
@@ -307,12 +309,22 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.5px;
     margin-bottom: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .kpi-value {
     font-size: 1.85rem;
     font-weight: 700;
     letter-spacing: -0.5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#kpi-container .col {
+    min-width: 0;
 }
 
 /* ============================================================
