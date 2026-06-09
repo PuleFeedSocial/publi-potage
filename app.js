@@ -339,7 +339,10 @@ function loadGrupos() {
 
 function populateSelects() {
   const zonas = [...new Set(marketingData.map(r => r.zona).filter(Boolean))];
-  const grupos = [...new Set(gruposData.map(r => r.nombre).filter(Boolean))];
+  let grupos = [...new Set(gruposData.map(r => r.nombre).filter(Boolean))];
+  if (grupos.length === 0) {
+    grupos = [...new Set(marketingData.map(r => r.grupo).filter(Boolean))];
+  }
 
   const selGrupo = document.getElementById('mk-grupo');
   const currentGrupo = selGrupo.value;
