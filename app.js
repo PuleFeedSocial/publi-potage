@@ -304,17 +304,6 @@ function addMarketingRow(data) {
   });
 }
 
-function updateMarketingRow(rowIndex, data) {
-  fetch(API_BASE + '/api/marketing/' + rowIndex, {
-    method: 'PUT',
-    headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  }).then(r => r.json()).then(res => {
-    if (res.error) return alert(res.error);
-    loadMarketingData();
-  });
-}
-
 function deleteMarketingRow(rowIndex) {
   if (!confirm('¿Eliminar esta fila permanentemente?')) return;
   fetch(API_BASE + '/api/marketing/' + rowIndex, {
@@ -413,8 +402,12 @@ function openEditModal(rowData) {
   if (typeof rowData === 'string') rowData = JSON.parse(decodeURIComponent(rowData));
   const row = rowData;
   document.getElementById('mk-modal-title').innerHTML = '<i class="bi bi-pencil-fill me-2"></i>Editar Publicación';
-  document.getElementById('mk-row-index').value = row.rowIndex;
-  document.getElementById('mk-fecha').value = row.fecha || '';
+  document.getElementById('mk-row-index').value = '';
+  const today = new Date();
+  const dd = String(today.getDate()).padStart(2, '0');
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const yyyy = today.getFullYear();
+  document.getElementById('mk-fecha').value = dd + '/' + mm + '/' + yyyy;
   document.getElementById('mk-pubs').value = row.publicaciones;
   document.getElementById('mk-vis').value = row.visualizaciones;
   document.getElementById('mk-int').value = row.interacciones;
@@ -462,15 +455,12 @@ function saveMarketingRow() {
   };
   if (!data.fecha || !data.grupo) return alert('Fecha y Grupo son obligatorios.');
 
-  const rowIndex = document.getElementById('mk-row-index').value;
   const isNewGrupo = document.getElementById('mk-grupo').value === '__otro__' && data.grupo;
   const isNewZona = document.getElementById('mk-zona').value === '__otro__' && data.zona;
 
   const save = () => {
-    const idx = document.getElementById('mk-row-index').value;
     try { bootstrap.Modal.getInstance(document.getElementById('mkModal')).hide(); } catch {}
-    if (idx) { updateMarketingRow(idx, data); }
-    else { addMarketingRow(data); }
+    addMarketingRow(data);
   };
 
   let chain = Promise.resolve();
@@ -526,7 +516,6 @@ function initCharts(data) {
   const fechas = [...new Set(data.map(r => r.fecha).filter(Boolean))].sort();
   const labels = fechas.map(f => f.substring(0, 5));
   const pubs = fechas.map(f => data.filter(r => r.fecha === f).reduce((s, r) => s + r.publicaciones, 0));
-  const vis = fechas.map(f => data.filter(r => r.fecha === f).reduce((s, r) => s + r.visualizaciones, 0));
   const ints = fechas.map(f => data.filter(r => r.fecha === f).reduce((s, r) => s + r.interacciones, 0));
   const msjs = fechas.map(f => data.filter(r => r.fecha === f).reduce((s, r) => s + r.mensajes, 0));
 
@@ -543,14 +532,13 @@ function initCharts(data) {
   });
 
   chartsInstances.comp = new Chart(document.getElementById('chartComparativo'), {
-    type: 'bar',
+    type: 'line',
     data: {
       labels, datasets: [
-        { label: 'Vis', data: vis, backgroundColor: '#93c5fd', borderRadius: 4 },
-        { label: 'Msj', data: msjs, backgroundColor: '#6366f1', borderRadius: 4 }
+        { label: 'Msj', data: msjs, borderColor: '#6366f1', backgroundColor: 'rgba(99, 102, 241, 0.04)', borderWidth: 2, tension: 0.3, fill: true, pointRadius: 2 }
       ]
     },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 10 } } } }
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
   });
 }
 
