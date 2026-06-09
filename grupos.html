@@ -155,7 +155,10 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label small fw-medium text-secondary">Zona</label>
-                            <input type="text" id="grupo-page-zona" class="form-control custom-input" placeholder="Laferrere">
+                            <select id="grupo-page-zona" class="form-select custom-input" onchange="toggleZonaCustom()">
+                                <option value="">Seleccionar...</option>
+                            </select>
+                            <input type="text" id="grupo-page-zona-custom" class="form-control custom-input d-none mt-1" placeholder="Nueva zona...">
                         </div>
                     </div>
                     <div class="modal-footer border-0 pt-0">
@@ -177,6 +180,40 @@
 
         let gruposPageData = [];
 
+        function toggleZonaCustom() {
+            const sel = document.getElementById('grupo-page-zona');
+            const custom = document.getElementById('grupo-page-zona-custom');
+            if (sel.value === '__otro__') {
+                custom.classList.remove('d-none');
+            } else {
+                custom.classList.add('d-none');
+            }
+        }
+
+        function populateZonas() {
+            const zonas = [...new Set(gruposPageData.map(g => g.zona).filter(Boolean))];
+            const sel = document.getElementById('grupo-page-zona');
+            const current = sel.value;
+            sel.innerHTML = '<option value="">Seleccionar...</option>';
+            zonas.forEach(v => {
+                const opt = document.createElement('option');
+                opt.value = v; opt.textContent = v;
+                sel.appendChild(opt);
+            });
+            const otro = document.createElement('option');
+            otro.value = '__otro__'; otro.textContent = 'Otro...';
+            sel.appendChild(otro);
+            sel.value = current;
+            toggleZonaCustom();
+        }
+
+        function getZonaValue() {
+            const sel = document.getElementById('grupo-page-zona');
+            const custom = document.getElementById('grupo-page-zona-custom');
+            if (sel.value === '__otro__') return custom.value.trim();
+            return sel.value;
+        }
+
         function loadGruposPage() {
             const tbody = document.getElementById('grupos-page-table-body');
             tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Cargando...</td></tr>';
@@ -191,6 +228,7 @@
                     }
                     gruposPageData = body.data || [];
                     renderGruposPage();
+                    populateZonas();
                     document.getElementById('data-source-badge-grupos').innerHTML = '<i class="bi bi-database"></i> Grupos · ' + gruposPageData.length + ' registros';
                     document.getElementById('grupos-count').innerText = gruposPageData.length;
                 })
@@ -231,6 +269,9 @@
             document.getElementById('grupo-page-nombre').value = '';
             document.getElementById('grupo-page-enlace').value = '';
             document.getElementById('grupo-page-zona').value = '';
+            document.getElementById('grupo-page-zona-custom').value = '';
+            document.getElementById('grupo-page-zona-custom').classList.add('d-none');
+            populateZonas();
             new bootstrap.Modal(document.getElementById('grupoPageModal')).show();
         }
 
@@ -238,7 +279,7 @@
             e.preventDefault();
             const nombre = document.getElementById('grupo-page-nombre').value.trim();
             const enlace = document.getElementById('grupo-page-enlace').value.trim();
-            const zona = document.getElementById('grupo-page-zona').value.trim();
+            const zona = getZonaValue();
             if (!nombre) return alert('El nombre del grupo es obligatorio.');
 
             const rowIndex = document.getElementById('grupo-page-row-index').value;
@@ -265,7 +306,14 @@
             document.getElementById('grupo-page-row-index').value = rowIndex;
             document.getElementById('grupo-page-nombre').value = g.nombre;
             document.getElementById('grupo-page-enlace').value = g.enlace || '';
-            document.getElementById('grupo-page-zona').value = g.zona || '';
+            populateZonas();
+            if (g.zona && ![...document.getElementById('grupo-page-zona').options].some(o => o.value === g.zona)) {
+                document.getElementById('grupo-page-zona').value = '__otro__';
+                document.getElementById('grupo-page-zona-custom').value = g.zona;
+                document.getElementById('grupo-page-zona-custom').classList.remove('d-none');
+            } else {
+                document.getElementById('grupo-page-zona').value = g.zona || '';
+            }
             new bootstrap.Modal(document.getElementById('grupoPageModal')).show();
         }
 
