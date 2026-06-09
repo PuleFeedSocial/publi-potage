@@ -37,17 +37,17 @@ router.post('/register', async (req, res) => {
 
     const hashedPassword = bcrypt.hashSync(password, 10);
     await db.run('INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
-      [name, email, hashedPassword, 'Colaborador']);
+      [name, email, hashedPassword, 'colaborador']);
 
     const user = await db.get('SELECT id FROM users WHERE email = ?', [email]);
     await db.run('UPDATE activation_codes SET used = 1, used_by = ? WHERE id = ?', [user.id, code.id]);
 
-    const token = jwt.sign({ id: user.id, name, email, role: 'Colaborador' }, SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: user.id, name, email, role: 'colaborador' }, SECRET, { expiresIn: '7d' });
 
     res.status(201).json({
       message: 'Cuenta creada exitosamente.',
       token,
-      user: { id: user.id, name, email, role: 'Colaborador' }
+      user: { id: user.id, name, email, role: 'colaborador' }
     });
   } catch (err) {
     console.error(err);
@@ -113,7 +113,7 @@ router.post('/users', authenticate, requireAdmin, async (req, res) => {
     const tempPassword = Math.random().toString(36).slice(-8);
     const hashed = bcrypt.hashSync(tempPassword, 10);
     await db.run('INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
-      [name, email, hashed, role || 'Colaborador']);
+      [name, email, hashed, (role || 'colaborador').toLowerCase()]);
 
     const user = await db.get('SELECT id, name, email, role, created_at as fecha FROM users WHERE email = ?', [email]);
     user.tempPassword = tempPassword;
@@ -126,11 +126,12 @@ router.post('/users', authenticate, requireAdmin, async (req, res) => {
 router.put('/users/:id/role', authenticate, requireAdmin, async (req, res) => {
   try {
     const { role } = req.body;
-    if (!['Admin', 'Colaborador'].includes(role)) {
+    const normalizedRole = role.toLowerCase();
+    if (!['admin', 'colaborador'].includes(normalizedRole)) {
       return res.status(400).json({ error: 'Rol inválido.' });
     }
     const db = await getDb();
-    await db.run('UPDATE users SET role = ? WHERE id = ?', [role, req.params.id]);
+    await db.run('UPDATE users SET role = ? WHERE id = ?', [normalizedRole, req.params.id]);
     res.json({ message: 'Rol actualizado correctamente.' });
   } catch (err) {
     res.status(500).json({ error: 'Error al actualizar rol.' });

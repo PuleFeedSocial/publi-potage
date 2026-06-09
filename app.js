@@ -686,96 +686,6 @@ function deleteCode(id) {
     });
 }
 
-function openGestionGrupos() {
-  renderGrupos();
-  new bootstrap.Modal(document.getElementById('gruposModal')).show();
-}
-
-function renderGrupos() {
-  const tbody = document.getElementById('grupos-table-body');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-  gruposData.forEach((g, i) => {
-    const enlaceDisplay = g.enlace ? `<a href="${g.enlace}" target="_blank" class="small text-muted">${g.enlace.substring(0, 40)}...</a>` : '—';
-    const tr = document.createElement('tr');
-    tr.style.animation = `fadeSlideUp 0.3s ease-out forwards`;
-    tr.style.animationDelay = (i * 0.04) + 's';
-    tr.innerHTML = `
-        <td class="fw-medium text-dark">${g.nombre}</td>
-        <td class="small">${enlaceDisplay}</td>
-        <td><span class="badge-zone zone-${(g.zona||'').toLowerCase().replace(/ /g,'-')}">${g.zona || '—'}</span></td>
-        <td class="text-end">
-          <button class="btn btn-sm btn-link text-primary p-0 me-2" onclick="editGrupo(${g.rowIndex})" title="Editar">
-            <i class="bi bi-pencil-fill"></i>
-          </button>
-          <button class="btn btn-sm btn-link text-danger p-0" onclick="deleteGrupo(${g.rowIndex})" title="Eliminar">
-            <i class="bi bi-trash3-fill"></i>
-          </button>
-        </td>`;
-    tbody.appendChild(tr);
-  });
-}
-
-function saveGrupo(e) {
-  e.preventDefault();
-  const nombre = document.getElementById('grupo-nombre').value.trim();
-  const enlace = document.getElementById('grupo-enlace').value.trim();
-  const zona = document.getElementById('grupo-zona').value.trim();
-  if (!nombre) return alert('El nombre del grupo es obligatorio.');
-
-  const rowIndex = document.getElementById('grupo-row-index').value;
-  const method = rowIndex ? 'PUT' : 'POST';
-  const url = rowIndex ? `/api/grupos/${rowIndex}` : '/api/grupos';
-
-  fetch(API_BASE + url, {
-    method,
-    headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ nombre, enlace, zona })
-  })
-    .then(r => r.json())
-    .then(res => {
-      if (res.error) return alert(res.error);
-      document.getElementById('grupo-form').reset();
-      document.getElementById('grupo-row-index').value = '';
-      document.getElementById('grupo-cancel-btn').classList.add('d-none');
-      document.getElementById('grupo-save-btn').innerHTML = '<i class="bi bi-check-lg me-1"></i>Guardar Grupo';
-      loadGrupos();
-      renderGrupos();
-    });
-}
-
-function editGrupo(rowIndex) {
-  const g = gruposData.find(x => x.rowIndex === rowIndex);
-  if (!g) return;
-  document.getElementById('grupo-row-index').value = rowIndex;
-  document.getElementById('grupo-nombre').value = g.nombre;
-  document.getElementById('grupo-enlace').value = g.enlace || '';
-  document.getElementById('grupo-zona').value = g.zona || '';
-  document.getElementById('grupo-cancel-btn').classList.remove('d-none');
-  document.getElementById('grupo-save-btn').innerHTML = '<i class="bi bi-check-lg me-1"></i>Actualizar Grupo';
-}
-
-function cancelEditGrupo() {
-  document.getElementById('grupo-form').reset();
-  document.getElementById('grupo-row-index').value = '';
-  document.getElementById('grupo-cancel-btn').classList.add('d-none');
-  document.getElementById('grupo-save-btn').innerHTML = '<i class="bi bi-check-lg me-1"></i>Guardar Grupo';
-}
-
-function deleteGrupo(rowIndex) {
-  if (!confirm('¿Eliminar este grupo permanentemente?')) return;
-  fetch(API_BASE + '/api/grupos/' + rowIndex, {
-    method: 'DELETE',
-    headers: { 'Authorization': 'Bearer ' + getToken() }
-  })
-    .then(r => r.json())
-    .then(res => {
-      if (res.error) return alert(res.error);
-      loadGrupos();
-      renderGrupos();
-    });
-}
-
 function enterApp(user) {
   const initials = user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   document.getElementById('display-avatar').innerText = initials;
@@ -784,9 +694,9 @@ function enterApp(user) {
   document.getElementById('nav-user-name').innerText = user.name.split(' ')[0];
   currentRole = user.role;
   const badge = document.getElementById('display-user-role');
-  badge.className = 'user-role-badge ' + (user.role === 'admin' || user.role === 'Admin' ? 'badge-admin' : 'badge-colab');
+  badge.className = 'user-role-badge ' + (user.role === 'admin' ? 'badge-admin' : 'badge-colab');
   badge.innerText = user.role === 'admin' ? 'Admin' : user.role;
-  const isAdmin = user.role === 'admin' || user.role === 'Admin';
+  const isAdmin = user.role === 'admin';
   document.getElementById('btn-nav-users').style.display = isAdmin ? '' : 'none';
   loadMarketingData();
   loadGrupos();

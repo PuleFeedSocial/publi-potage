@@ -99,6 +99,16 @@ body {
     letter-spacing: -0.5px;
 }
 
+.logo-img {
+    height: 28px;
+    width: auto;
+}
+
+.logo-img-lg {
+    height: 36px;
+    width: auto;
+}
+
 .sidebar-menu {
     display: flex;
     flex-direction: column;
