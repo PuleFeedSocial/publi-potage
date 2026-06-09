@@ -130,6 +130,32 @@ body {
     font-weight: 600;
 }
 
+.submenu-item {
+    padding-left: 44px !important;
+    font-size: 0.88rem !important;
+    position: relative;
+}
+
+.submenu-item::before {
+    content: '';
+    position: absolute;
+    left: 28px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 4px;
+    background: var(--text-muted);
+    border-radius: 50%;
+}
+
+.submenu-item:hover::before {
+    background: var(--primary-color);
+}
+
+.submenu-item.active::before {
+    background: var(--primary-color);
+}
+
 .sidebar-footer {
     padding-top: 20px;
     border-top: 1px solid var(--border-color);

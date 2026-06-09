@@ -112,7 +112,7 @@ function switchView(viewName) {
   const title = document.getElementById('current-page-title');
   const subtitle = document.getElementById('current-page-subtitle');
   if (viewName === 'dashboard') {
-    title.innerText = 'Dashboard de Marketing';
+    title.innerText = 'Dashboard Publicaciones';
     subtitle.innerText = 'Rendimiento en tiempo real de cuentas de Facebook';
   } else {
     title.innerText = 'Gestión de Usuarios y Códigos';
@@ -793,7 +793,7 @@ function enterApp(user) {
   if (isAdmin) {
     loadUsers();
   }
-  document.getElementById('current-page-title').innerText = 'Dashboard de Marketing';
+  document.getElementById('current-page-title').innerText = 'Dashboard Publicaciones';
   document.getElementById('current-page-subtitle').innerText = 'Rendimiento en tiempo real de cuentas de Facebook';
 
   setInterval(() => {
