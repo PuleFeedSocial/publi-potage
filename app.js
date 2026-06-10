@@ -157,8 +157,9 @@ function refreshMarketingData() {
   }).then(() => loadMarketingData()).catch(() => loadMarketingData());
 }
 
-function renderDashboard(data) {
+function renderDashboard(data, chartData) {
   data = data || marketingData;
+  chartData = chartData || data;
   const grupos = [...new Set(data.map(r => r.grupo).filter(Boolean))];
   const totalPubs = data.reduce((s, r) => s + r.publicaciones, 0);
   const totalVis = data.reduce((s, r) => s + r.visualizaciones, 0);
@@ -191,7 +192,7 @@ function renderDashboard(data) {
         <td><span class="badge-zone zone-${zClass}">${row.zona || ''}</span></td>`;
     tbody.appendChild(tr);
   });
-  initCharts(data);
+  initCharts(chartData);
 }
 
 function populateFilterDropdowns() {
@@ -244,12 +245,22 @@ function setPeriod(days) {
   applyFilters();
 }
 
+function buildPeriodLimit() {
+  if (!filterPeriod || filterPeriod === 'all') return null;
+  const now = new Date();
+  const limit = new Date(now);
+  limit.setDate(limit.getDate() - parseInt(filterPeriod));
+  return limit;
+}
+
 function applyFilters() {
   const search = (document.getElementById('filter-search').value || '').toLowerCase();
   const grupo = document.getElementById('filter-grupo').value;
   const zona = document.getElementById('filter-zona').value;
   const fecha = document.getElementById('filter-fecha').value;
+  const periodLimit = buildPeriodLimit();
 
+  // Filter Metricas for table + KPIs
   let filtered = marketingData;
   if (search) {
     filtered = filtered.filter(r => Object.values(r).some(v => String(v).toLowerCase().includes(search)));
@@ -257,18 +268,47 @@ function applyFilters() {
   if (grupo) filtered = filtered.filter(r => r.grupo === grupo);
   if (zona) filtered = filtered.filter(r => r.zona === zona);
   if (fecha) filtered = filtered.filter(r => r.fecha === fecha);
-
-  if (filterPeriod && filterPeriod !== 'all') {
-    const now = new Date();
-    const limit = new Date(now);
-    limit.setDate(limit.getDate() - parseInt(filterPeriod));
+  if (periodLimit) {
     filtered = filtered.filter(r => {
       const d = parseDate(r.fecha);
-      return d && d >= limit;
+      return d && d >= periodLimit;
     });
   }
 
-  renderDashboard(filtered);
+  // Build chart data from Metricas + Historial, independently filtered
+  let chartData = [...filtered];
+  if (historialData.length > 0) {
+    let hf = historialData;
+    if (search) hf = hf.filter(h => Object.values(h).some(v => String(v).toLowerCase().includes(search)));
+    if (grupo) hf = hf.filter(h => h.grupo === grupo);
+    if (zona) hf = hf.filter(h => h.zona === zona);
+    if (fecha) hf = hf.filter(h => h.fechaActualizacion === fecha);
+    if (periodLimit) {
+      hf = hf.filter(h => {
+        const d = parseDate(h.fechaActualizacion);
+        return d && d >= periodLimit;
+      });
+    }
+    hf.forEach(h => {
+      chartData.push({
+        fecha: h.fechaActualizacion,
+        publicaciones: h.publicaciones,
+        visualizaciones: h.visualizaciones,
+        interacciones: h.interacciones,
+        comentarios: h.comentarios,
+        mensajes: h.mensajes
+      });
+    });
+    // Include Metricas rows linked to historial entries that passed filters
+    const linked = new Set(hf.map(h => h.filaOrigen).filter(id => id > 0));
+    marketingData.forEach(r => {
+      if (linked.has(r.rowIndex) && !chartData.some(c => c.rowIndex === r.rowIndex)) {
+        chartData.push(r);
+      }
+    });
+  }
+
+  renderDashboard(filtered, chartData);
   const countEl = document.getElementById('results-count');
   if (countEl) {
     const total = marketingData.length;
@@ -286,7 +326,28 @@ function clearFilters() {
   document.querySelectorAll('.filter-period').forEach(b => {
     b.classList.toggle('active', b.dataset.period === 'all');
   });
-  renderDashboard(marketingData);
+
+  // Build chart data from ALL Metricas + ALL Historial
+  let chartData = [...marketingData];
+  if (historialData.length > 0) {
+    historialData.forEach(h => {
+      chartData.push({
+        fecha: h.fechaActualizacion,
+        publicaciones: h.publicaciones,
+        visualizaciones: h.visualizaciones,
+        interacciones: h.interacciones,
+        comentarios: h.comentarios,
+        mensajes: h.mensajes
+      });
+    });
+    const linked = new Set(historialData.map(h => h.filaOrigen).filter(id => id > 0));
+    marketingData.forEach(r => {
+      if (linked.has(r.rowIndex) && !chartData.some(c => c.rowIndex === r.rowIndex)) {
+        chartData.push(r);
+      }
+    });
+  }
+  renderDashboard(marketingData, chartData);
   const countEl = document.getElementById('results-count');
   if (countEl) countEl.innerText = marketingData.length + ' resultados';
 }
@@ -597,32 +658,15 @@ function openDetailModal(rowData) {
   new bootstrap.Modal(document.getElementById('detailModal')).show();
 }
 
-function initCharts(metricasData) {
+function initCharts(chartData) {
   Object.values(chartsInstances).forEach(c => { try { c.destroy(); } catch {} });
   chartsInstances = {};
 
-  const allowed = new Set(metricasData.map(r => r.rowIndex));
-  let chartSource = [...metricasData];
-  if (historialData.length > 0) {
-    historialData.forEach(h => {
-      if (allowed.has(h.filaOrigen)) {
-        chartSource.push({
-          fecha: h.fechaActualizacion,
-          publicaciones: h.publicaciones,
-          visualizaciones: h.visualizaciones,
-          interacciones: h.interacciones,
-          comentarios: h.comentarios,
-          mensajes: h.mensajes
-        });
-      }
-    });
-  }
-
-  const fechas = [...new Set(chartSource.map(r => r.fecha).filter(Boolean))].sort();
+  const fechas = [...new Set(chartData.map(r => r.fecha).filter(Boolean))].sort();
   const labels = fechas.map(f => f.substring(0, 5));
-  const pubs = fechas.map(f => chartSource.filter(r => r.fecha === f).reduce((s, r) => s + r.publicaciones, 0));
-  const ints = fechas.map(f => chartSource.filter(r => r.fecha === f).reduce((s, r) => s + r.interacciones, 0));
-  const msjs = fechas.map(f => chartSource.filter(r => r.fecha === f).reduce((s, r) => s + r.mensajes, 0));
+  const pubs = fechas.map(f => chartData.filter(r => r.fecha === f).reduce((s, r) => s + r.publicaciones, 0));
+  const ints = fechas.map(f => chartData.filter(r => r.fecha === f).reduce((s, r) => s + r.interacciones, 0));
+  const msjs = fechas.map(f => chartData.filter(r => r.fecha === f).reduce((s, r) => s + r.mensajes, 0));
 
   chartsInstances.pubs = new Chart(document.getElementById('chartPublicaciones'), {
     type: 'line',
