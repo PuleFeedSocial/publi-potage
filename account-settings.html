@@ -17,7 +17,6 @@
 <body>
 
     <div class="app-container">
-        <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
         <aside class="sidebar">
             <div class="sidebar-header">
                 <div class="d-flex align-items-center justify-content-between">
@@ -164,8 +163,9 @@
     <script src="app.js"></script>
     <script>
         function toggleSidebar() {
-            document.querySelector('.sidebar').classList.toggle('open');
-            document.querySelector('.sidebar-overlay').classList.toggle('show');
+            const isOpen = document.querySelector('.sidebar').classList.toggle('open');
+            document.body.classList.toggle('sidebar-open', isOpen);
+            localStorage.setItem('sidebarOpen', isOpen);
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -186,6 +186,10 @@
             badge.className = 'user-role-badge ' + (isAdmin ? 'badge-admin' : 'badge-colab');
             badge.innerText = isAdmin ? 'Admin' : session.role;
             document.getElementById('btn-nav-users').style.display = isAdmin ? '' : 'none';
+            if (localStorage.getItem('sidebarOpen') === 'true') {
+                document.querySelector('.sidebar').classList.add('open');
+                document.body.classList.add('sidebar-open');
+            }
 
             apiFetch('/api/auth/me').then(({ status, body }) => {
                 if (status !== 200) return;

@@ -87,8 +87,12 @@ body {
     transform: translateX(0);
 }
 
-.sidebar-overlay.show {
-    display: block;
+body.sidebar-open .main-content {
+    margin-left: var(--sidebar-width);
+}
+
+.sidebar-overlay {
+    display: none;
 }
 
 .sidebar-header {

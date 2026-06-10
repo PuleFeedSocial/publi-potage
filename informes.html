@@ -24,7 +24,6 @@
 <body>
 
     <div class="app-container">
-        <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
         <aside class="sidebar">
             <div class="sidebar-header">
                 <div class="d-flex align-items-center justify-content-between">
@@ -170,8 +169,9 @@
     <script src="app.js"></script>
     <script>
         function toggleSidebar() {
-            document.querySelector('.sidebar').classList.toggle('open');
-            document.querySelector('.sidebar-overlay').classList.toggle('show');
+            const isOpen = document.querySelector('.sidebar').classList.toggle('open');
+            document.body.classList.toggle('sidebar-open', isOpen);
+            localStorage.setItem('sidebarOpen', isOpen);
         }
 
         let informesData = [];
@@ -349,6 +349,10 @@
             document.getElementById('display-user-name').innerText = session.name;
             document.getElementById('nav-avatar').innerText = initials;
             document.getElementById('nav-user-name').innerText = session.name.split(' ')[0];
+            if (localStorage.getItem('sidebarOpen') === 'true') {
+                document.querySelector('.sidebar').classList.add('open');
+                document.body.classList.add('sidebar-open');
+            }
             loadInformes();
         });
     </script>
