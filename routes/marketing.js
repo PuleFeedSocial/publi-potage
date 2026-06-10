@@ -2,6 +2,7 @@ const express = require('express');
 const { google } = require('googleapis');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
+const { logAction } = require('./logs');
 
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const TARGET_SHEET = 'Metricas';
@@ -120,6 +121,9 @@ router.post('/', authenticate, async (req, res) => {
     const rowIndex = rowMatch ? parseInt(rowMatch[0]) : 0;
 
     invalidateCache();
+
+    logAction(req.user.id, req.user.email, 'Creación de publicación', `Grupo: ${grupo || ''}, Fecha: ${fecha || ''}`, req.ip);
+
     res.status(201).json({ message: 'Fila agregada correctamente.', rowIndex });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -151,6 +155,9 @@ router.put('/:rowIndex', authenticate, async (req, res) => {
     });
 
     invalidateCache();
+
+    logAction(req.user.id, req.user.email, 'Edición de publicación', `Fila #${rowIndex}, Grupo: ${grupo || ''}`, req.ip);
+
     res.json({ message: 'Fila actualizada correctamente.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -183,6 +190,9 @@ router.delete('/:rowIndex', authenticate, async (req, res) => {
     });
 
     invalidateCache();
+
+    logAction(req.user.id, req.user.email, 'Eliminación de publicación', `Fila #${rowIndex} eliminada`, req.ip);
+
     res.json({ message: 'Fila eliminada correctamente.' });
   } catch (err) {
     res.status(500).json({ error: err.message });

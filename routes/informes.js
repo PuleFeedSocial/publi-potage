@@ -2,6 +2,7 @@ const express = require('express');
 const { google } = require('googleapis');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
+const { logAction } = require('./logs');
 
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SHEET_NAME = 'Informes';
@@ -109,6 +110,9 @@ router.post('/import', authenticate, async (req, res) => {
       valueInputOption: 'USER_ENTERED', insertDataOption: 'INSERT_ROWS',
       resource: { values }
     });
+
+    logAction(req.user.id, req.user.email, 'Importación de CSV', `${values.length} filas importadas a Informes`, req.ip);
+
     res.status(201).json({ message: `${values.length} filas importadas correctamente.` });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -134,6 +138,9 @@ router.delete('/:rowIndex', authenticate, async (req, res) => {
         }]
       }
     });
+
+    logAction(req.user.id, req.user.email, 'Eliminación en Informes', `Fila #${rowIndex} eliminada`, req.ip);
+
     res.json({ message: 'Fila eliminada correctamente.' });
   } catch (err) {
     res.status(500).json({ error: err.message });

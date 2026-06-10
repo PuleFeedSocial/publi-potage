@@ -43,6 +43,10 @@
                     <i class="bi bi-diagram-3"></i>
                     <span>Grupos</span>
                 </a>
+                <a href="logs.html" class="menu-item submenu-item" id="btn-nav-logs">
+                    <i class="bi bi-journal-text"></i>
+                    <span>Logs</span>
+                </a>
                 <a href="dashboard.html" class="menu-item" onclick="localStorage.setItem('navTarget','users')">
                     <i class="bi bi-people-fill"></i>
                     <span>Gestión Usuarios</span>
@@ -351,6 +355,10 @@
                 document.querySelector('.sidebar').classList.add('open');
                 document.body.classList.add('sidebar-open');
             }
+            const sessionRole = (session.role || '').toLowerCase();
+            const isAdmin = sessionRole === 'admin';
+            const logsNav = document.getElementById('btn-nav-logs');
+            if (logsNav) logsNav.style.display = isAdmin ? '' : 'none';
             loadGruposPage();
             setInterval(() => loadGruposPage(), 60000);
         });

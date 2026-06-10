@@ -50,6 +50,18 @@ async function getDb() {
     )
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS logs (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id),
+      email TEXT NOT NULL,
+      accion TEXT NOT NULL,
+      detalle TEXT DEFAULT '',
+      ip TEXT DEFAULT '',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   db = {
     run: async (sql, params) => {
       return await pool.query(toPg(sql), params);

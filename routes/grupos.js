@@ -2,6 +2,7 @@ const express = require('express');
 const { google } = require('googleapis');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
+const { logAction } = require('./logs');
 
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SHEET_NAME = 'Grupos';
@@ -76,6 +77,9 @@ router.post('/', authenticate, async (req, res) => {
       resource: { values: [[nombre, enlace || '', zona || '']] }
     });
     invalidateCache();
+
+    logAction(req.user.id, req.user.email, 'Creación de grupo', `Grupo: ${nombre || ''}`, req.ip);
+
     res.status(201).json({ message: 'Grupo agregado correctamente.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -97,6 +101,9 @@ router.put('/:rowIndex', authenticate, async (req, res) => {
       resource: { values: [[nombre, enlace || '', zona || '']] }
     });
     invalidateCache();
+
+    logAction(req.user.id, req.user.email, 'Edición de grupo', `Fila #${rowIndex}, Grupo: ${nombre || ''}`, req.ip);
+
     res.json({ message: 'Grupo actualizado correctamente.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -125,6 +132,9 @@ router.delete('/:rowIndex', authenticate, async (req, res) => {
       }
     });
     invalidateCache();
+
+    logAction(req.user.id, req.user.email, 'Eliminación de grupo', `Fila #${rowIndex} eliminada`, req.ip);
+
     res.json({ message: 'Grupo eliminado correctamente.' });
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -836,6 +836,8 @@ function enterApp(user) {
   badge.innerText = user.role === 'admin' ? 'Admin' : user.role;
   const isAdmin = user.role === 'admin';
   document.getElementById('btn-nav-users').style.display = isAdmin ? '' : 'none';
+  const logsNav = document.getElementById('btn-nav-logs');
+  if (logsNav) logsNav.style.display = isAdmin ? '' : 'none';
   loadMarketingData();
   loadGrupos();
   loadHistorial();

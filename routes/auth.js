@@ -6,6 +6,7 @@ const { authenticate, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 const SECRET = process.env.JWT_SECRET || 'Potage_S3cr3t_K3y_2026';
+const { logAction } = require('./logs');
 
 router.post('/register', async (req, res) => {
   try {
@@ -43,6 +44,8 @@ router.post('/register', async (req, res) => {
     await db.run('UPDATE activation_codes SET used = 1, used_by = ? WHERE id = ?', [user.id, code.id]);
 
     const token = jwt.sign({ id: user.id, name, email, role: 'colaborador' }, SECRET, { expiresIn: '7d' });
+
+    logAction(user.id, email, 'Registro', 'Usuario registrado como colaborador', req.ip);
 
     res.status(201).json({
       message: 'Cuenta creada exitosamente.',
@@ -85,6 +88,8 @@ router.post('/login', async (req, res) => {
       token,
       user: { id: user.id, name: user.name, email: user.email, role: user.role }
     });
+
+    logAction(user.id, email, 'Inicio de sesión', '', req.ip);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error interno del servidor.' });
@@ -117,6 +122,9 @@ router.post('/users', authenticate, requireAdmin, async (req, res) => {
 
     const user = await db.get('SELECT id, name, email, role, created_at as fecha FROM users WHERE email = ?', [email]);
     user.tempPassword = tempPassword;
+
+    logAction(req.user.id, req.user.email, 'Creación de usuario', `Usuario creado: ${name} (${email}) como ${role || 'colaborador'}`, req.ip);
+
     res.status(201).json(user);
   } catch (err) {
     res.status(500).json({ error: 'Error al crear usuario.' });
@@ -132,6 +140,9 @@ router.put('/users/:id/role', authenticate, requireAdmin, async (req, res) => {
     }
     const db = await getDb();
     await db.run('UPDATE users SET role = ? WHERE id = ?', [normalizedRole, req.params.id]);
+
+    logAction(req.user.id, req.user.email, 'Cambio de rol', `Usuario #${req.params.id} ahora es ${normalizedRole}`, req.ip);
+
     res.json({ message: 'Rol actualizado correctamente.' });
   } catch (err) {
     res.status(500).json({ error: 'Error al actualizar rol.' });
@@ -145,6 +156,9 @@ router.delete('/users/:id', authenticate, requireAdmin, async (req, res) => {
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado.' });
     if (user.role === 'admin') return res.status(400).json({ error: 'No se puede eliminar al administrador principal.' });
     await db.run('DELETE FROM users WHERE id = ?', [req.params.id]);
+
+    logAction(req.user.id, req.user.email, 'Eliminación de usuario', `Usuario #${req.params.id} (${user.email}) eliminado`, req.ip);
+
     res.json({ message: 'Usuario eliminado.' });
   } catch (err) {
     res.status(500).json({ error: 'Error al eliminar usuario.' });
