@@ -1,0 +1,20 @@
+{
+  "name": "Potage SRL — Dashboard de Marketing",
+  "short_name": "Potage",
+  "description": "Panel de control para gestionar y analizar campañas en redes sociales",
+  "start_url": "/dashboard.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#fcfcfd",
+  "theme_color": "#0f172a",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "img/isotiposinfondo.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
