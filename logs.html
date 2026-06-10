@@ -137,7 +137,6 @@
                                     <th>Email</th>
                                     <th>Acción</th>
                                     <th>Detalle</th>
-                                    <th>IP</th>
                                 </tr>
                             </thead>
                             <tbody id="logs-tbody"></tbody>
@@ -171,14 +170,14 @@
 
         function loadLogs() {
             const tbody = document.getElementById('logs-tbody');
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Cargando...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Cargando...</td></tr>';
             fetch(API_BASE + '/api/logs', {
                 headers: { 'Authorization': 'Bearer ' + getToken() }
             })
                 .then(r => r.json().then(b => ({ status: r.status, body: b })))
                 .then(({ status, body }) => {
                     if (status !== 200) {
-                        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">' + (body.error || 'Error') + '</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">' + (body.error || 'Error') + '</td></tr>';
                         return;
                     }
                     const logs = body || [];
@@ -186,7 +185,7 @@
                     document.getElementById('data-source-badge-logs').innerHTML = '<i class="bi bi-database"></i> Logs · ' + logs.length + ' registros';
 
                     if (!logs.length) {
-                        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No hay registros de actividad.</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">No hay registros de actividad.</td></tr>';
                         return;
                     }
 
@@ -197,7 +196,7 @@
                         tr.style.animation = 'fadeSlideUp 0.3s ease-out forwards';
                         tr.style.animationDelay = (Math.min(i, 20) * 0.04) + 's';
 
-                        const fecha = log.created_at ? new Date(log.created_at + 'Z').toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }) : '—';
+                        const fecha = log.created_at ? new Date(log.created_at).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }) : '—';
                         const badge = badgeClass(log.accion);
 
                         tr.innerHTML = `
@@ -205,13 +204,12 @@
                             <td class="fw-medium">${log.email || '—'}</td>
                             <td><span class="badge-accion ${badge}">${log.accion || '—'}</span></td>
                             <td class="text-muted">${log.detalle || ''}</td>
-                            <td class="text-muted small">${log.ip || '—'}</td>
                         `;
                         tbody.appendChild(tr);
                     });
                 })
                 .catch(() => {
-                    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Error de conexión</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Error de conexión</td></tr>';
                 });
         }
 
