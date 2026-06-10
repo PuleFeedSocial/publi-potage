@@ -141,7 +141,7 @@ function loadMarketingData() {
         tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">' + msg + '</td></tr>';
         return;
       }
-      marketingData = body.data || [];
+      marketingData = (body.data || []).filter(r => r.grupo !== 'Perfil Estandar');
       document.getElementById('data-source-badge').innerHTML = '<i class="bi bi-database"></i> Google Sheets';
       populateFilterDropdowns();
       applyFilters();
@@ -421,7 +421,7 @@ function loadHistorial() {
     .then(r => r.json().then(b => ({ status: r.status, body: b })))
     .then(({ status, body }) => {
       if (status === 200) {
-        historialData = body.data || [];
+        historialData = (body.data || []).filter(h => h.grupo !== 'Perfil Estandar');
         applyFilters();
       }
     })
