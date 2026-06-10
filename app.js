@@ -276,38 +276,8 @@ function applyFilters() {
     });
   }
 
-  // Build chart data from Metricas + Historial, independently filtered
+  // Build chart data from Metricas only (historial is for detail modal)
   let chartData = [...filtered.filter(r => r.grupo !== 'Perfil Estandar')];
-  if (historialData.length > 0) {
-    let hf = historialData.filter(h => h.grupo !== 'Perfil Estandar');
-    if (search) hf = hf.filter(h => Object.values(h).some(v => String(v).toLowerCase().includes(search)));
-    if (grupo) hf = hf.filter(h => h.grupo === grupo);
-    if (zona) hf = hf.filter(h => h.zona === zona);
-    if (fecha) hf = hf.filter(h => h.fechaActualizacion === fecha);
-    if (periodLimit) {
-      hf = hf.filter(h => {
-        const d = parseDate(h.fechaActualizacion);
-        return d && d >= periodLimit;
-      });
-    }
-    hf.forEach(h => {
-      chartData.push({
-        fecha: h.fechaActualizacion,
-        publicaciones: h.publicaciones,
-        visualizaciones: h.visualizaciones,
-        interacciones: h.interacciones,
-        comentarios: h.comentarios,
-        mensajes: h.mensajes
-      });
-    });
-    // Include Metricas rows linked to historial entries that passed filters
-    const linked = new Set(hf.map(h => h.filaOrigen).filter(id => id > 0));
-    marketingData.forEach(r => {
-      if (linked.has(r.rowIndex) && !chartData.some(c => c.rowIndex === r.rowIndex)) {
-        chartData.push(r);
-      }
-    });
-  }
 
   renderDashboard(filtered, chartData);
   const countEl = document.getElementById('results-count');
@@ -328,26 +298,8 @@ function clearFilters() {
     b.classList.toggle('active', b.dataset.period === 'all');
   });
 
-  // Build chart data from ALL Metricas + ALL Historial
+  // Build chart data from ALL Metricas only
   let chartData = [...marketingData.filter(r => r.grupo !== 'Perfil Estandar')];
-  if (historialData.length > 0) {
-    historialData.filter(h => h.grupo !== 'Perfil Estandar').forEach(h => {
-      chartData.push({
-        fecha: h.fechaActualizacion,
-        publicaciones: h.publicaciones,
-        visualizaciones: h.visualizaciones,
-        interacciones: h.interacciones,
-        comentarios: h.comentarios,
-        mensajes: h.mensajes
-      });
-    });
-    const linked = new Set(historialData.map(h => h.filaOrigen).filter(id => id > 0));
-    marketingData.forEach(r => {
-      if (linked.has(r.rowIndex) && !chartData.some(c => c.rowIndex === r.rowIndex)) {
-        chartData.push(r);
-      }
-    });
-  }
   renderDashboard(marketingData, chartData);
   const countEl = document.getElementById('results-count');
   if (countEl) countEl.innerText = marketingData.length + ' resultados';
