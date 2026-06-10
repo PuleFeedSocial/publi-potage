@@ -102,7 +102,7 @@ router.post('/', authenticate, async (req, res) => {
 
     const { fecha, grupo, publicaciones, visualizaciones, interacciones, comentarios, mensajes, zona } = req.body;
 
-    await s.spreadsheets.values.append({
+    const appendRes = await s.spreadsheets.values.append({
       spreadsheetId: SHEET_ID,
       range: TARGET_SHEET + '!A:H',
       valueInputOption: 'USER_ENTERED',
@@ -115,8 +115,12 @@ router.post('/', authenticate, async (req, res) => {
       }
     });
 
+    const updatedRange = appendRes.data.updates?.updatedRange || '';
+    const rowMatch = updatedRange.match(/\d+/);
+    const rowIndex = rowMatch ? parseInt(rowMatch[0]) : 0;
+
     invalidateCache();
-    res.status(201).json({ message: 'Fila agregada correctamente.' });
+    res.status(201).json({ message: 'Fila agregada correctamente.', rowIndex });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

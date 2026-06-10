@@ -298,9 +298,13 @@ function marketingFetch(method, body) {
   }).then(r => r.json());
 }
 
-function addMarketingRow(data) {
+function addMarketingRow(data, snapshot) {
   marketingFetch('POST', data).then(res => {
     if (res.error) return alert(res.error);
+    if (snapshot && res.rowIndex) {
+      snapshot.filaOrigen = res.rowIndex;
+      postHistorial(snapshot);
+    }
     loadMarketingData();
   });
 }
@@ -355,7 +359,10 @@ function loadHistorial() {
   })
     .then(r => r.json().then(b => ({ status: r.status, body: b })))
     .then(({ status, body }) => {
-      if (status === 200) historialData = body.data || [];
+      if (status === 200) {
+        historialData = body.data || [];
+        applyFilters();
+      }
     })
     .catch(() => {});
 }
@@ -514,8 +521,7 @@ function saveMarketingRow() {
       updateMarketingRow(rowIndex, data);
       postHistorial(snapshot);
     } else {
-      addMarketingRow(data);
-      postHistorial(snapshot);
+      addMarketingRow(data, snapshot);
     }
   };
 
@@ -595,23 +601,28 @@ function initCharts(metricasData) {
   Object.values(chartsInstances).forEach(c => { try { c.destroy(); } catch {} });
   chartsInstances = {};
 
-  const useHistorial = historialData.length > 0;
-  let chartSource;
-
-  if (useHistorial) {
-    const allowed = new Set(metricasData.map(r => r.rowIndex));
-    chartSource = historialData.filter(h => allowed.has(h.filaOrigen));
-    if (chartSource.length === 0) chartSource = metricasData;
-  } else {
-    chartSource = metricasData;
+  const allowed = new Set(metricasData.map(r => r.rowIndex));
+  let chartSource = [...metricasData];
+  if (historialData.length > 0) {
+    historialData.forEach(h => {
+      if (allowed.has(h.filaOrigen)) {
+        chartSource.push({
+          fecha: h.fechaActualizacion,
+          publicaciones: h.publicaciones,
+          visualizaciones: h.visualizaciones,
+          interacciones: h.interacciones,
+          comentarios: h.comentarios,
+          mensajes: h.mensajes
+        });
+      }
+    });
   }
 
-  const fechaField = useHistorial && chartSource !== metricasData ? 'fechaActualizacion' : 'fecha';
-  const fechas = [...new Set(chartSource.map(r => r[fechaField]).filter(Boolean))].sort();
+  const fechas = [...new Set(chartSource.map(r => r.fecha).filter(Boolean))].sort();
   const labels = fechas.map(f => f.substring(0, 5));
-  const pubs = fechas.map(f => chartSource.filter(r => r[fechaField] === f).reduce((s, r) => s + r.publicaciones, 0));
-  const ints = fechas.map(f => chartSource.filter(r => r[fechaField] === f).reduce((s, r) => s + r.interacciones, 0));
-  const msjs = fechas.map(f => chartSource.filter(r => r[fechaField] === f).reduce((s, r) => s + r.mensajes, 0));
+  const pubs = fechas.map(f => chartSource.filter(r => r.fecha === f).reduce((s, r) => s + r.publicaciones, 0));
+  const ints = fechas.map(f => chartSource.filter(r => r.fecha === f).reduce((s, r) => s + r.interacciones, 0));
+  const msjs = fechas.map(f => chartSource.filter(r => r.fecha === f).reduce((s, r) => s + r.mensajes, 0));
 
   chartsInstances.pubs = new Chart(document.getElementById('chartPublicaciones'), {
     type: 'line',
