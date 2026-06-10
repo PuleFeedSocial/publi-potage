@@ -787,9 +787,10 @@ function enterApp(user) {
   badge.className = 'user-role-badge ' + (user.role === 'admin' ? 'badge-admin' : 'badge-colab');
   badge.innerText = user.role === 'admin' ? 'Admin' : user.role;
   const isAdmin = user.role === 'admin';
-  document.getElementById('btn-nav-users').style.display = isAdmin ? '' : 'none';
-  const logsNav = document.getElementById('btn-nav-logs');
-  if (logsNav) logsNav.style.display = isAdmin ? '' : 'none';
+  const gestionLabel = document.getElementById('gestion-label');
+  const gestionItems = document.getElementById('gestion-items');
+  if (gestionLabel) gestionLabel.style.display = isAdmin ? '' : 'none';
+  if (gestionItems) gestionItems.style.display = isAdmin ? '' : 'none';
   loadMarketingData();
   loadGrupos();
   loadHistorial();

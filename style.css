@@ -181,6 +181,20 @@ body.sidebar-open .main-content {
     background: var(--primary-color);
 }
 
+.menu-section-label {
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    padding: 28px 16px 6px;
+    opacity: 0.55;
+}
+
+.menu-section-label:first-child {
+    padding-top: 0;
+}
+
 .sidebar-footer {
     padding: 20px 0 24px;
     border-top: 1px solid var(--border-color);

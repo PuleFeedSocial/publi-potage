@@ -35,22 +35,31 @@
             </div>
 
             <nav class="sidebar-menu">
-                <a href="dashboard.html" class="menu-item" id="btn-nav-dashboard">
+                <div class="menu-section-label">Dashboard</div>
+                <a href="dashboard.html" class="menu-item submenu-item" id="btn-nav-dashboard">
                     <i class="bi bi-grid-1x2-fill"></i>
-                    <span>Dashboard Mkt</span>
+                    <span>Publicaciones</span>
                 </a>
-                <a href="informes.html" class="menu-item submenu-item">
+                <a href="informes.html" class="menu-item submenu-item" id="btn-nav-informes">
                     <i class="bi bi-file-earmark-bar-graph-fill"></i>
                     <span>Informes</span>
                 </a>
-                <a href="logs.html" class="menu-item submenu-item" id="btn-nav-logs">
-                    <i class="bi bi-journal-text"></i>
-                    <span>Logs</span>
+                <a href="grupos.html" class="menu-item submenu-item" id="btn-nav-grupos">
+                    <i class="bi bi-diagram-3"></i>
+                    <span>Grupos</span>
                 </a>
-                <a href="dashboard.html" class="menu-item" id="btn-nav-users" onclick="localStorage.setItem('navTarget','users');window.location='dashboard.html'">
-                    <i class="bi bi-people-fill"></i>
-                    <span>Gestión Usuarios</span>
-                </a>
+
+                <div class="menu-section-label" id="gestion-label">Gestión</div>
+                <div id="gestion-items">
+                    <a href="dashboard.html" class="menu-item submenu-item" id="btn-nav-users" onclick="localStorage.setItem('navTarget','users');window.location='dashboard.html'">
+                        <i class="bi bi-people-fill"></i>
+                        <span>Usuarios</span>
+                    </a>
+                    <a href="logs.html" class="menu-item submenu-item" id="btn-nav-logs">
+                        <i class="bi bi-journal-text"></i>
+                        <span>Logs</span>
+                    </a>
+                </div>
             </nav>
 
             <div class="sidebar-footer">
@@ -194,8 +203,10 @@
             badge.className = 'user-role-badge ' + (isAdmin ? 'badge-admin' : 'badge-colab');
             badge.innerText = isAdmin ? 'Admin' : session.role;
             document.getElementById('btn-nav-users').style.display = isAdmin ? '' : 'none';
-            const logsNav = document.getElementById('btn-nav-logs');
-            if (logsNav) logsNav.style.display = isAdmin ? '' : 'none';
+            const gestionLabel = document.getElementById('gestion-label');
+            const gestionItems = document.getElementById('gestion-items');
+            if (gestionLabel) gestionLabel.style.display = isAdmin ? '' : 'none';
+            if (gestionItems) gestionItems.style.display = isAdmin ? '' : 'none';
             if (localStorage.getItem('sidebarOpen') === 'true') {
                 document.querySelector('.sidebar').classList.add('open');
                 document.body.classList.add('sidebar-open');

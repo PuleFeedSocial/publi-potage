@@ -42,26 +42,31 @@
             </div>
 
             <nav class="sidebar-menu">
-                <a href="dashboard.html" class="menu-item">
+                <div class="menu-section-label">Dashboard</div>
+                <a href="dashboard.html" class="menu-item submenu-item" id="btn-nav-dashboard">
                     <i class="bi bi-grid-1x2-fill"></i>
-                    <span>Dashboard Publicaciones</span>
+                    <span>Publicaciones</span>
                 </a>
-                <a href="informes.html" class="menu-item submenu-item active">
+                <a href="informes.html" class="menu-item submenu-item active" id="btn-nav-informes">
                     <i class="bi bi-file-earmark-bar-graph-fill"></i>
                     <span>Informes</span>
                 </a>
-                <a href="grupos.html" class="menu-item submenu-item">
+                <a href="grupos.html" class="menu-item submenu-item" id="btn-nav-grupos">
                     <i class="bi bi-diagram-3"></i>
                     <span>Grupos</span>
                 </a>
-                <a href="logs.html" class="menu-item submenu-item" id="btn-nav-logs">
-                    <i class="bi bi-journal-text"></i>
-                    <span>Logs</span>
-                </a>
-                <a href="dashboard.html" class="menu-item" onclick="localStorage.setItem('navTarget','users')" id="btn-nav-users">
-                    <i class="bi bi-people-fill"></i>
-                    <span>Gestión Usuarios</span>
-                </a>
+
+                <div class="menu-section-label" id="gestion-label">Gestión</div>
+                <div id="gestion-items">
+                    <a href="dashboard.html" class="menu-item submenu-item" id="btn-nav-users" onclick="localStorage.setItem('navTarget','users')">
+                        <i class="bi bi-people-fill"></i>
+                        <span>Usuarios</span>
+                    </a>
+                    <a href="logs.html" class="menu-item submenu-item" id="btn-nav-logs">
+                        <i class="bi bi-journal-text"></i>
+                        <span>Logs</span>
+                    </a>
+                </div>
             </nav>
 
             <div class="sidebar-footer">
@@ -362,10 +367,10 @@
                 document.body.classList.add('sidebar-open');
             }
             const isAdmin = (session.role || '').toLowerCase() === 'admin';
-            const logsNav = document.getElementById('btn-nav-logs');
-            if (logsNav) logsNav.style.display = isAdmin ? '' : 'none';
-            const usersNav = document.getElementById('btn-nav-users');
-            if (usersNav) usersNav.style.display = isAdmin ? '' : 'none';
+            const gestionLabel = document.getElementById('gestion-label');
+            const gestionItems = document.getElementById('gestion-items');
+            if (gestionLabel) gestionLabel.style.display = isAdmin ? '' : 'none';
+            if (gestionItems) gestionItems.style.display = isAdmin ? '' : 'none';
             loadInformes();
         });
     </script>
