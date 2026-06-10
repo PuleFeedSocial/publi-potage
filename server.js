@@ -8,6 +8,7 @@ const authRoutes = require('./routes/auth');
 const marketingRoutes = require('./routes/marketing');
 const gruposRoutes = require('./routes/grupos');
 const historialRoutes = require('./routes/historial');
+const informesRoutes = require('./routes/informes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -22,6 +23,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/marketing', marketingRoutes);
 app.use('/api/grupos', gruposRoutes);
 app.use('/api/historial', historialRoutes);
+app.use('/api/informes', informesRoutes);
 
 async function runSeed() {
   const db = await getDb();

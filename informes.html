@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Informes — Potage</title>
+    <link rel="icon" type="image/png" href="img/isotiposinfondo.png">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="app-container">
+        <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="logo-box">
+                        <img src="img/isotiposinfondo.png" alt="Potage" class="logo-img">
+                        <span class="logo-text">Potage</span>
+                    </div>
+                    <button class="sidebar-toggle" onclick="toggleSidebar()">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+            </div>
+
+            <nav class="sidebar-menu">
+                <a href="dashboard.html" class="menu-item">
+                    <i class="bi bi-grid-1x2-fill"></i>
+                    <span>Dashboard Publicaciones</span>
+                </a>
+                <a href="informes.html" class="menu-item submenu-item active">
+                    <i class="bi bi-file-earmark-bar-graph-fill"></i>
+                    <span>Informes</span>
+                </a>
+                <a href="grupos.html" class="menu-item submenu-item">
+                    <i class="bi bi-diagram-3"></i>
+                    <span>Grupos</span>
+                </a>
+                <a href="dashboard.html" class="menu-item" onclick="localStorage.setItem('navTarget','users')">
+                    <i class="bi bi-people-fill"></i>
+                    <span>Gestión Usuarios</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-profile-summary">
+                    <div class="avatar" id="display-avatar">VA</div>
+                    <div class="user-info">
+                        <div class="user-name" id="display-user-name">Víctor Alejandro</div>
+                        <div class="user-role-badge badge-admin" id="display-user-role">Admin</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-navbar">
+                <div class="d-flex align-items-center gap-3">
+                    <button class="sidebar-toggle" onclick="toggleSidebar()">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <div class="page-context">
+                        <h1 class="page-title">Informes Importados</h1>
+                        <p class="page-subtitle text-muted">CSVs importados desde Facebook — visualizá y gestioná los datos sin afectar el dashboard</p>
+                    </div>
+                </div>
+                <div class="top-navbar-actions">
+                    <div class="dropdown">
+                        <button class="btn profile-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="avatar-sm" id="nav-avatar">VA</span>
+                            <span class="fw-medium" id="nav-user-name">Víctor</span>
+                            <i class="bi bi-chevron-down ms-1"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 mt-2">
+                            <li><a class="dropdown-item" href="account-settings.html">
+                                    <i class="bi bi-gear me-2"></i>Ajustes de la cuenta
+                                </a></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li><a class="dropdown-item text-danger" href="#" onclick="logout()">
+                                    <i class="bi bi-box-arrow-right me-2"></i>Cerrar Sesión
+                                </a></li>
+                        </ul>
+                    </div>
+                </div>
+            </header>
+
+            <div class="view-section">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <span class="text-muted small" id="data-source-badge-informes">
+                            <i class="bi bi-database"></i> Google Sheets
+                        </span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="loadInformes()" title="Recargar">
+                            <i class="bi bi-arrow-clockwise"></i> Recargar
+                        </button>
+                        <button class="btn btn-sm btn-action-primary" onclick="importCSV()">
+                            <i class="bi bi-upload me-1"></i> Importar CSV
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card data-table-card">
+                    <div class="card-header-clean d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="table-card-title">Datos Importados</h5>
+                            <span class="text-muted small" id="informes-count">0 registros</span>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table custom-table mb-0" id="informes-table">
+                            <thead id="informes-thead"></thead>
+                            <tbody id="informes-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <div class="modal fade" id="previewModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content custom-modal">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-semibold text-dark">
+                        <i class="bi bi-eye me-2"></i>Previsualización
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-3">
+                    <p class="text-muted small mb-3" id="preview-info">Cargando...</p>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered mb-0" id="preview-table">
+                            <thead id="preview-thead"></thead>
+                            <tbody id="preview-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-sm btn-light-muted" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-sm btn-action-primary" onclick="confirmImport()">
+                        <i class="bi bi-check2 me-1"></i>Confirmar importación
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="app.js"></script>
+    <script>
+        function toggleSidebar() {
+            document.querySelector('.sidebar').classList.toggle('open');
+            document.querySelector('.sidebar-overlay').classList.toggle('show');
+        }
+
+        let informesData = [];
+        let pendingImport = null;
+
+        function loadInformes() {
+            const tbody = document.getElementById('informes-tbody');
+            tbody.innerHTML = '<tr><td colspan="99" class="text-center text-muted">Cargando...</td></tr>';
+            fetch(API_BASE + '/api/informes', {
+                headers: { 'Authorization': 'Bearer ' + getToken() }
+            })
+                .then(r => r.json().then(b => ({ status: r.status, body: b })))
+                .then(({ status, body }) => {
+                    if (status !== 200) {
+                        tbody.innerHTML = '<tr><td colspan="99" class="text-center text-danger">' + (body.error || 'Error') + '</td></tr>';
+                        return;
+                    }
+                    informesData = body.data || [];
+                    const columns = body.columns || [];
+                    renderInformes(columns);
+                    document.getElementById('data-source-badge-informes').innerHTML = '<i class="bi bi-database"></i> Informes · ' + informesData.length + ' registros';
+                    document.getElementById('informes-count').innerText = informesData.length + ' registros';
+                })
+                .catch(() => {
+                    tbody.innerHTML = '<tr><td colspan="99" class="text-center text-muted">Error de conexión</td></tr>';
+                });
+        }
+
+        function renderInformes(columns) {
+            const thead = document.getElementById('informes-thead');
+            const tbody = document.getElementById('informes-tbody');
+            const showCols = columns.filter(c => c && c.trim());
+
+            thead.innerHTML = '<tr><th class="text-end">#</th>' + showCols.map(c => '<th>' + esc(c) + '</th>').join('') + '<th class="text-end">Acciones</th></tr>';
+
+            if (!informesData.length) {
+                tbody.innerHTML = '<tr><td colspan="' + (showCols.length + 2) + '" class="text-center text-muted py-4">No hay datos importados. Hacé clic en "Importar CSV" para subir un informe.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = '';
+            informesData.forEach((row, i) => {
+                const tr = document.createElement('tr');
+                tr.style.animation = 'fadeSlideUp 0.3s ease-out forwards';
+                tr.style.animationDelay = (Math.min(i, 20) * 0.04) + 's';
+                let cells = '<td class="text-end text-muted small">' + row.rowIndex + '</td>';
+                showCols.forEach(c => {
+                    let val = row[c] || '—';
+                    if (c.toLowerCase().includes('enlace') || c.toLowerCase().includes('link') || c.toLowerCase().includes('url')) {
+                        val = val !== '—' ? '<a href="' + esc(val) + '" target="_blank" class="small">' + esc(val.substring(0, 40)) + '</a>' : '—';
+                    }
+                    cells += '<td class="small">' + val + '</td>';
+                });
+                cells += '<td class="text-end"><button class="btn btn-sm btn-link text-danger p-0" onclick="deleteInformeRow(' + row.rowIndex + ')" title="Eliminar"><i class="bi bi-trash3-fill"></i></button></td>';
+                tr.innerHTML = cells;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function esc(s) {
+            if (!s) return '';
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function importCSV() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.csv';
+            input.onchange = function (e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                PapaParse.parse(file, {
+                    header: true,
+                    skipEmptyLines: true,
+                    encoding: 'UTF-8',
+                    complete: function (results) {
+                        if (results.errors && results.errors.length) {
+                            console.warn('CSV errors:', results.errors);
+                        }
+                        const data = results.data;
+                        if (!data || !data.length) {
+                            alert('El archivo CSV no contiene datos.');
+                            return;
+                        }
+                        pendingImport = data;
+                        showPreview(data);
+                    },
+                    error: function (err) {
+                        alert('Error al leer el CSV: ' + err.message);
+                    }
+                });
+            };
+            input.click();
+        }
+
+        function showPreview(data) {
+            const headers = Object.keys(data[0]);
+            const previewRows = data.slice(0, 10);
+            const totalRows = data.length;
+
+            document.getElementById('preview-info').innerText = totalRows + ' filas detectadas · ' + headers.length + ' columnas';
+
+            const thead = document.getElementById('preview-thead');
+            const tbody = document.getElementById('preview-tbody');
+            thead.innerHTML = '<tr>' + headers.map(h => '<th>' + esc(h) + '</th>').join('') + '</tr>';
+            tbody.innerHTML = previewRows.map(row =>
+                '<tr>' + headers.map(h => '<td class="small">' + esc(row[h]) + '</td>').join('') + '</tr>'
+            ).join('');
+
+            if (totalRows > 10) {
+                const extra = document.createElement('tr');
+                extra.innerHTML = '<td colspan="' + headers.length + '" class="text-center text-muted small">... y ' + (totalRows - 10) + ' filas más</td>';
+                tbody.appendChild(extra);
+            }
+
+            new bootstrap.Modal(document.getElementById('previewModal')).show();
+        }
+
+        function confirmImport() {
+            if (!pendingImport || !pendingImport.length) return;
+            const btn = document.querySelector('#previewModal .btn-action-primary');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Importando...';
+
+            fetch(API_BASE + '/api/informes/import', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ data: pendingImport })
+            })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.error) return alert(res.error);
+                    bootstrap.Modal.getInstance(document.getElementById('previewModal')).hide();
+                    pendingImport = null;
+                    loadInformes();
+                })
+                .catch(err => alert('Error: ' + err.message))
+                .finally(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-check2 me-1"></i>Confirmar importación';
+                });
+        }
+
+        function deleteInformeRow(rowIndex) {
+            if (!confirm('¿Eliminar esta fila permanentemente?')) return;
+            fetch(API_BASE + '/api/informes/' + rowIndex, {
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bearer ' + getToken() }
+            })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.error) return alert(res.error);
+                    loadInformes();
+                });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const session = getCurrentSession();
+            if (!session) {
+                window.location.href = 'index.html';
+                return;
+            }
+            const initials = session.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+            document.getElementById('display-avatar').innerText = initials;
+            document.getElementById('display-user-name').innerText = session.name;
+            document.getElementById('nav-avatar').innerText = initials;
+            document.getElementById('nav-user-name').innerText = session.name.split(' ')[0];
+            loadInformes();
+        });
+    </script>
+</body>
+
+</html>
