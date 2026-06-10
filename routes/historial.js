@@ -30,6 +30,30 @@ const CACHE_TTL = 60000;
 
 function invalidateCache() { cache = null; cacheTime = 0; }
 
+async function ensureSheet() {
+  const s = sheets();
+  if (!s) throw new Error('Google Sheets no configurado.');
+  const meta = await s.spreadsheets.get({ spreadsheetId: SHEET_ID, ranges: [] });
+  const exists = meta.data.sheets.some(sh => sh.properties.title === SHEET_NAME);
+  if (exists) return s;
+  await s.spreadsheets.batchUpdate({
+    spreadsheetId: SHEET_ID,
+    resource: {
+      requests: [{
+        addSheet: { properties: { title: SHEET_NAME } }
+      }]
+    }
+  });
+  await s.spreadsheets.values.update({
+    spreadsheetId: SHEET_ID, range: SHEET_NAME + '!A1:J1',
+    valueInputOption: 'USER_ENTERED',
+    resource: {
+      values: [['FechaActualizacion', 'FilaOrigen', 'Grupo', 'FechaPublicacion', 'Zona', 'Publicaciones', 'Visualizaciones', 'Interacciones', 'Comentarios', 'Mensajes']]
+    }
+  });
+  return s;
+}
+
 router.get('/', authenticate, async (req, res) => {
   try {
     if (cache && Date.now() - cacheTime < CACHE_TTL && req.query.refresh !== 'true') {
@@ -37,6 +61,8 @@ router.get('/', authenticate, async (req, res) => {
     }
     const s = sheets();
     if (!s) return res.status(503).json({ error: 'Google Sheets no configurado.' });
+
+    await ensureSheet();
 
     const result = await s.spreadsheets.values.get({
       spreadsheetId: SHEET_ID, range: SHEET_NAME + '!A:J', valueRenderOption: 'FORMATTED_VALUE'
@@ -74,6 +100,8 @@ router.post('/', authenticate, async (req, res) => {
   try {
     const s = sheets();
     if (!s) return res.status(503).json({ error: 'Google Sheets no configurado.' });
+
+    await ensureSheet();
 
     const { fechaActualizacion, filaOrigen, grupo, fechaPublicacion, zona, publicaciones, visualizaciones, interacciones, comentarios, mensajes } = req.body;
 
