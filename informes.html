@@ -54,7 +54,7 @@
                     <i class="bi bi-journal-text"></i>
                     <span>Logs</span>
                 </a>
-                <a href="dashboard.html" class="menu-item" onclick="localStorage.setItem('navTarget','users')">
+                <a href="dashboard.html" class="menu-item" onclick="localStorage.setItem('navTarget','users')" id="btn-nav-users">
                     <i class="bi bi-people-fill"></i>
                     <span>Gestión Usuarios</span>
                 </a>
@@ -360,6 +360,8 @@
             const isAdmin = (session.role || '').toLowerCase() === 'admin';
             const logsNav = document.getElementById('btn-nav-logs');
             if (logsNav) logsNav.style.display = isAdmin ? '' : 'none';
+            const usersNav = document.getElementById('btn-nav-users');
+            if (usersNav) usersNav.style.display = isAdmin ? '' : 'none';
             loadInformes();
         });
     </script>
