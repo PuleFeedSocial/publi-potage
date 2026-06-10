@@ -7,6 +7,7 @@ const bcrypt = require('bcryptjs');
 const authRoutes = require('./routes/auth');
 const marketingRoutes = require('./routes/marketing');
 const gruposRoutes = require('./routes/grupos');
+const historialRoutes = require('./routes/historial');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -20,6 +21,7 @@ app.use(express.static(__dirname));
 app.use('/api/auth', authRoutes);
 app.use('/api/marketing', marketingRoutes);
 app.use('/api/grupos', gruposRoutes);
+app.use('/api/historial', historialRoutes);
 
 async function runSeed() {
   const db = await getDb();

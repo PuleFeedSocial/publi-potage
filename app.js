@@ -98,6 +98,8 @@ let currentRole = '';
 let chartsInstances = {};
 let marketingData = [];
 let gruposData = [];
+let historialData = [];
+let editingRowData = null;
 let filterPeriod = 'all';
 
 function switchView(viewName) {
@@ -304,6 +306,17 @@ function addMarketingRow(data) {
   });
 }
 
+function updateMarketingRow(rowIndex, data) {
+  fetch(API_BASE + '/api/marketing/' + rowIndex, {
+    method: 'PUT',
+    headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  }).then(r => r.json()).then(res => {
+    if (res.error) return alert(res.error);
+    loadMarketingData();
+  });
+}
+
 function deleteMarketingRow(rowIndex) {
   if (!confirm('¿Eliminar esta fila permanentemente?')) return;
   fetch(API_BASE + '/api/marketing/' + rowIndex, {
@@ -322,6 +335,17 @@ function loadGrupos() {
     .then(r => r.json().then(b => ({ status: r.status, body: b })))
     .then(({ status, body }) => {
       if (status === 200) gruposData = body.data || [];
+    })
+    .catch(() => {});
+}
+
+function loadHistorial() {
+  fetch(API_BASE + '/api/historial', {
+    headers: { 'Authorization': 'Bearer ' + getToken() }
+  })
+    .then(r => r.json().then(b => ({ status: r.status, body: b })))
+    .then(({ status, body }) => {
+      if (status === 200) historialData = body.data || [];
     })
     .catch(() => {});
 }
@@ -401,13 +425,10 @@ function openAddModal() {
 function openEditModal(rowData) {
   if (typeof rowData === 'string') rowData = JSON.parse(decodeURIComponent(rowData));
   const row = rowData;
+  editingRowData = row;
   document.getElementById('mk-modal-title').innerHTML = '<i class="bi bi-pencil-fill me-2"></i>Editar Publicación';
-  document.getElementById('mk-row-index').value = '';
-  const today = new Date();
-  const dd = String(today.getDate()).padStart(2, '0');
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
-  const yyyy = today.getFullYear();
-  document.getElementById('mk-fecha').value = dd + '/' + mm + '/' + yyyy;
+  document.getElementById('mk-row-index').value = row.rowIndex;
+  document.getElementById('mk-fecha').value = row.fecha || '';
   document.getElementById('mk-pubs').value = row.publicaciones;
   document.getElementById('mk-vis').value = row.visualizaciones;
   document.getElementById('mk-int').value = row.interacciones;
@@ -455,12 +476,40 @@ function saveMarketingRow() {
   };
   if (!data.fecha || !data.grupo) return alert('Fecha y Grupo son obligatorios.');
 
+  const rowIndex = document.getElementById('mk-row-index').value;
   const isNewGrupo = document.getElementById('mk-grupo').value === '__otro__' && data.grupo;
-  const isNewZona = document.getElementById('mk-zona').value === '__otro__' && data.zona;
 
   const save = () => {
     try { bootstrap.Modal.getInstance(document.getElementById('mkModal')).hide(); } catch {}
-    addMarketingRow(data);
+
+    if (rowIndex) {
+      if (editingRowData && editingRowData.rowIndex == rowIndex) {
+        const today = new Date();
+        const dd = String(today.getDate()).padStart(2, '0');
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const yyyy = today.getFullYear();
+        fetch(API_BASE + '/api/historial', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fechaActualizacion: dd + '/' + mm + '/' + yyyy,
+            filaOrigen: editingRowData.rowIndex,
+            grupo: editingRowData.grupo,
+            fechaPublicacion: editingRowData.fecha,
+            zona: editingRowData.zona,
+            publicaciones: editingRowData.publicaciones,
+            visualizaciones: editingRowData.visualizaciones,
+            interacciones: editingRowData.interacciones,
+            comentarios: editingRowData.comentarios,
+            mensajes: editingRowData.mensajes
+          })
+        }).then(() => loadHistorial());
+      }
+      editingRowData = null;
+      updateMarketingRow(rowIndex, data);
+    } else {
+      addMarketingRow(data);
+    }
   };
 
   let chain = Promise.resolve();
@@ -479,6 +528,30 @@ function saveMarketingRow() {
 function openDetailModal(rowData) {
   if (typeof rowData === 'string') rowData = JSON.parse(decodeURIComponent(rowData));
   const row = rowData;
+  const historiales = historialData.filter(h => h.filaOrigen === row.rowIndex);
+  let histHtml = '';
+  if (historiales.length) {
+    histHtml = `
+      <hr class="my-3">
+      <h6 class="fw-semibold text-muted mb-2"><i class="bi bi-clock-history me-1"></i>Historial de actualizaciones</h6>
+      <div class="table-responsive">
+        <table class="table table-sm small mb-0">
+          <thead><tr><th>Fecha</th><th>Pubs</th><th>Vis</th><th>Int</th><th>Com</th><th>Msj</th></tr></thead>
+          <tbody>
+            ${historiales.sort((a, b) => a.fechaActualizacion.localeCompare(b.fechaActualizacion)).map(h => `
+              <tr>
+                <td class="text-muted">${h.fechaActualizacion}</td>
+                <td>${h.publicaciones}</td>
+                <td>${h.visualizaciones}</td>
+                <td>${h.interacciones}</td>
+                <td>${h.comentarios}</td>
+                <td>${h.mensajes}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }
   const html = `
     <div class="row g-3">
       <div class="col-6 col-md-4"><div class="text-muted small">Fecha</div><div class="fw-medium">${row.fecha || '—'}</div></div>
@@ -489,7 +562,8 @@ function openDetailModal(rowData) {
       <div class="col-6 col-md-4"><div class="text-muted small">Comentarios</div><div class="fw-medium">${row.comentarios}</div></div>
       <div class="col-6 col-md-4"><div class="text-muted small">Mensajes</div><div class="fw-medium">${row.mensajes}</div></div>
       <div class="col-6 col-md-4"><div class="text-muted small">Zona</div><div class="fw-medium">${row.zona || '—'}</div></div>
-    </div>`;
+    </div>
+    ${histHtml}`;
 
   const footer = `
     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
@@ -688,6 +762,7 @@ function enterApp(user) {
   document.getElementById('btn-nav-users').style.display = isAdmin ? '' : 'none';
   loadMarketingData();
   loadGrupos();
+  loadHistorial();
   if (isAdmin) {
     loadUsers();
   }
@@ -697,5 +772,6 @@ function enterApp(user) {
   setInterval(() => {
     loadMarketingData();
     loadGrupos();
+    loadHistorial();
   }, 60000);
 }
