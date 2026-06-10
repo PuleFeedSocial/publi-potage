@@ -141,7 +141,7 @@ function loadMarketingData() {
         tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">' + msg + '</td></tr>';
         return;
       }
-      marketingData = (body.data || []).filter(r => r.grupo !== 'Perfil Estandar');
+      marketingData = body.data || [];
       document.getElementById('data-source-badge').innerHTML = '<i class="bi bi-database"></i> Google Sheets';
       populateFilterDropdowns();
       applyFilters();
@@ -160,11 +160,12 @@ function refreshMarketingData() {
 function renderDashboard(data, chartData) {
   data = data || marketingData;
   chartData = chartData || data;
-  const grupos = [...new Set(data.map(r => r.grupo).filter(Boolean))];
-  const totalPubs = data.reduce((s, r) => s + r.publicaciones, 0);
-  const totalVis = data.reduce((s, r) => s + r.visualizaciones, 0);
-  const totalInt = data.reduce((s, r) => s + r.interacciones, 0);
-  const totalMsj = data.reduce((s, r) => s + r.mensajes, 0);
+  const kpiData = data.filter(r => r.grupo !== 'Perfil Estandar');
+  const grupos = [...new Set(kpiData.map(r => r.grupo).filter(Boolean))];
+  const totalPubs = kpiData.reduce((s, r) => s + r.publicaciones, 0);
+  const totalVis = kpiData.reduce((s, r) => s + r.visualizaciones, 0);
+  const totalInt = kpiData.reduce((s, r) => s + r.interacciones, 0);
+  const totalMsj = kpiData.reduce((s, r) => s + r.mensajes, 0);
   document.getElementById('kpi-grupos').innerText = grupos.length;
   document.getElementById('kpi-publicaciones').innerText = totalPubs;
   document.getElementById('kpi-visualizaciones').innerText = totalVis;
@@ -196,7 +197,7 @@ function renderDashboard(data, chartData) {
 }
 
 function populateFilterDropdowns() {
-  const grupos = [...new Set(marketingData.map(r => r.grupo).filter(Boolean))];
+  const grupos = [...new Set(marketingData.map(r => r.grupo).filter(Boolean))].filter(g => g !== 'Perfil Estandar');
   const zonas = [...new Set(marketingData.map(r => r.zona).filter(Boolean))];
 
   const selGrupo = document.getElementById('filter-grupo');
@@ -276,9 +277,9 @@ function applyFilters() {
   }
 
   // Build chart data from Metricas + Historial, independently filtered
-  let chartData = [...filtered];
+  let chartData = [...filtered.filter(r => r.grupo !== 'Perfil Estandar')];
   if (historialData.length > 0) {
-    let hf = historialData;
+    let hf = historialData.filter(h => h.grupo !== 'Perfil Estandar');
     if (search) hf = hf.filter(h => Object.values(h).some(v => String(v).toLowerCase().includes(search)));
     if (grupo) hf = hf.filter(h => h.grupo === grupo);
     if (zona) hf = hf.filter(h => h.zona === zona);
@@ -328,9 +329,9 @@ function clearFilters() {
   });
 
   // Build chart data from ALL Metricas + ALL Historial
-  let chartData = [...marketingData];
+  let chartData = [...marketingData.filter(r => r.grupo !== 'Perfil Estandar')];
   if (historialData.length > 0) {
-    historialData.forEach(h => {
+    historialData.filter(h => h.grupo !== 'Perfil Estandar').forEach(h => {
       chartData.push({
         fecha: h.fechaActualizacion,
         publicaciones: h.publicaciones,
@@ -421,7 +422,7 @@ function loadHistorial() {
     .then(r => r.json().then(b => ({ status: r.status, body: b })))
     .then(({ status, body }) => {
       if (status === 200) {
-        historialData = (body.data || []).filter(h => h.grupo !== 'Perfil Estandar');
+        historialData = body.data || [];
         applyFilters();
       }
     })
