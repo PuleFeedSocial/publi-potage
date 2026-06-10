@@ -13,9 +13,11 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="style.css">
     <style>
-        .text-truncate-cell { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .text-truncate-cell { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .text-truncate-cell:hover { overflow: visible; white-space: normal; background: #fff; position: relative; z-index: 1; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        #informes-table th { max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .data-table-card { overflow-x: hidden; }
+        .data-table-card .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+        #informes-table { table-layout: auto; width: 100%; }
     </style>
 </head>
 
