@@ -232,31 +232,36 @@
         function importCSV() {
             const input = document.createElement('input');
             input.type = 'file';
-            input.accept = '.csv';
-            input.onchange = function (e) {
+            input.accept = '.csv,text/csv';
+            input.style.display = 'none';
+            document.body.appendChild(input);
+            input.addEventListener('change', function (e) {
                 const file = e.target.files[0];
-                if (!file) return;
-                PapaParse.parse(file, {
-                    header: true,
-                    skipEmptyLines: true,
-                    encoding: 'UTF-8',
-                    complete: function (results) {
-                        if (results.errors && results.errors.length) {
-                            console.warn('CSV errors:', results.errors);
+                if (!file) { document.body.removeChild(input); return; }
+                try {
+                    Papa.parse(file, {
+                        header: true,
+                        skipEmptyLines: true,
+                        encoding: 'UTF-8',
+                        complete: function (results) {
+                            document.body.removeChild(input);
+                            if (!results.data || !results.data.length) {
+                                alert('El archivo CSV no contiene datos o el formato no es reconocido.');
+                                return;
+                            }
+                            pendingImport = results.data;
+                            showPreview(results.data);
+                        },
+                        error: function (err) {
+                            document.body.removeChild(input);
+                            alert('Error al leer el CSV: ' + err.message);
                         }
-                        const data = results.data;
-                        if (!data || !data.length) {
-                            alert('El archivo CSV no contiene datos.');
-                            return;
-                        }
-                        pendingImport = data;
-                        showPreview(data);
-                    },
-                    error: function (err) {
-                        alert('Error al leer el CSV: ' + err.message);
-                    }
-                });
-            };
+                    });
+                } catch (err) {
+                    document.body.removeChild(input);
+                    alert('Error al procesar el archivo: ' + err.message);
+                }
+            });
             input.click();
         }
 
