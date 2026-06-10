@@ -99,7 +99,6 @@ let chartsInstances = {};
 let marketingData = [];
 let gruposData = [];
 let historialData = [];
-let editingRowData = null;
 let filterPeriod = 'all';
 
 function switchView(viewName) {
@@ -312,8 +311,19 @@ function updateMarketingRow(rowIndex, data) {
     headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   }).then(r => r.json()).then(res => {
-    if (res.error) return alert(res.error);
+    if (res.error) return;
     loadMarketingData();
+  });
+}
+
+function postHistorial(snapshot) {
+  fetch(API_BASE + '/api/historial', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(snapshot)
+  }).then(r => r.json()).then(res => {
+    if (res.error) return;
+    loadHistorial();
   });
 }
 
@@ -425,7 +435,6 @@ function openAddModal() {
 function openEditModal(rowData) {
   if (typeof rowData === 'string') rowData = JSON.parse(decodeURIComponent(rowData));
   const row = rowData;
-  editingRowData = row;
   document.getElementById('mk-modal-title').innerHTML = '<i class="bi bi-pencil-fill me-2"></i>Editar Publicación';
   document.getElementById('mk-row-index').value = row.rowIndex;
   document.getElementById('mk-fecha').value = row.fecha || '';
@@ -479,36 +488,34 @@ function saveMarketingRow() {
   const rowIndex = document.getElementById('mk-row-index').value;
   const isNewGrupo = document.getElementById('mk-grupo').value === '__otro__' && data.grupo;
 
+  const today = new Date();
+  const dd = String(today.getDate()).padStart(2, '0');
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const yyyy = today.getFullYear();
+  const fechaActualizacion = dd + '/' + mm + '/' + yyyy;
+
   const save = () => {
     try { bootstrap.Modal.getInstance(document.getElementById('mkModal')).hide(); } catch {}
 
+    const snapshot = {
+      fechaActualizacion: rowIndex ? fechaActualizacion : data.fecha,
+      filaOrigen: rowIndex ? parseInt(rowIndex) : 0,
+      grupo: data.grupo,
+      fechaPublicacion: data.fecha,
+      zona: data.zona,
+      publicaciones: data.publicaciones,
+      visualizaciones: data.visualizaciones,
+      interacciones: data.interacciones,
+      comentarios: data.comentarios,
+      mensajes: data.mensajes
+    };
+
     if (rowIndex) {
-      if (editingRowData && editingRowData.rowIndex == rowIndex) {
-        const today = new Date();
-        const dd = String(today.getDate()).padStart(2, '0');
-        const mm = String(today.getMonth() + 1).padStart(2, '0');
-        const yyyy = today.getFullYear();
-        fetch(API_BASE + '/api/historial', {
-          method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fechaActualizacion: dd + '/' + mm + '/' + yyyy,
-            filaOrigen: editingRowData.rowIndex,
-            grupo: editingRowData.grupo,
-            fechaPublicacion: editingRowData.fecha,
-            zona: editingRowData.zona,
-            publicaciones: editingRowData.publicaciones,
-            visualizaciones: editingRowData.visualizaciones,
-            interacciones: editingRowData.interacciones,
-            comentarios: editingRowData.comentarios,
-            mensajes: editingRowData.mensajes
-          })
-        }).then(() => loadHistorial());
-      }
-      editingRowData = null;
       updateMarketingRow(rowIndex, data);
+      postHistorial(snapshot);
     } else {
       addMarketingRow(data);
+      postHistorial(snapshot);
     }
   };
 
@@ -584,14 +591,27 @@ function openDetailModal(rowData) {
   new bootstrap.Modal(document.getElementById('detailModal')).show();
 }
 
-function initCharts(data) {
+function initCharts(metricasData) {
   Object.values(chartsInstances).forEach(c => { try { c.destroy(); } catch {} });
   chartsInstances = {};
-  const fechas = [...new Set(data.map(r => r.fecha).filter(Boolean))].sort();
+
+  const useHistorial = historialData.length > 0;
+  let chartSource;
+
+  if (useHistorial) {
+    const allowed = new Set(metricasData.map(r => r.rowIndex));
+    chartSource = historialData.filter(h => allowed.has(h.filaOrigen));
+    if (chartSource.length === 0) chartSource = metricasData;
+  } else {
+    chartSource = metricasData;
+  }
+
+  const fechaField = useHistorial && chartSource !== metricasData ? 'fechaActualizacion' : 'fecha';
+  const fechas = [...new Set(chartSource.map(r => r[fechaField]).filter(Boolean))].sort();
   const labels = fechas.map(f => f.substring(0, 5));
-  const pubs = fechas.map(f => data.filter(r => r.fecha === f).reduce((s, r) => s + r.publicaciones, 0));
-  const ints = fechas.map(f => data.filter(r => r.fecha === f).reduce((s, r) => s + r.interacciones, 0));
-  const msjs = fechas.map(f => data.filter(r => r.fecha === f).reduce((s, r) => s + r.mensajes, 0));
+  const pubs = fechas.map(f => chartSource.filter(r => r[fechaField] === f).reduce((s, r) => s + r.publicaciones, 0));
+  const ints = fechas.map(f => chartSource.filter(r => r[fechaField] === f).reduce((s, r) => s + r.interacciones, 0));
+  const msjs = fechas.map(f => chartSource.filter(r => r[fechaField] === f).reduce((s, r) => s + r.mensajes, 0));
 
   chartsInstances.pubs = new Chart(document.getElementById('chartPublicaciones'), {
     type: 'line',
