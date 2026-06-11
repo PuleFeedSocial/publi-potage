@@ -192,6 +192,8 @@ router.post('/codes', authenticate, requireAdmin, async (req, res) => {
         generated.push(code);
       } catch { /* code exists, skip */ }
     }
+    logAction(req.user.id, req.user.email, 'Creación de códigos', `${generated.length} códigos generados`, req.ip);
+
     res.status(201).json({ message: `${generated.length} código(s) generado(s).`, codes: generated });
   } catch (err) {
     res.status(500).json({ error: 'Error al generar códigos.' });
@@ -215,6 +217,9 @@ router.post('/change-password', authenticate, async (req, res) => {
     }
     const hashed = bcrypt.hashSync(newPassword, 10);
     await db.run('UPDATE users SET password = ? WHERE id = ?', [hashed, req.user.id]);
+
+    logAction(req.user.id, req.user.email, 'Cambio de contraseña', '', req.ip);
+
     res.json({ message: 'Contraseña actualizada correctamente.' });
   } catch (err) {
     console.error(err);
@@ -240,6 +245,9 @@ router.delete('/codes/:id', authenticate, requireAdmin, async (req, res) => {
     if (!code) return res.status(404).json({ error: 'Código no encontrado.' });
     if (code.used) return res.status(400).json({ error: 'No se puede eliminar un código ya utilizado.' });
     await db.run('DELETE FROM activation_codes WHERE id = ?', [req.params.id]);
+
+    logAction(req.user.id, req.user.email, 'Eliminación de código', `Código #${req.params.id} eliminado`, req.ip);
+
     res.json({ message: 'Código eliminado.' });
   } catch (err) {
     res.status(500).json({ error: 'Error al eliminar código.' });

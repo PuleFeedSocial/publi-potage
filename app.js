@@ -251,6 +251,7 @@ function buildPeriodLimit() {
   const now = new Date();
   const limit = new Date(now);
   limit.setDate(limit.getDate() - parseInt(filterPeriod));
+  limit.setHours(0, 0, 0, 0);
   return limit;
 }
 
@@ -375,7 +376,6 @@ function loadHistorial() {
     .then(({ status, body }) => {
       if (status === 200) {
         historialData = body.data || [];
-        applyFilters();
       }
     })
     .catch(() => {});
@@ -615,33 +615,50 @@ function initCharts(chartData) {
   Object.values(chartsInstances).forEach(c => { try { c.destroy(); } catch {} });
   chartsInstances = {};
 
-  const fechas = [...new Set(chartData.map(r => r.fecha).filter(Boolean))].sort();
+  const fechas = [...new Set(chartData.map(r => r.fecha).filter(Boolean))].sort((a, b) => {
+    const da = parseDate(a), db = parseDate(b);
+    if (!da || !db) return 0;
+    return da - db;
+  });
   const labels = fechas.map(f => f.substring(0, 5));
   const pubs = fechas.map(f => chartData.filter(r => r.fecha === f).reduce((s, r) => s + r.publicaciones, 0));
   const ints = fechas.map(f => chartData.filter(r => r.fecha === f).reduce((s, r) => s + r.interacciones, 0));
   const msjs = fechas.map(f => chartData.filter(r => r.fecha === f).reduce((s, r) => s + r.mensajes, 0));
 
-  chartsInstances.pubs = new Chart(document.getElementById('chartPublicaciones'), {
-    type: 'line',
-    data: { labels, datasets: [{ data: pubs, borderColor: '#0f172a', borderWidth: 2, tension: 0.3, pointRadius: 2, fill: false }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+  if (!fechas.length) return;
+
+  ['chartPublicaciones', 'chartInteracciones', 'chartComparativo'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
   });
 
-  chartsInstances.ints = new Chart(document.getElementById('chartInteracciones'), {
-    type: 'line',
-    data: { labels, datasets: [{ data: ints, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.04)', borderWidth: 2, tension: 0.3, fill: true }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-  });
+  try {
+    chartsInstances.pubs = new Chart(document.getElementById('chartPublicaciones'), {
+      type: 'line',
+      data: { labels, datasets: [{ data: pubs, borderColor: '#0f172a', borderWidth: 2, tension: 0.3, pointRadius: 2, fill: false }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+  } catch {}
 
-  chartsInstances.comp = new Chart(document.getElementById('chartComparativo'), {
-    type: 'line',
-    data: {
-      labels, datasets: [
-        { label: 'Msj', data: msjs, borderColor: '#6366f1', backgroundColor: 'rgba(99, 102, 241, 0.04)', borderWidth: 2, tension: 0.3, fill: true, pointRadius: 2 }
-      ]
-    },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-  });
+  try {
+    chartsInstances.ints = new Chart(document.getElementById('chartInteracciones'), {
+      type: 'line',
+      data: { labels, datasets: [{ data: ints, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.04)', borderWidth: 2, tension: 0.3, fill: true }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+  } catch {}
+
+  try {
+    chartsInstances.comp = new Chart(document.getElementById('chartComparativo'), {
+      type: 'line',
+      data: {
+        labels, datasets: [
+          { label: 'Msj', data: msjs, borderColor: '#6366f1', backgroundColor: 'rgba(99, 102, 241, 0.04)', borderWidth: 2, tension: 0.3, fill: true, pointRadius: 2 }
+        ]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+  } catch {}
 }
 
 function loadUsers() {
