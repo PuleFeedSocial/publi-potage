@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ayuda — Potage</title>
+    <link rel="icon" type="image/png" href="img/icon-192.png">
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" sizes="180x180" href="img/icon-180.png">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .help-section {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-sm);
+        }
+        .help-section h4 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .help-section p,
+        .help-section li {
+            font-size: 0.875rem;
+            color: #475569;
+            line-height: 1.6;
+        }
+        .help-section ul {
+            padding-left: 20px;
+            margin-bottom: 0;
+        }
+        .help-section li {
+            margin-bottom: 4px;
+        }
+        .help-tag {
+            display: inline-block;
+            font-size: 0.65rem;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 20px;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+        .tag-admin {
+            background: #fef2f2;
+            color: #991b1b;
+        }
+        .tag-user {
+            background: #f0fdf4;
+            color: #166534;
+        }
+        .help-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+        @media (min-width: 768px) {
+            .help-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        .help-card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+        .kbd {
+            display: inline-block;
+            padding: 2px 6px;
+            font-size: 0.7rem;
+            font-family: inherit;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            color: #475569;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="logo-box">
+                        <img src="img/isotiposinfondo.png" alt="Potage" class="logo-img">
+                        <span class="logo-text">Potage</span>
+                    </div>
+                    <button class="sidebar-toggle" onclick="toggleSidebar()">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+            </div>
+
+            <nav class="sidebar-menu">
+                <div class="menu-section-label">Dashboard</div>
+                <a href="dashboard.html" class="menu-item submenu-item">
+                    <i class="bi bi-grid-1x2-fill"></i>
+                    <span>Publicaciones</span>
+                </a>
+                <a href="informes.html" class="menu-item submenu-item">
+                    <i class="bi bi-file-earmark-bar-graph-fill"></i>
+                    <span>Informes</span>
+                </a>
+                <a href="grupos.html" class="menu-item submenu-item">
+                    <i class="bi bi-diagram-3"></i>
+                    <span>Grupos</span>
+                </a>
+
+                <div class="menu-section-label" id="gestion-label">Gestión</div>
+                <div id="gestion-items">
+                    <a href="dashboard.html" class="menu-item submenu-item" onclick="localStorage.setItem('navTarget','users')">
+                        <i class="bi bi-people-fill"></i>
+                        <span>Usuarios</span>
+                    </a>
+                    <a href="logs.html" class="menu-item submenu-item">
+                        <i class="bi bi-journal-text"></i>
+                        <span>Logs</span>
+                    </a>
+                </div>
+            </nav>
+
+            <div class="sidebar-footer">
+                <a href="ayuda.html" class="menu-item submenu-item active" style="border-radius:8px;margin-bottom:8px">
+                    <i class="bi bi-question-circle-fill"></i>
+                    <span>Ayuda</span>
+                </a>
+                <div class="user-profile-summary">
+                    <div class="avatar" id="display-avatar">VA</div>
+                    <div class="user-info">
+                        <div class="user-name" id="display-user-name">Víctor Alejandro</div>
+                        <div class="user-role-badge badge-admin" id="display-user-role">Admin</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-navbar">
+                <div class="d-flex align-items-center gap-3">
+                    <button class="sidebar-toggle" onclick="toggleSidebar()">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <div class="page-context">
+                        <h1 class="page-title">Ayuda</h1>
+                        <p class="page-subtitle text-muted">Guía rápida del dashboard de marketing</p>
+                    </div>
+                </div>
+                <div class="top-navbar-actions">
+                    <div class="dropdown">
+                        <button class="btn profile-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="avatar-sm" id="nav-avatar">VA</span>
+                            <span class="fw-medium" id="nav-user-name">Víctor</span>
+                            <i class="bi bi-chevron-down ms-1"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 mt-2">
+                            <li><a class="dropdown-item" href="account-settings.html">
+                                    <i class="bi bi-gear me-2"></i>Ajustes de la cuenta
+                                </a></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li><a class="dropdown-item text-danger" href="#" onclick="logout()">
+                                    <i class="bi bi-box-arrow-right me-2"></i>Cerrar Sesión
+                                </a></li>
+                        </ul>
+                    </div>
+                </div>
+            </header>
+
+            <div class="view-section">
+
+                <div class="help-section">
+                    <h4><span class="help-card-icon" style="background:#f0fdf4;color:#166534"><i class="bi bi-grid-1x2-fill"></i></span> Dashboard — Publicaciones</h4>
+                    <p>El panel principal muestra el rendimiento de todas las cuentas de Facebook. Se divide en tres áreas:</p>
+                    <div class="help-grid">
+                        <div>
+                            <strong>KPIs</strong>
+                            <ul>
+                                <li>Total de grupos activos, publicaciones, visualizaciones, interacciones y mensajes.</li>
+                                <li>Los valores se actualizan automáticamente cada 60 segundos.</li>
+                                <li>Los KPIs excluyen al perfil estandar para no distorsionar las métricas.</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <strong>Gráficos</strong>
+                            <ul>
+                                <li>Tres gráficos de línea: Publicaciones, Interacciones y Mensajes en el tiempo.</li>
+                                <li>Se actualizan al aplicar filtros para mostrar solo los datos seleccionados.</li>
+                                <li>Cada punto representa la suma de todas las filas de esa fecha.</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <strong>Tabla</strong>
+                            <ul>
+                                <li>Lista todas las publicaciones con fecha, grupo, métricas y zona.</li>
+                                <li>Hacé clic en cualquier fila para ver el detalle completo y el historial de cambios.</li>
+                                <li>Usá los filtros de arriba para buscar, ordenar o acotar los resultados.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-section">
+                    <h4><span class="help-card-icon" style="background:#f5f3ff;color:#5b21b6"><i class="bi bi-file-earmark-bar-graph-fill"></i></span> Informes</h4>
+                    <p>Importá archivos CSV con datos externos para visualizarlos en una tabla. Los datos importados no afectan los KPIs ni los gráficos del dashboard.</p>
+                    <ul>
+                        <li>Hacé clic en <strong>"Importar CSV"</strong> y seleccioná un archivo del equipo.</li>
+                        <li>El sistema parsea el CSV y muestra una vista previa antes de importar.</li>
+                        <li>Las columnas se crean dinámicamente según el archivo.</li>
+                        <li>Podés eliminar filas individuales si es necesario.</li>
+                    </ul>
+                </div>
+
+                <div class="help-section">
+                    <h4><span class="help-card-icon" style="background:#fffbeb;color:#92400e"><i class="bi bi-diagram-3"></i></span> Grupos</h4>
+                    <p>Administrá los grupos/canales de cada cuenta de Facebook.</p>
+                    <ul>
+                        <li><strong>Crear:</strong> completá nombre, enlace (opcional) y zona, luego guardá.</li>
+                        <li><strong>Editar:</strong> hacé clic en el lápiz junto al grupo que querés modificar.</li>
+                        <li><strong>Eliminar:</strong> usá el ícono de papelera — se borra definitivamente.</li>
+                        <li>Los grupos creados aparecen automáticamente en los filtros del dashboard.</li>
+                    </ul>
+                </div>
+
+                <div class="help-section">
+                    <h4><span class="help-card-icon" style="background:#eff6ff;color:#1e40af"><i class="bi bi-funnel-fill"></i></span> Filtros del Dashboard</h4>
+                    <p>Usá los filtros de la barra superior para acotar los datos que ves en la tabla, KPIs y gráficos.</p>
+                    <div class="help-grid">
+                        <div>
+                            <strong>Búsqueda</strong>
+                            <ul>
+                                <li>Buscá en toda la tabla por cualquier texto.</li>
+                                <li>Presioná <span class="kbd">Enter</span> o hacé clic en la lupa.</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <strong>Grupo</strong>
+                            <ul>
+                                <li>Seleccioná un grupo específico para ver solo sus datos.</li>
+                                <li>La opción <em>"Todos"</em> muestra todos los grupos.</li>
+                                <li>El perfil estandar no aparece en este filtro.</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <strong>Zona</strong>
+                            <ul>
+                                <li>Filtrá por ubicación o categoría geográfica.</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <strong>Período</strong>
+                            <ul>
+                                <li><strong>Todo:</strong> muestra todas las fechas.</li>
+                                <li><strong>7d / 30d:</strong> muestra solo los últimos 7 o 30 días.</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <strong>Fecha exacta</strong>
+                            <ul>
+                                <li>Ingresá una fecha en formato <span class="kbd">dd/mm/aaaa</span>.</li>
+                                <li>Presioná <span class="kbd">Enter</span> para aplicar.</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <strong>Limpiar</strong>
+                            <ul>
+                                <li>El botón <i class="bi bi-x-lg"></i> restablece todos los filtros a su valor por defecto.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-section">
+                    <h4><span class="help-card-icon" style="background:#f8fafc;color:#475569"><i class="bi bi-gear"></i></span> Ajustes de la Cuenta</h4>
+                    <p>Desde el menú del usuario (esquina superior derecha) podés acceder a <strong>"Ajustes de la cuenta"</strong> para cambiar tu contraseña.</p>
+                    <ul>
+                        <li>Ingresá tu contraseña actual y la nueva (mínimo 6 caracteres).</li>
+                        <li>La sesión se mantiene activa después del cambio.</li>
+                    </ul>
+                </div>
+
+                <div class="help-section">
+                    <h4><span class="help-card-icon" style="background:#f1f5f9;color:#0f172a"><i class="bi bi-layout-sidebar"></i></span> Barra lateral</h4>
+                    <p>La barra lateral se puede colapsar para dar más espacio al contenido principal.</p>
+                    <ul>
+                        <li>Hacé clic en el ícono de menú <i class="bi bi-list"></i> (arriba a la izquierda) para abrir la barra.</li>
+                        <li>Hacé clic en la <i class="bi bi-x-lg"></i> dentro de la barra para cerrarla.</li>
+                        <li>El estado (abierto/cerrado) se recuerda entre páginas.</li>
+                    </ul>
+                </div>
+
+            </div>
+
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="app.js"></script>
+    <script>
+        function toggleSidebar() {
+            const isOpen = document.querySelector('.sidebar').classList.toggle('open');
+            document.body.classList.toggle('sidebar-open', isOpen);
+            localStorage.setItem('sidebarOpen', isOpen);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const session = getCurrentSession();
+            if (!session) {
+                window.location.href = 'index.html';
+                return;
+            }
+            if (localStorage.getItem('sidebarOpen') === 'true') {
+                document.querySelector('.sidebar').classList.add('open');
+                document.body.classList.add('sidebar-open');
+            }
+            const initials = session.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+            document.getElementById('display-avatar').innerText = initials;
+            document.getElementById('display-user-name').innerText = session.name;
+            document.getElementById('nav-avatar').innerText = initials;
+            document.getElementById('nav-user-name').innerText = session.name.split(' ')[0];
+            const badge = document.getElementById('display-user-role');
+            const role = session.role || 'colaborador';
+            badge.className = 'user-role-badge ' + (role === 'admin' ? 'badge-admin' : 'badge-colab');
+            badge.innerText = role === 'admin' ? 'Admin' : role;
+            const isAdmin = role === 'admin';
+            const gestionLabel = document.getElementById('gestion-label');
+            const gestionItems = document.getElementById('gestion-items');
+            if (gestionLabel) gestionLabel.style.display = isAdmin ? '' : 'none';
+            if (gestionItems) gestionItems.style.display = isAdmin ? '' : 'none';
+        });
+    </script>
+</body>
+
+</html>
