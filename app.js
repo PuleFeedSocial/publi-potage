@@ -564,6 +564,12 @@ function openDetailModal(rowData) {
     chartHtml = `
       <hr class="my-3">
       <h6 class="fw-semibold text-muted mb-2"><i class="bi bi-bar-chart-line me-1"></i>Métricas del grupo: ${row.grupo}</h6>
+      <div class="btn-group btn-group-sm mb-2 w-100" role="group">
+        <button type="button" class="btn btn-outline-secondary chart-grupo-metric active" data-metric="pubs" onclick="renderGrupoChart('${row.grupo}','pubs')">Publicaciones</button>
+        <button type="button" class="btn btn-outline-secondary chart-grupo-metric" data-metric="vis" onclick="renderGrupoChart('${row.grupo}','vis')">Visualizaciones</button>
+        <button type="button" class="btn btn-outline-secondary chart-grupo-metric" data-metric="ints" onclick="renderGrupoChart('${row.grupo}','ints')">Interacciones</button>
+        <button type="button" class="btn btn-outline-secondary chart-grupo-metric" data-metric="msjs" onclick="renderGrupoChart('${row.grupo}','msjs')">Mensajes</button>
+      </div>
       <div style="height:200px;">
         <canvas id="chartGrupo"></canvas>
       </div>`;
@@ -600,11 +606,16 @@ function openDetailModal(rowData) {
   };
   new bootstrap.Modal(document.getElementById('detailModal')).show();
   if (row.grupo && row.grupo !== 'Perfil Estandar') {
-    setTimeout(() => renderGrupoChart(row.grupo), 200);
+    setTimeout(() => renderGrupoChart(row.grupo, 'pubs'), 200);
   }
 }
 
-function renderGrupoChart(grupo) {
+function renderGrupoChart(grupo, metric) {
+  metric = metric || 'pubs';
+  document.querySelectorAll('.chart-grupo-metric').forEach(b => {
+    b.classList.toggle('active', b.dataset.metric === metric);
+  });
+
   if (window._grupoChart) { window._grupoChart.destroy(); window._grupoChart = null; }
   const canvas = document.getElementById('chartGrupo');
   if (!canvas) return;
@@ -615,16 +626,17 @@ function renderGrupoChart(grupo) {
     if (!da || !db) return 0;
     return da - db;
   });
+  const METRIC_FIELD = { pubs: 'publicaciones', vis: 'visualizaciones', ints: 'interacciones', msjs: 'mensajes' };
+  const METRIC_LABELS = { pubs: 'Publicaciones', vis: 'Visualizaciones', ints: 'Interacciones', msjs: 'Mensajes' };
+  const METRIC_COLORS = { pubs: '#0f172a', vis: '#f59e0b', ints: '#10b981', msjs: '#6366f1' };
+  const field = METRIC_FIELD[metric] || 'publicaciones';
+
   const labels = fechas.map(f => f.substring(0, 5));
-  const pubs = fechas.map(f => data.filter(r => r.fecha === f).reduce((s, r) => s + r.publicaciones, 0));
-  const ints = fechas.map(f => data.filter(r => r.fecha === f).reduce((s, r) => s + r.interacciones, 0));
-  const msjs = fechas.map(f => data.filter(r => r.fecha === f).reduce((s, r) => s + r.mensajes, 0));
+  const values = fechas.map(f => data.filter(r => r.fecha === f).reduce((s, r) => s + (r[field] || 0), 0));
 
   if (labels.length === 1) {
     labels.unshift(''); labels.push('');
-    pubs.unshift(null); pubs.push(null);
-    ints.unshift(null); ints.push(null);
-    msjs.unshift(null); msjs.push(null);
+    values.unshift(null); values.push(null);
   }
 
   try {
@@ -632,18 +644,21 @@ function renderGrupoChart(grupo) {
       type: 'line',
       data: {
         labels,
-        datasets: [
-          { label: 'Publicaciones', data: pubs, borderColor: '#0f172a', borderWidth: 2, pointRadius: 3, tension: 0.3 },
-          { label: 'Interacciones', data: ints, borderColor: '#10b981', borderWidth: 2, pointRadius: 3, tension: 0.3 },
-          { label: 'Mensajes', data: msjs, borderColor: '#6366f1', borderWidth: 2, pointRadius: 3, tension: 0.3 }
-        ]
+        datasets: [{
+          label: METRIC_LABELS[metric] || metric,
+          data: values,
+          borderColor: METRIC_COLORS[metric] || '#0f172a',
+          backgroundColor: (METRIC_COLORS[metric] || '#0f172a') + '20',
+          borderWidth: 2,
+          pointRadius: 4,
+          tension: 0.3,
+          fill: true
+        }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: {
-          legend: { position: 'top', labels: { boxWidth: 12, padding: 8, font: { size: 11 }, usePointStyle: true } }
-        },
+        plugins: { legend: { display: false } },
         scales: { y: { ticks: { beginAtZero: true, precision: 0 } } }
       }
     });
