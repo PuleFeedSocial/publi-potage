@@ -947,53 +947,60 @@ function deleteCode(id) {
     });
 }
 
-// Anuncio del sistema (localStorage)
+let announcementDismissed = false;
+
+// Anuncio del sistema (API, visible para todos los usuarios autenticados)
 function saveAnnouncement() {
   const title = document.getElementById('announcement-title-input').value.trim();
   const msg = document.getElementById('announcement-msg-input').value.trim();
   if (!title && !msg) return alert('Escribí al menos un título o mensaje.');
-  localStorage.setItem('system-announcement', JSON.stringify({ title, msg }));
-  localStorage.removeItem('announcement-dismissed');
-  showAnnouncement();
+  apiFetch('/api/announcement', {
+    method: 'PUT',
+    body: JSON.stringify({ title, message: msg })
+  }).then(({ status, body }) => {
+    if (status !== 200) return alert(body.error || 'Error al guardar.');
+    announcementDismissed = false;
+    showAnnouncement();
+  });
 }
 
 function clearAnnouncement() {
-  localStorage.removeItem('system-announcement');
-  localStorage.removeItem('announcement-dismissed');
-  document.getElementById('announcement-title-input').value = '';
-  document.getElementById('announcement-msg-input').value = '';
-  const banner = document.getElementById('announcement-banner');
-  if (banner) banner.classList.add('d-none');
+  apiFetch('/api/announcement', { method: 'DELETE' }).then(({ status }) => {
+    if (status !== 200) return;
+    document.getElementById('announcement-title-input').value = '';
+    document.getElementById('announcement-msg-input').value = '';
+    const banner = document.getElementById('announcement-banner');
+    if (banner) banner.classList.add('d-none');
+  });
 }
 
 function showAnnouncement() {
-  const raw = localStorage.getItem('system-announcement');
   const banner = document.getElementById('announcement-banner');
-  if (!banner) return;
-  if (!raw || localStorage.getItem('announcement-dismissed')) { banner.classList.add('d-none'); return; }
-  try {
-    const { title, msg } = JSON.parse(raw);
-    if (!title && !msg) { banner.classList.add('d-none'); return; }
-    document.getElementById('announcement-title').textContent = title || '';
-    document.getElementById('announcement-message').textContent = msg || '';
+  if (!banner || announcementDismissed) { if (banner) banner.classList.add('d-none'); return; }
+  apiFetch('/api/announcement').then(({ status, body }) => {
+    if (status !== 200 || !body || (!body.title && !body.message)) {
+      banner.classList.add('d-none');
+      return;
+    }
+    document.getElementById('announcement-title').textContent = body.title || '';
+    document.getElementById('announcement-message').textContent = body.message || '';
     banner.classList.remove('d-none');
-  } catch { banner.classList.add('d-none'); }
+  }).catch(() => banner.classList.add('d-none'));
 }
 
 function dismissAnnouncement() {
-  localStorage.setItem('announcement-dismissed', 'true');
+  announcementDismissed = true;
   const banner = document.getElementById('announcement-banner');
   if (banner) banner.classList.add('d-none');
 }
 
 function loadAnnouncementForm() {
-  const raw = localStorage.getItem('system-announcement');
-  if (!raw) return;
-  try {
-    const { title, msg } = JSON.parse(raw);
-    document.getElementById('announcement-title-input').value = title || '';
-    document.getElementById('announcement-msg-input').value = msg || '';
-  } catch {}
+  apiFetch('/api/announcement').then(({ status, body }) => {
+    if (status === 200 && body) {
+      document.getElementById('announcement-title-input').value = body.title || '';
+      document.getElementById('announcement-msg-input').value = body.message || '';
+    }
+  });
 }
 
 function enterApp(user) {

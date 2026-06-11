@@ -9,6 +9,7 @@ const marketingRoutes = require('./routes/marketing');
 const gruposRoutes = require('./routes/grupos');
 const historialRoutes = require('./routes/historial');
 const informesRoutes = require('./routes/informes');
+const announcementRoutes = require('./routes/announcement');
 const { router: logsRoutes } = require('./routes/logs');
 
 const app = express();
@@ -27,6 +28,7 @@ app.use('/api/grupos', gruposRoutes);
 app.use('/api/historial', historialRoutes);
 app.use('/api/informes', informesRoutes);
 app.use('/api/logs', logsRoutes);
+app.use('/api/announcement', announcementRoutes);
 
 async function runSeed() {
   const db = await getDb();
