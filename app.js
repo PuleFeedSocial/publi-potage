@@ -953,15 +953,20 @@ let announcementDismissed = false;
 function saveAnnouncement() {
   const title = document.getElementById('announcement-title-input').value.trim();
   const msg = document.getElementById('announcement-msg-input').value.trim();
+  console.log('saveAnnouncement: title="' + title + '" msg="' + msg + '"');
   if (!title && !msg) return alert('Escribí al menos un título o mensaje.');
   apiFetch('/api/announcement', {
     method: 'PUT',
     body: JSON.stringify({ title, message: msg })
   }).then(({ status, body }) => {
+    console.log('saveAnnouncement PUT response:', status, body);
     if (status !== 200) return alert(body.error || 'Error al guardar.');
     announcementDismissed = false;
     showAnnouncement();
-  }).catch(() => alert('Error de conexión al guardar el anuncio. ¿El servidor está corriendo?'));
+  }).catch((err) => {
+    console.error('saveAnnouncement PUT error:', err);
+    alert('Error de conexión al guardar el anuncio. ¿El servidor está corriendo?');
+  });
 }
 
 function clearAnnouncement() {
@@ -976,8 +981,10 @@ function clearAnnouncement() {
 
 function showAnnouncement() {
   const banner = document.getElementById('announcement-banner');
+  console.log('showAnnouncement: banner=', !!banner, 'announcementDismissed=', announcementDismissed);
   if (!banner || announcementDismissed) { if (banner) banner.classList.add('d-none'); return; }
   apiFetch('/api/announcement').then(({ status, body }) => {
+    console.log('showAnnouncement GET response:', status, body);
     if (status !== 200 || !body || (!body.title && !body.message)) {
       banner.classList.add('d-none');
       return;
@@ -985,7 +992,10 @@ function showAnnouncement() {
     document.getElementById('announcement-title').textContent = body.title || '';
     document.getElementById('announcement-message').textContent = body.message || '';
     banner.classList.remove('d-none');
-  }).catch(() => banner.classList.add('d-none'));
+  }).catch((err) => {
+    console.error('showAnnouncement GET error:', err);
+    banner.classList.add('d-none');
+  });
 }
 
 function dismissAnnouncement() {
