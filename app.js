@@ -625,31 +625,72 @@ function initCharts(chartData) {
   const ints = fechas.map(f => chartData.filter(r => r.fecha === f).reduce((s, r) => s + r.interacciones, 0));
   const msjs = fechas.map(f => chartData.filter(r => r.fecha === f).reduce((s, r) => s + r.mensajes, 0));
 
+  const chartType = fechas.length < 2 ? 'bar' : 'line';
+  const isLine = chartType === 'line';
+
+  const opts = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true }
+    }
+  };
+
   try {
     chartsInstances.pubs = new Chart(document.getElementById('chartPublicaciones'), {
-      type: 'line',
-      data: { labels, datasets: [{ data: pubs, borderColor: '#0f172a', borderWidth: 2, tension: 0.3, pointRadius: 2, fill: false }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+      type: chartType,
+      data: {
+        labels,
+        datasets: [{
+          data: pubs,
+          borderColor: '#0f172a',
+          backgroundColor: '#0f172a',
+          borderWidth: 2,
+          tension: isLine ? 0.3 : undefined,
+          pointRadius: isLine ? 2 : undefined,
+          fill: false
+        }]
+      },
+      options: opts
     });
   } catch {}
 
   try {
     chartsInstances.ints = new Chart(document.getElementById('chartInteracciones'), {
-      type: 'line',
-      data: { labels, datasets: [{ data: ints, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.04)', borderWidth: 2, tension: 0.3, fill: true }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+      type: chartType,
+      data: {
+        labels,
+        datasets: [{
+          data: ints,
+          borderColor: '#10b981',
+          backgroundColor: isLine ? 'rgba(16, 185, 129, 0.04)' : '#10b981',
+          borderWidth: 2,
+          tension: isLine ? 0.3 : undefined,
+          fill: isLine ? true : false
+        }]
+      },
+      options: opts
     });
   } catch {}
 
   try {
     chartsInstances.comp = new Chart(document.getElementById('chartComparativo'), {
-      type: 'line',
+      type: chartType,
       data: {
-        labels, datasets: [
-          { label: 'Msj', data: msjs, borderColor: '#6366f1', backgroundColor: 'rgba(99, 102, 241, 0.04)', borderWidth: 2, tension: 0.3, fill: true, pointRadius: 2 }
-        ]
+        labels,
+        datasets: [{
+          label: 'Msj',
+          data: msjs,
+          borderColor: '#6366f1',
+          backgroundColor: isLine ? 'rgba(99, 102, 241, 0.04)' : '#6366f1',
+          borderWidth: 2,
+          tension: isLine ? 0.3 : undefined,
+          fill: isLine ? true : false,
+          pointRadius: isLine ? 2 : undefined
+        }]
       },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+      options: opts
     });
   } catch {}
 }
