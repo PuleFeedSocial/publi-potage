@@ -200,6 +200,48 @@ body.sidebar-open .main-content {
     border-top: 1px solid var(--border-color);
 }
 
+.sidebar-credit {
+    padding: 8px 16px 16px;
+    text-align: center;
+}
+.sidebar-credit a {
+    color: var(--text-muted);
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+.sidebar-credit a:hover {
+    opacity: 1;
+    color: var(--accent-color);
+}
+
+.auth-card-credit {
+    text-align: center;
+    padding: 8px 0;
+    border-top: 1px solid var(--border-color);
+    margin-top: 8px;
+}
+.auth-card-credit a {
+    opacity: 0.5;
+    transition: opacity 0.2s;
+}
+.auth-card-credit a:hover {
+    opacity: 1;
+}
+
+.landing-credit {
+    margin-left: 12px;
+    padding-left: 12px;
+    border-left: 1px solid var(--border-color);
+    font-size: 0.85rem;
+}
+.landing-credit a {
+    color: var(--accent-color);
+    text-decoration: none;
+}
+.landing-credit a:hover {
+    text-decoration: underline;
+}
+
 .user-profile-summary {
     display: flex;
     align-items: center;
