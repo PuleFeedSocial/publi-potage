@@ -625,13 +625,6 @@ function initCharts(chartData) {
   const ints = fechas.map(f => chartData.filter(r => r.fecha === f).reduce((s, r) => s + r.interacciones, 0));
   const msjs = fechas.map(f => chartData.filter(r => r.fecha === f).reduce((s, r) => s + r.mensajes, 0));
 
-  if (!fechas.length) return;
-
-  ['chartPublicaciones', 'chartInteracciones', 'chartComparativo'].forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-  });
-
   try {
     chartsInstances.pubs = new Chart(document.getElementById('chartPublicaciones'), {
       type: 'line',
