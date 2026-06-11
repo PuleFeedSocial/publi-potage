@@ -197,20 +197,7 @@ function renderDashboard(data, chartData) {
 }
 
 function populateFilterDropdowns() {
-  const grupos = [...new Set(marketingData.map(r => r.grupo).filter(Boolean))].filter(g => g !== 'Perfil Estandar');
   const zonas = [...new Set(marketingData.map(r => r.zona).filter(Boolean))];
-
-  const selGrupo = document.getElementById('filter-grupo');
-  if (selGrupo) {
-    const current = selGrupo.value;
-    selGrupo.innerHTML = '<option value="">Todos</option>';
-    grupos.forEach(v => {
-      const opt = document.createElement('option');
-      opt.value = v; opt.textContent = v;
-      selGrupo.appendChild(opt);
-    });
-    selGrupo.value = current;
-  }
 
   const selZona = document.getElementById('filter-zona');
   if (selZona) {
@@ -256,18 +243,11 @@ function buildPeriodLimit() {
 }
 
 function applyFilters() {
-  const search = (document.getElementById('filter-search').value || '').toLowerCase();
-  const grupo = document.getElementById('filter-grupo').value;
   const zona = document.getElementById('filter-zona').value;
   const fecha = document.getElementById('filter-fecha').value;
   const periodLimit = buildPeriodLimit();
 
-  // Filter Metricas for table + KPIs
   let filtered = marketingData;
-  if (search) {
-    filtered = filtered.filter(r => Object.values(r).some(v => String(v).toLowerCase().includes(search)));
-  }
-  if (grupo) filtered = filtered.filter(r => r.grupo === grupo);
   if (zona) filtered = filtered.filter(r => r.zona === zona);
   if (fecha) filtered = filtered.filter(r => r.fecha === fecha);
   if (periodLimit) {
@@ -277,7 +257,6 @@ function applyFilters() {
     });
   }
 
-  // Build chart data from Metricas only (historial is for detail modal)
   let chartData = [...filtered.filter(r => r.grupo !== 'Perfil Estandar')];
 
   renderDashboard(filtered, chartData);
@@ -290,8 +269,6 @@ function applyFilters() {
 }
 
 function clearFilters() {
-  document.getElementById('filter-search').value = '';
-  document.getElementById('filter-grupo').value = '';
   document.getElementById('filter-zona').value = '';
   document.getElementById('filter-fecha').value = '';
   filterPeriod = 'all';
@@ -299,7 +276,6 @@ function clearFilters() {
     b.classList.toggle('active', b.dataset.period === 'all');
   });
 
-  // Build chart data from ALL Metricas only
   let chartData = [...marketingData.filter(r => r.grupo !== 'Perfil Estandar')];
   renderDashboard(marketingData, chartData);
   const countEl = document.getElementById('results-count');
@@ -555,6 +531,9 @@ function saveMarketingRow() {
 function openDetailModal(rowData) {
   if (typeof rowData === 'string') rowData = JSON.parse(decodeURIComponent(rowData));
   const row = rowData;
+
+  if (window._grupoChart) { window._grupoChart.destroy(); window._grupoChart = null; }
+
   const historiales = historialData.filter(h => h.filaOrigen === row.rowIndex);
   let histHtml = '';
   if (historiales.length) {
@@ -579,6 +558,17 @@ function openDetailModal(rowData) {
         </table>
       </div>`;
   }
+
+  let chartHtml = '';
+  if (row.grupo && row.grupo !== 'Perfil Estandar') {
+    chartHtml = `
+      <hr class="my-3">
+      <h6 class="fw-semibold text-muted mb-2"><i class="bi bi-bar-chart-line me-1"></i>Métricas del grupo: ${row.grupo}</h6>
+      <div style="height:200px;">
+        <canvas id="chartGrupo"></canvas>
+      </div>`;
+  }
+
   const html = `
     <div class="row g-3">
       <div class="col-6 col-md-4"><div class="text-muted small">Fecha</div><div class="fw-medium">${row.fecha || '—'}</div></div>
@@ -590,7 +580,7 @@ function openDetailModal(rowData) {
       <div class="col-6 col-md-4"><div class="text-muted small">Mensajes</div><div class="fw-medium">${row.mensajes}</div></div>
       <div class="col-6 col-md-4"><div class="text-muted small">Zona</div><div class="fw-medium">${row.zona || '—'}</div></div>
     </div>
-    ${histHtml}`;
+    ${histHtml}${chartHtml}`;
 
   const footer = `
     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
@@ -609,6 +599,55 @@ function openDetailModal(rowData) {
     openEditModal(row);
   };
   new bootstrap.Modal(document.getElementById('detailModal')).show();
+  if (row.grupo && row.grupo !== 'Perfil Estandar') {
+    setTimeout(() => renderGrupoChart(row.grupo), 200);
+  }
+}
+
+function renderGrupoChart(grupo) {
+  if (window._grupoChart) { window._grupoChart.destroy(); window._grupoChart = null; }
+  const canvas = document.getElementById('chartGrupo');
+  if (!canvas) return;
+
+  const data = marketingData.filter(r => r.grupo === grupo);
+  const fechas = [...new Set(data.map(r => r.fecha).filter(Boolean))].sort((a, b) => {
+    const da = parseDate(a), db = parseDate(b);
+    if (!da || !db) return 0;
+    return da - db;
+  });
+  const labels = fechas.map(f => f.substring(0, 5));
+  const pubs = fechas.map(f => data.filter(r => r.fecha === f).reduce((s, r) => s + r.publicaciones, 0));
+  const ints = fechas.map(f => data.filter(r => r.fecha === f).reduce((s, r) => s + r.interacciones, 0));
+  const msjs = fechas.map(f => data.filter(r => r.fecha === f).reduce((s, r) => s + r.mensajes, 0));
+
+  if (labels.length === 1) {
+    labels.unshift(''); labels.push('');
+    pubs.unshift(null); pubs.push(null);
+    ints.unshift(null); ints.push(null);
+    msjs.unshift(null); msjs.push(null);
+  }
+
+  try {
+    window._grupoChart = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Publicaciones', data: pubs, borderColor: '#0f172a', borderWidth: 2, pointRadius: 3, tension: 0.3 },
+          { label: 'Interacciones', data: ints, borderColor: '#10b981', borderWidth: 2, pointRadius: 3, tension: 0.3 },
+          { label: 'Mensajes', data: msjs, borderColor: '#6366f1', borderWidth: 2, pointRadius: 3, tension: 0.3 }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top', labels: { boxWidth: 12, padding: 8, font: { size: 11 }, usePointStyle: true } }
+        },
+        scales: { y: { ticks: { beginAtZero: true, precision: 0 } } }
+      }
+    });
+  } catch (e) { console.warn('Grupo chart error:', e); }
 }
 
 function initCharts(chartData) {
