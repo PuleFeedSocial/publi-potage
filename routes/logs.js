@@ -15,6 +15,11 @@ async function logAction(userId, email, accion, detalle, ip) {
   }
 }
 
+router.post('/visit', authenticate, async (req, res) => {
+  await logAction(req.user.id, req.user.email, 'visita', 'Página cargada', req.ip);
+  res.json({ success: true });
+});
+
 router.get('/', authenticate, requireAdmin, async (req, res) => {
   try {
     const db = await getDb();

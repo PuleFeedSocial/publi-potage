@@ -1003,6 +1003,10 @@ function loadAnnouncementForm() {
   });
 }
 
+function logVisit() {
+  apiFetch('/api/logs/visit', { method: 'POST' }).catch(() => {});
+}
+
 function enterApp(user) {
   const initials = user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   document.getElementById('display-avatar').innerText = initials;
@@ -1022,6 +1026,7 @@ function enterApp(user) {
   loadGrupos();
   loadHistorial();
   showAnnouncement();
+  logVisit();
   if (isAdmin) {
     loadUsers();
   }
