@@ -615,87 +615,59 @@ function initCharts(chartData) {
   Object.values(chartsInstances).forEach(c => { try { c.destroy(); } catch {} });
   chartsInstances = {};
 
-  const fechas = [...new Set(chartData.map(r => r.fecha).filter(Boolean))].sort((a, b) => {
+  // Si hay multiples filas para el mismo (fecha + grupo), tomar solo la ultima (mayor rowIndex)
+  const latest = {};
+  chartData.forEach(r => {
+    const key = r.fecha + '|' + r.grupo;
+    if (!latest[key] || r.rowIndex > latest[key].rowIndex) latest[key] = r;
+  });
+  const deduped = Object.values(latest);
+
+  // Fechas unicas ordenadas cronologicamente
+  const fechas = [...new Set(deduped.map(r => r.fecha).filter(Boolean))].sort((a, b) => {
     const da = parseDate(a), db = parseDate(b);
+    if (!da || !db) return 0;
     return da - db;
   });
 
   const labels = fechas.map(f => f.substring(0, 5));
-  const pubs = fechas.map(f => chartData.filter(r => r.fecha === f).reduce((s, r) => s + (r.publicaciones || 0), 0));
-  const ints = fechas.map(f => chartData.filter(r => r.fecha === f).reduce((s, r) => s + (r.interacciones || 0), 0));
-  const msjs = fechas.map(f => chartData.filter(r => r.fecha === f).reduce((s, r) => s + (r.mensajes || 0), 0));
+  const pubs = fechas.map(f => deduped.filter(r => r.fecha === f).reduce((s, r) => s + (r.publicaciones || 0), 0));
+  const ints = fechas.map(f => deduped.filter(r => r.fecha === f).reduce((s, r) => s + (r.interacciones || 0), 0));
+  const msjs = fechas.map(f => deduped.filter(r => r.fecha === f).reduce((s, r) => s + (r.mensajes || 0), 0));
 
-  // Configuración que mantiene el estilo de LÍNEA pero corrige la escala
-  const lineOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
-    scales: {
-      y: {
-        beginAtZero: true,
-        ticks: { precision: 0 }
-      }
-    },
-    elements: {
-      point: { radius: 4, hitRadius: 10 } // Asegura que el punto sea visible siempre
-    }
-  };
+  function makeChart(id, color, bg, dataArr, label) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    try {
+      chartsInstances[id] = new Chart(el, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: label || undefined,
+            data: dataArr,
+            borderColor: color,
+            backgroundColor: bg || 'transparent',
+            borderWidth: 2,
+            tension: 0.3,
+            fill: !!bg,
+            pointRadius: 4,
+            pointHitRadius: 10
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { y: { ticks: { beginAtZero: true, precision: 0 } } }
+        }
+      });
+    } catch (e) { console.warn('Chart error ' + id + ':', e); }
+  }
 
-  // --- Gráfico de Publicaciones ---
-  try {
-    chartsInstances.pubs = new Chart(document.getElementById('chartPublicaciones'), {
-      type: 'line',
-      data: { 
-        labels, 
-        datasets: [{ 
-          data: pubs, 
-          borderColor: '#0f172a', 
-          borderWidth: 2, 
-          tension: 0, // Tension 0 hace que la línea sea recta si hay 2 puntos
-          fill: false 
-        }] 
-      },
-      options: lineOptions
-    });
-  } catch (e) {}
-
-  // --- Gráfico de Interacciones ---
-  try {
-    chartsInstances.ints = new Chart(document.getElementById('chartInteracciones'), {
-      type: 'line',
-      data: { 
-        labels, 
-        datasets: [{ 
-          data: ints, 
-          borderColor: '#10b981', 
-          backgroundColor: 'rgba(16, 185, 129, 0.1)', 
-          borderWidth: 2, 
-          tension: 0.3, 
-          fill: true 
-        }] 
-      },
-      options: lineOptions
-    });
-  } catch (e) {}
-
-  // --- Gráfico de Mensajes ---
-  try {
-    chartsInstances.comp = new Chart(document.getElementById('chartComparativo'), {
-      type: 'line',
-      data: {
-        labels, datasets: [{ 
-          label: 'Msj', 
-          data: msjs, 
-          borderColor: '#6366f1', 
-          backgroundColor: 'rgba(99, 102, 241, 0.1)', 
-          borderWidth: 2, 
-          tension: 0.3, 
-          fill: true 
-        }]
-      },
-      options: lineOptions
-    });
-  } catch (e) {}
+  makeChart('chartPublicaciones', '#0f172a', null, pubs);
+  makeChart('chartInteracciones', '#10b981', 'rgba(16, 185, 129, 0.1)', ints);
+  makeChart('chartComparativo', '#6366f1', 'rgba(99, 102, 241, 0.1)', msjs, 'Msj');
 }
 function loadUsers() {
   apiFetch('/api/auth/users').then(({ status, body }) => {
