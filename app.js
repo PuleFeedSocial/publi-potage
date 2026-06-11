@@ -696,7 +696,7 @@ function initCharts(chartData) {
   const ints = fechas.map(f => deduped.filter(r => r.fecha === f).reduce((s, r) => s + (r.interacciones || 0), 0));
   const msjs = fechas.map(f => deduped.filter(r => r.fecha === f).reduce((s, r) => s + (r.mensajes || 0), 0));
 
-  console.log('initCharts: deduped=' + deduped.length + ' fechas_unicas=' + fechas.join(', ') + ' labels=' + labels.join(', ') + ' pubs=' + pubs.join(','));
+  console.log('initCharts: deduped=' + deduped.length + ' fechas_unicas=' + fechas.join(', ') + ' labels=' + labels.join(', ') + ' pubs=' + pubs.join(',') + ' ints=' + ints.join(',') + ' msjs=' + msjs.join(','));
 
   // Si hay una sola fecha, centrar el punto con padding de nulls a los costados
   if (labels.length === 1) {
