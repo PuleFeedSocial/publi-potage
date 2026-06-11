@@ -143,6 +143,7 @@ function loadMarketingData() {
       }
       marketingData = body.data || [];
       document.getElementById('data-source-badge').innerHTML = '<i class="bi bi-database"></i> Google Sheets';
+      document.getElementById('filter-fecha').value = '';
       populateFilterDropdowns();
       applyFilters();
     })
@@ -604,10 +605,15 @@ function openDetailModal(rowData) {
     bootstrap.Modal.getInstance(document.getElementById('detailModal')).hide();
     openEditModal(row);
   };
-  new bootstrap.Modal(document.getElementById('detailModal')).show();
+  const modal = new bootstrap.Modal(document.getElementById('detailModal'));
   if (row.grupo && row.grupo !== 'Perfil Estandar') {
-    setTimeout(() => renderGrupoChart(row.grupo, 'pubs'), 200);
+    const el = document.getElementById('detailModal');
+    el.addEventListener('shown.bs.modal', function onShown() {
+      el.removeEventListener('shown.bs.modal', onShown);
+      renderGrupoChart(row.grupo, 'pubs');
+    });
   }
+  modal.show();
 }
 
 function renderGrupoChart(grupo, metric) {
@@ -669,6 +675,7 @@ function initCharts(chartData) {
   Object.values(chartsInstances).forEach(c => { try { c.destroy(); } catch {} });
   chartsInstances = {};
 
+  console.log('initCharts: chartData rows=' + chartData.length + ' fechas=' + [...new Set(chartData.map(r => r.fecha))].join(', '));
   // Si hay multiples filas para el mismo (fecha + grupo), tomar solo la ultima (mayor rowIndex)
   const latest = {};
   chartData.forEach(r => {
