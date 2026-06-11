@@ -699,15 +699,21 @@ function renderGrupoChart(grupo, metric) {
   const METRIC_COLORS = { pubs: '#0f172a', vis: '#f59e0b', ints: '#10b981', msjs: '#6366f1' };
   const field = METRIC_FIELD[metric] || 'publicaciones';
 
-  // Usar historial en vez de marketingData para graficar linea de tiempo de actualizaciones
-  const hData = historialData.filter(r => r.grupo === grupo);
-  const todas = [...new Set(hData.map(r => r.fechaActualizacion).filter(Boolean))].sort((a, b) => {
+  // Usar historial: filtrar por rowIndex del grupo (mas robusto que campo grupo)
+  const groupRows = new Set(marketingData.filter(r => r.grupo === grupo).map(r => r.rowIndex));
+  const hEntries = historialData.filter(r => groupRows.has(r.filaOrigen));
+
+  // Solo la ultima entrada por fecha (no sumar)
+  const latest = {};
+  hEntries.forEach(r => { latest[r.fechaActualizacion] = r; });
+  const dates = Object.keys(latest).filter(Boolean).sort((a, b) => {
     const da = parseDate(a), db = parseDate(b);
     if (!da || !db) return 0;
     return da - db;
   });
-  const labels = todas.map(f => f.substring(0, 5));
-  const values = todas.map(f => hData.filter(r => r.fechaActualizacion === f).reduce((s, r) => s + (r[field] || 0), 0));
+
+  const labels = dates.map(f => f.substring(0, 5));
+  const values = dates.map(f => (latest[f][field] || 0));
   console.log('renderGrupoChart: grupo=' + grupo + ' metric=' + metric + ' field=' + field + ' labels=' + labels.join(', ') + ' values=' + values.join(','));
 
   if (labels.length === 1) {
