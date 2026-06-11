@@ -115,11 +115,13 @@ function switchView(viewName) {
   if (viewName === 'dashboard') {
     title.innerText = 'Dashboard Publicaciones';
     subtitle.innerText = 'Rendimiento en tiempo real de cuentas de Facebook';
+    showAnnouncement();
   } else {
     title.innerText = 'Gestión de Usuarios y Códigos';
     subtitle.innerText = 'Administra los permisos y códigos de activación de tu equipo';
     loadUsers();
     loadCodes();
+    loadAnnouncementForm();
   }
 }
 
@@ -945,6 +947,55 @@ function deleteCode(id) {
     });
 }
 
+// Anuncio del sistema (localStorage)
+function saveAnnouncement() {
+  const title = document.getElementById('announcement-title-input').value.trim();
+  const msg = document.getElementById('announcement-msg-input').value.trim();
+  if (!title && !msg) return alert('Escribí al menos un título o mensaje.');
+  localStorage.setItem('system-announcement', JSON.stringify({ title, msg }));
+  localStorage.removeItem('announcement-dismissed');
+  showAnnouncement();
+}
+
+function clearAnnouncement() {
+  localStorage.removeItem('system-announcement');
+  localStorage.removeItem('announcement-dismissed');
+  document.getElementById('announcement-title-input').value = '';
+  document.getElementById('announcement-msg-input').value = '';
+  const banner = document.getElementById('announcement-banner');
+  if (banner) banner.classList.add('d-none');
+}
+
+function showAnnouncement() {
+  const raw = localStorage.getItem('system-announcement');
+  const banner = document.getElementById('announcement-banner');
+  if (!banner) return;
+  if (!raw || localStorage.getItem('announcement-dismissed')) { banner.classList.add('d-none'); return; }
+  try {
+    const { title, msg } = JSON.parse(raw);
+    if (!title && !msg) { banner.classList.add('d-none'); return; }
+    document.getElementById('announcement-title').textContent = title || '';
+    document.getElementById('announcement-message').textContent = msg || '';
+    banner.classList.remove('d-none');
+  } catch { banner.classList.add('d-none'); }
+}
+
+function dismissAnnouncement() {
+  localStorage.setItem('announcement-dismissed', 'true');
+  const banner = document.getElementById('announcement-banner');
+  if (banner) banner.classList.add('d-none');
+}
+
+function loadAnnouncementForm() {
+  const raw = localStorage.getItem('system-announcement');
+  if (!raw) return;
+  try {
+    const { title, msg } = JSON.parse(raw);
+    document.getElementById('announcement-title-input').value = title || '';
+    document.getElementById('announcement-msg-input').value = msg || '';
+  } catch {}
+}
+
 function enterApp(user) {
   const initials = user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   document.getElementById('display-avatar').innerText = initials;
@@ -963,6 +1014,7 @@ function enterApp(user) {
   loadMarketingData();
   loadGrupos();
   loadHistorial();
+  showAnnouncement();
   if (isAdmin) {
     loadUsers();
   }
