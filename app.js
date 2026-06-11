@@ -198,7 +198,20 @@ function renderDashboard(data, chartData) {
 }
 
 function populateFilterDropdowns() {
+  const grupos = [...new Set(marketingData.map(r => r.grupo).filter(Boolean))].filter(g => g !== 'Perfil Estandar');
   const zonas = [...new Set(marketingData.map(r => r.zona).filter(Boolean))];
+
+  const selGrupo = document.getElementById('filter-grupo');
+  if (selGrupo) {
+    const current = selGrupo.value;
+    selGrupo.innerHTML = '<option value="">Todos</option>';
+    grupos.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v; opt.textContent = v;
+      selGrupo.appendChild(opt);
+    });
+    selGrupo.value = current;
+  }
 
   const selZona = document.getElementById('filter-zona');
   if (selZona) {
@@ -213,9 +226,7 @@ function populateFilterDropdowns() {
   }
 
   const filterFecha = document.getElementById('filter-fecha');
-  if (filterFecha && filterFecha.value && !marketingData.some(r => r.fecha === filterFecha.value)) {
-    filterFecha.value = '';
-  }
+  if (filterFecha) filterFecha.value = '';
 }
 
 function parseDate(str) {
@@ -244,11 +255,14 @@ function buildPeriodLimit() {
 }
 
 function applyFilters() {
+  const grupo = document.getElementById('filter-grupo').value;
   const zona = document.getElementById('filter-zona').value;
-  const fecha = document.getElementById('filter-fecha').value;
+  const rawFecha = document.getElementById('filter-fecha').value;
+  const fecha = rawFecha ? (() => { const p = rawFecha.split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : ''; })() : '';
   const periodLimit = buildPeriodLimit();
 
   let filtered = marketingData;
+  if (grupo) filtered = filtered.filter(r => r.grupo === grupo);
   if (zona) filtered = filtered.filter(r => r.zona === zona);
   if (fecha) filtered = filtered.filter(r => r.fecha === fecha);
   if (periodLimit) {
@@ -270,6 +284,7 @@ function applyFilters() {
 }
 
 function clearFilters() {
+  document.getElementById('filter-grupo').value = '';
   document.getElementById('filter-zona').value = '';
   document.getElementById('filter-fecha').value = '';
   filterPeriod = 'all';
@@ -600,6 +615,9 @@ function openDetailModal(rowData) {
 
   const footer = `
     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+    <button type="button" class="btn btn-sm btn-outline-success" onclick="updateEntry(JSON.parse(decodeURIComponent('${encodeURIComponent(JSON.stringify(row))}')))">
+      <i class="bi bi-arrow-repeat me-1"></i>Actualizar
+    </button>
     <button type="button" class="btn btn-sm btn-action-primary" id="detail-edit-btn">
       <i class="bi bi-pencil-fill me-1"></i>Editar
     </button>
@@ -625,6 +643,47 @@ function openDetailModal(rowData) {
   modal.show();
 }
 
+function updateEntry(rowData) {
+  if (typeof rowData === 'string') rowData = JSON.parse(decodeURIComponent(rowData));
+  const row = rowData;
+  const today = new Date();
+  const dd = String(today.getDate()).padStart(2, '0');
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const yyyy = today.getFullYear();
+
+  const snapshot = {
+    fechaActualizacion: dd + '/' + mm + '/' + yyyy,
+    filaOrigen: row.rowIndex,
+    grupo: row.grupo,
+    fechaPublicacion: row.fecha,
+    zona: row.zona,
+    publicaciones: row.publicaciones,
+    visualizaciones: row.visualizaciones,
+    interacciones: row.interacciones,
+    comentarios: row.comentarios,
+    mensajes: row.mensajes
+  };
+
+  fetch(API_BASE + '/api/historial', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(snapshot)
+  }).then(r => r.json()).then(res => {
+    if (res.error) return alert('Error al actualizar: ' + res.error);
+    return fetch(API_BASE + '/api/historial', {
+      headers: { 'Authorization': 'Bearer ' + getToken() }
+    });
+  }).then(r => {
+    if (!r) return;
+    return r.json().then(b => ({ status: r.status, body: b }));
+  }).then(({ status, body }) => {
+    if (status === 200) {
+      historialData = body.data || [];
+      openDetailModal(row);
+    }
+  }).catch(() => {});
+}
+
 function renderGrupoChart(grupo, metric) {
   metric = metric || 'pubs';
   document.querySelectorAll('.chart-grupo-metric').forEach(b => {
@@ -640,15 +699,15 @@ function renderGrupoChart(grupo, metric) {
   const METRIC_COLORS = { pubs: '#0f172a', vis: '#f59e0b', ints: '#10b981', msjs: '#6366f1' };
   const field = METRIC_FIELD[metric] || 'publicaciones';
 
-  // Usar todas las fechas del timeline general, poner 0 donde el grupo no tenga datos
-  const todas = [...new Set(marketingData.filter(r => r.grupo !== 'Perfil Estandar').map(r => r.fecha).filter(Boolean))].sort((a, b) => {
+  // Usar historial en vez de marketingData para graficar linea de tiempo de actualizaciones
+  const hData = historialData.filter(r => r.grupo === grupo);
+  const todas = [...new Set(hData.map(r => r.fechaActualizacion).filter(Boolean))].sort((a, b) => {
     const da = parseDate(a), db = parseDate(b);
     if (!da || !db) return 0;
     return da - db;
   });
-  const groupData = marketingData.filter(r => r.grupo === grupo);
   const labels = todas.map(f => f.substring(0, 5));
-  const values = todas.map(f => groupData.filter(r => r.fecha === f).reduce((s, r) => s + (r[field] || 0), 0));
+  const values = todas.map(f => hData.filter(r => r.fechaActualizacion === f).reduce((s, r) => s + (r[field] || 0), 0));
   console.log('renderGrupoChart: grupo=' + grupo + ' metric=' + metric + ' field=' + field + ' labels=' + labels.join(', ') + ' values=' + values.join(','));
 
   if (labels.length === 1) {
