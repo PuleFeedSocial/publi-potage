@@ -612,87 +612,104 @@ function openDetailModal(rowData) {
 }
 
 function initCharts(chartData) {
+  // Limpiar instancias anteriores de gráficos para evitar duplicados en el DOM
   Object.values(chartsInstances).forEach(c => { try { c.destroy(); } catch {} });
   chartsInstances = {};
 
+  // 1. Extraer y ordenar las fechas de forma cronológica
   const fechas = [...new Set(chartData.map(r => r.fecha).filter(Boolean))].sort((a, b) => {
     const da = parseDate(a), db = parseDate(b);
     if (!da || !db) return 0;
     return da - db;
   });
+  
+  // Cortar las fechas para mostrar solo el formato "DD/MM" en el eje X
   const labels = fechas.map(f => f.substring(0, 5));
-  const pubs = fechas.map(f => chartData.filter(r => r.fecha === f).reduce((s, r) => s + r.publicaciones, 0));
-  const ints = fechas.map(f => chartData.filter(r => r.fecha === f).reduce((s, r) => s + r.interacciones, 0));
-  const msjs = fechas.map(f => chartData.filter(r => r.fecha === f).reduce((s, r) => s + r.mensajes, 0));
+  
+  // 2. Mapear y acumular los datos por cada fecha existente
+  // NOTA: Asegúrate de que en tu JSON los campos sean exactamente estos nombres en minúscula.
+  const pubs = fechas.map(f => chartData.filter(r => r.fecha === f).reduce((s, r) => s + (r.publicaciones || 0), 0));
+  const ints = fechas.map(f => chartData.filter(r => r.fecha === f).reduce((s, r) => s + (r.interacciones || 0), 0));
+  const msjs = fechas.map(f => chartData.filter(r => r.fecha === f).reduce((s, r) => s + (r.mensajes || 0), 0));
 
-  const chartType = fechas.length < 2 ? 'bar' : 'line';
-  const isLine = chartType === 'line';
-
-  const opts = {
+  // 3. Configuración base común para mejorar la visualización de un solo punto
+  const commonOptions = {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
+    plugins: {
+      legend: { display: false }
+    },
     scales: {
-      y: { beginAtZero: true }
+      y: {
+        beginAtZero: true, // Evita que el eje Y se configure solo con el valor del único punto
+        ticks: {
+          precision: 0 // Elimina los decimales inventados (1.02, 1.04, etc.)
+        }
+      }
     }
   };
 
+  // --- GRÁFICO 1: PUBLICACIONES ---
   try {
     chartsInstances.pubs = new Chart(document.getElementById('chartPublicaciones'), {
-      type: chartType,
-      data: {
-        labels,
-        datasets: [{
-          data: pubs,
-          borderColor: '#0f172a',
-          backgroundColor: '#0f172a',
-          borderWidth: 2,
-          tension: isLine ? 0.3 : undefined,
-          pointRadius: isLine ? 2 : undefined,
-          fill: false
-        }]
+      type: 'line',
+      data: { 
+        labels, 
+        datasets: [{ 
+          data: pubs, 
+          borderColor: '#0f172a', 
+          borderWidth: 2, 
+          tension: 0.3, 
+          pointRadius: 4, // Un poco más grande para que se note si hay un solo día
+          fill: false 
+        }] 
       },
-      options: opts
+      options: commonOptions
     });
-  } catch {}
+  } catch (e) { console.error("Error al crear chartPublicaciones:", e); }
 
+  // --- GRÁFICO 2: INTERACCIONES ---
   try {
     chartsInstances.ints = new Chart(document.getElementById('chartInteracciones'), {
-      type: chartType,
-      data: {
-        labels,
-        datasets: [{
-          data: ints,
-          borderColor: '#10b981',
-          backgroundColor: isLine ? 'rgba(16, 185, 129, 0.04)' : '#10b981',
-          borderWidth: 2,
-          tension: isLine ? 0.3 : undefined,
-          fill: isLine ? true : false
-        }]
+      type: 'line',
+      data: { 
+        labels, 
+        datasets: [{ 
+          data: ints, 
+          borderColor: '#10b981', 
+          backgroundColor: 'rgba(16, 185, 129, 0.04)', 
+          borderWidth: 2, 
+          tension: 0.3, 
+          pointRadius: 4,
+          fill: true 
+        }] 
       },
-      options: opts
+      options: commonOptions
     });
-  } catch {}
+  } catch (e) { console.error("Error al crear chartInteracciones:", e); }
 
+  // --- GRÁFICO 3: MENSAJES (COMPARATIVO) ---
   try {
     chartsInstances.comp = new Chart(document.getElementById('chartComparativo'), {
-      type: chartType,
+      type: 'line',
       data: {
-        labels,
-        datasets: [{
-          label: 'Msj',
-          data: msjs,
-          borderColor: '#6366f1',
-          backgroundColor: isLine ? 'rgba(99, 102, 241, 0.04)' : '#6366f1',
-          borderWidth: 2,
-          tension: isLine ? 0.3 : undefined,
-          fill: isLine ? true : false,
-          pointRadius: isLine ? 2 : undefined
-        }]
+        labels, 
+        datasets: [
+          { 
+            label: 'Msj', 
+            data: msjs, 
+            borderColor: '#6366f1', 
+            backgroundColor: 'rgba(99, 102, 241, 0.04)', 
+            borderWidth: 2, 
+            tension: 0.3, 
+            fill: true, 
+            pointRadius: 4 
+          }
+        ]
       },
-      options: opts
+      options: commonOptions
     });
-  } catch {}
+  } catch (e) { console.error("Error al crear chartComparativo:", e); }
 }
 
 function loadUsers() {
