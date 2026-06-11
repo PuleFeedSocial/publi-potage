@@ -639,6 +639,7 @@ function renderGrupoChart(grupo, metric) {
 
   const labels = fechas.map(f => f.substring(0, 5));
   const values = fechas.map(f => data.filter(r => r.fecha === f).reduce((s, r) => s + (r[field] || 0), 0));
+  console.log('renderGrupoChart: grupo=' + grupo + ' metric=' + metric + ' field=' + field + ' fechas=' + fechas.join(', ') + ' labels=' + labels.join(', ') + ' values=' + values.join(','));
 
   if (labels.length === 1) {
     labels.unshift(''); labels.push('');
