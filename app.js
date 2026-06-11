@@ -961,7 +961,7 @@ function saveAnnouncement() {
     if (status !== 200) return alert(body.error || 'Error al guardar.');
     announcementDismissed = false;
     showAnnouncement();
-  });
+  }).catch(() => alert('Error de conexión al guardar el anuncio. ¿El servidor está corriendo?'));
 }
 
 function clearAnnouncement() {
