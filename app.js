@@ -676,7 +676,6 @@ function initCharts(chartData) {
   chartsInstances = {};
 
   console.log('initCharts: chartData rows=' + chartData.length + ' fechas=' + [...new Set(chartData.map(r => r.fecha))].join(', '));
-  // Si hay multiples filas para el mismo (fecha + grupo), tomar solo la ultima (mayor rowIndex)
   const latest = {};
   chartData.forEach(r => {
     const key = r.fecha + '|' + r.grupo;
@@ -684,7 +683,6 @@ function initCharts(chartData) {
   });
   const deduped = Object.values(latest);
 
-  // Fechas unicas ordenadas cronologicamente
   const fechas = [...new Set(deduped.map(r => r.fecha).filter(Boolean))].sort((a, b) => {
     const da = parseDate(a), db = parseDate(b);
     if (!da || !db) return 0;
@@ -695,6 +693,8 @@ function initCharts(chartData) {
   const pubs = fechas.map(f => deduped.filter(r => r.fecha === f).reduce((s, r) => s + (r.publicaciones || 0), 0));
   const ints = fechas.map(f => deduped.filter(r => r.fecha === f).reduce((s, r) => s + (r.interacciones || 0), 0));
   const msjs = fechas.map(f => deduped.filter(r => r.fecha === f).reduce((s, r) => s + (r.mensajes || 0), 0));
+
+  console.log('initCharts: deduped=' + deduped.length + ' fechas_unicas=' + fechas.join(', ') + ' labels=' + labels.join(', ') + ' pubs=' + pubs.join(','));
 
   // Si hay una sola fecha, centrar el punto con padding de nulls a los costados
   if (labels.length === 1) {
