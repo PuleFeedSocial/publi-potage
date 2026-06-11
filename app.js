@@ -612,44 +612,36 @@ function openDetailModal(rowData) {
 }
 
 function initCharts(chartData) {
-  // Limpiar instancias anteriores de gráficos para evitar duplicados en el DOM
   Object.values(chartsInstances).forEach(c => { try { c.destroy(); } catch {} });
   chartsInstances = {};
 
-  // 1. Extraer y ordenar las fechas de forma cronológica
   const fechas = [...new Set(chartData.map(r => r.fecha).filter(Boolean))].sort((a, b) => {
     const da = parseDate(a), db = parseDate(b);
-    if (!da || !db) return 0;
     return da - db;
   });
-  
-  // Cortar las fechas para mostrar solo el formato "DD/MM" en el eje X
+
   const labels = fechas.map(f => f.substring(0, 5));
-  
-  // 2. Mapear y acumular los datos por cada fecha existente
-  // NOTA: Asegúrate de que en tu JSON los campos sean exactamente estos nombres en minúscula.
   const pubs = fechas.map(f => chartData.filter(r => r.fecha === f).reduce((s, r) => s + (r.publicaciones || 0), 0));
   const ints = fechas.map(f => chartData.filter(r => r.fecha === f).reduce((s, r) => s + (r.interacciones || 0), 0));
   const msjs = fechas.map(f => chartData.filter(r => r.fecha === f).reduce((s, r) => s + (r.mensajes || 0), 0));
 
-  // 3. Configuración base común para mejorar la visualización de un solo punto
-  const commonOptions = {
+  // Configuración que mantiene el estilo de LÍNEA pero corrige la escala
+  const lineOptions = {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: {
-      legend: { display: false }
-    },
+    plugins: { legend: { display: false } },
     scales: {
       y: {
-        beginAtZero: true, // Evita que el eje Y se configure solo con el valor del único punto
-        ticks: {
-          precision: 0 // Elimina los decimales inventados (1.02, 1.04, etc.)
-        }
+        beginAtZero: true,
+        ticks: { precision: 0 }
       }
+    },
+    elements: {
+      point: { radius: 4, hitRadius: 10 } // Asegura que el punto sea visible siempre
     }
   };
 
-  // --- GRÁFICO 1: PUBLICACIONES ---
+  // --- Gráfico de Publicaciones ---
   try {
     chartsInstances.pubs = new Chart(document.getElementById('chartPublicaciones'), {
       type: 'line',
@@ -659,16 +651,15 @@ function initCharts(chartData) {
           data: pubs, 
           borderColor: '#0f172a', 
           borderWidth: 2, 
-          tension: 0.3, 
-          pointRadius: 4, // Un poco más grande para que se note si hay un solo día
+          tension: 0, // Tension 0 hace que la línea sea recta si hay 2 puntos
           fill: false 
         }] 
       },
-      options: commonOptions
+      options: lineOptions
     });
-  } catch (e) { console.error("Error al crear chartPublicaciones:", e); }
+  } catch (e) {}
 
-  // --- GRÁFICO 2: INTERACCIONES ---
+  // --- Gráfico de Interacciones ---
   try {
     chartsInstances.ints = new Chart(document.getElementById('chartInteracciones'), {
       type: 'line',
@@ -677,41 +668,35 @@ function initCharts(chartData) {
         datasets: [{ 
           data: ints, 
           borderColor: '#10b981', 
-          backgroundColor: 'rgba(16, 185, 129, 0.04)', 
+          backgroundColor: 'rgba(16, 185, 129, 0.1)', 
           borderWidth: 2, 
           tension: 0.3, 
-          pointRadius: 4,
           fill: true 
         }] 
       },
-      options: commonOptions
+      options: lineOptions
     });
-  } catch (e) { console.error("Error al crear chartInteracciones:", e); }
+  } catch (e) {}
 
-  // --- GRÁFICO 3: MENSAJES (COMPARATIVO) ---
+  // --- Gráfico de Mensajes ---
   try {
     chartsInstances.comp = new Chart(document.getElementById('chartComparativo'), {
       type: 'line',
       data: {
-        labels, 
-        datasets: [
-          { 
-            label: 'Msj', 
-            data: msjs, 
-            borderColor: '#6366f1', 
-            backgroundColor: 'rgba(99, 102, 241, 0.04)', 
-            borderWidth: 2, 
-            tension: 0.3, 
-            fill: true, 
-            pointRadius: 4 
-          }
-        ]
+        labels, datasets: [{ 
+          label: 'Msj', 
+          data: msjs, 
+          borderColor: '#6366f1', 
+          backgroundColor: 'rgba(99, 102, 241, 0.1)', 
+          borderWidth: 2, 
+          tension: 0.3, 
+          fill: true 
+        }]
       },
-      options: commonOptions
+      options: lineOptions
     });
-  } catch (e) { console.error("Error al crear chartComparativo:", e); }
+  } catch (e) {}
 }
-
 function loadUsers() {
   apiFetch('/api/auth/users').then(({ status, body }) => {
     if (status !== 200) { alert(body.error || 'Error al cargar usuarios.'); return; }
