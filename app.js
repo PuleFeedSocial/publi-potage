@@ -626,20 +626,21 @@ function renderGrupoChart(grupo, metric) {
   const canvas = document.getElementById('chartGrupo');
   if (!canvas) return;
 
-  const data = marketingData.filter(r => r.grupo === grupo);
-  const fechas = [...new Set(data.map(r => r.fecha).filter(Boolean))].sort((a, b) => {
-    const da = parseDate(a), db = parseDate(b);
-    if (!da || !db) return 0;
-    return da - db;
-  });
   const METRIC_FIELD = { pubs: 'publicaciones', vis: 'visualizaciones', ints: 'interacciones', msjs: 'mensajes' };
   const METRIC_LABELS = { pubs: 'Publicaciones', vis: 'Visualizaciones', ints: 'Interacciones', msjs: 'Mensajes' };
   const METRIC_COLORS = { pubs: '#0f172a', vis: '#f59e0b', ints: '#10b981', msjs: '#6366f1' };
   const field = METRIC_FIELD[metric] || 'publicaciones';
 
-  const labels = fechas.map(f => f.substring(0, 5));
-  const values = fechas.map(f => data.filter(r => r.fecha === f).reduce((s, r) => s + (r[field] || 0), 0));
-  console.log('renderGrupoChart: grupo=' + grupo + ' metric=' + metric + ' field=' + field + ' fechas=' + fechas.join(', ') + ' labels=' + labels.join(', ') + ' values=' + values.join(','));
+  // Usar todas las fechas del timeline general, poner 0 donde el grupo no tenga datos
+  const todas = [...new Set(marketingData.filter(r => r.grupo !== 'Perfil Estandar').map(r => r.fecha).filter(Boolean))].sort((a, b) => {
+    const da = parseDate(a), db = parseDate(b);
+    if (!da || !db) return 0;
+    return da - db;
+  });
+  const groupData = marketingData.filter(r => r.grupo === grupo);
+  const labels = todas.map(f => f.substring(0, 5));
+  const values = todas.map(f => groupData.filter(r => r.fecha === f).reduce((s, r) => s + (r[field] || 0), 0));
+  console.log('renderGrupoChart: grupo=' + grupo + ' metric=' + metric + ' field=' + field + ' labels=' + labels.join(', ') + ' values=' + values.join(','));
 
   if (labels.length === 1) {
     labels.unshift(''); labels.push('');
