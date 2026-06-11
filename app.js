@@ -413,7 +413,8 @@ function toggleCustomInputs() {
 function openAddModal() {
   document.getElementById('mk-modal-title').innerHTML = '<i class="bi bi-plus-circle-fill me-2"></i>Agregar Publicación';
   document.getElementById('mk-row-index').value = '';
-  document.getElementById('mk-fecha').value = '';
+  document.getElementById('mk-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('mk-fecha').disabled = false;
   document.getElementById('mk-grupo').value = '';
   document.getElementById('mk-grupo-custom').value = '';
   document.getElementById('mk-grupo-custom').classList.add('d-none');
@@ -435,7 +436,10 @@ function openEditModal(rowData) {
   const row = rowData;
   document.getElementById('mk-modal-title').innerHTML = '<i class="bi bi-pencil-fill me-2"></i>Editar Publicación';
   document.getElementById('mk-row-index').value = row.rowIndex;
-  document.getElementById('mk-fecha').value = row.fecha || '';
+  window._editOriginalFecha = row.fecha || '';
+  const parts = (row.fecha || '').split('/');
+  document.getElementById('mk-fecha').value = parts.length === 3 ? parts[2] + '-' + parts[1] + '-' + parts[0] : '';
+  document.getElementById('mk-fecha').disabled = true;
   document.getElementById('mk-pubs').value = row.publicaciones;
   document.getElementById('mk-vis').value = row.visualizaciones;
   document.getElementById('mk-int').value = row.interacciones;
@@ -471,8 +475,15 @@ function mkFieldValue(id) {
 }
 
 function saveMarketingRow() {
+  const rawFecha = document.getElementById('mk-fecha').value.trim();
+  const rowIndex = document.getElementById('mk-row-index').value;
+
+  const fecha = rowIndex
+    ? (window._editOriginalFecha || '')
+    : (() => { const p = rawFecha.split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : rawFecha; })();
+
   const data = {
-    fecha: document.getElementById('mk-fecha').value.trim(),
+    fecha,
     grupo: mkFieldValue('mk-grupo'),
     publicaciones: parseInt(document.getElementById('mk-pubs').value) || 0,
     visualizaciones: parseInt(document.getElementById('mk-vis').value) || 0,
@@ -482,8 +493,6 @@ function saveMarketingRow() {
     zona: mkFieldValue('mk-zona')
   };
   if (!data.fecha || !data.grupo) return alert('Fecha y Grupo son obligatorios.');
-
-  const rowIndex = document.getElementById('mk-row-index').value;
   const isNewGrupo = document.getElementById('mk-grupo').value === '__otro__' && data.grupo;
 
   const today = new Date();
