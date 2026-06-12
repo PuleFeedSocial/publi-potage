@@ -181,6 +181,32 @@ function renderDashboard(data, chartData) {
   document.getElementById('kpi-interacciones').innerText = totalInt;
   document.getElementById('kpi-mensajes').innerText = totalMsj;
 
+  // KPIs por zona
+  const zonas = [...new Set(kpiData.map(r => r.zona).filter(Boolean))].sort();
+  const zoneContainer = document.getElementById('zone-kpis-container');
+  if (zoneContainer) {
+    if (!zonas.length) { zoneContainer.innerHTML = ''; } else {
+      zoneContainer.innerHTML = zonas.map(z => {
+        const rows = kpiData.filter(r => r.zona === z);
+        const zp = rows.reduce((s, r) => s + r.publicaciones, 0);
+        const zv = rows.reduce((s, r) => s + r.visualizaciones, 0);
+        const zi = rows.reduce((s, r) => s + r.interacciones, 0);
+        const zm = rows.reduce((s, r) => s + r.mensajes, 0);
+        return `<div class="col-6 col-md-4 col-lg">
+          <div class="zone-kpi-card">
+            <div class="zone-kpi-name">${z}</div>
+            <div class="zone-kpi-stats">
+              <span title="Pubs"><i class="bi bi-file-text"></i> ${zp}</span>
+              <span title="Vis"><i class="bi bi-eye"></i> ${zv}</span>
+              <span title="Int"><i class="bi bi-hand-thumbs-up"></i> ${zi}</span>
+              <span title="Msj"><i class="bi bi-chat-dots"></i> ${zm}</span>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
+
   const tbody = document.getElementById('marketing-table-body');
   tbody.innerHTML = '';
   data.forEach((row, idx) => {
@@ -566,6 +592,7 @@ function openDetailModal(rowData) {
   const row = rowData;
 
   if (window._grupoChart) { window._grupoChart.destroy(); window._grupoChart = null; }
+  if (window._zonaChart) { window._zonaChart.destroy(); window._zonaChart = null; }
 
   const historiales = historialData.filter(h => h.filaOrigen === row.rowIndex);
   let histHtml = '';
@@ -608,6 +635,25 @@ function openDetailModal(rowData) {
       </div>`;
   }
 
+  let zonaChartHtml = '';
+  if (row.zona) {
+    const zoneRows = marketingData.filter(r => r.zona === row.zona && r.grupo !== 'Perfil Estandar');
+    if (zoneRows.length) {
+      zonaChartHtml = `
+      <hr class="my-3">
+      <h6 class="fw-semibold text-muted mb-2"><i class="bi bi-geo-alt me-1"></i>Métricas de zona: ${row.zona}</h6>
+      <div class="btn-group btn-group-sm mb-2 w-100" role="group">
+        <button type="button" class="btn btn-outline-secondary chart-zona-metric active" data-metric="pubs" onclick="renderZonaChart('${row.zona}','pubs')">Publicaciones</button>
+        <button type="button" class="btn btn-outline-secondary chart-zona-metric" data-metric="vis" onclick="renderZonaChart('${row.zona}','vis')">Visualizaciones</button>
+        <button type="button" class="btn btn-outline-secondary chart-zona-metric" data-metric="ints" onclick="renderZonaChart('${row.zona}','ints')">Interacciones</button>
+        <button type="button" class="btn btn-outline-secondary chart-zona-metric" data-metric="msjs" onclick="renderZonaChart('${row.zona}','msjs')">Mensajes</button>
+      </div>
+      <div style="height:200px;">
+        <canvas id="chartZona"></canvas>
+      </div>`;
+    }
+  }
+
   const html = `
     <div class="row g-3">
       <div class="col-6 col-md-4"><div class="text-muted small">Fecha</div><div class="fw-medium">${row.fecha || '—'}</div></div>
@@ -619,7 +665,7 @@ function openDetailModal(rowData) {
       <div class="col-6 col-md-4"><div class="text-muted small">Mensajes</div><div class="fw-medium">${row.mensajes}</div></div>
       <div class="col-6 col-md-4"><div class="text-muted small">Zona</div><div class="fw-medium">${row.zona || '—'}</div></div>
     </div>
-    ${histHtml}${chartHtml}`;
+    ${histHtml}${chartHtml}${zonaChartHtml}`;
 
   const footer = `
     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
@@ -646,6 +692,13 @@ function openDetailModal(rowData) {
     el.addEventListener('shown.bs.modal', function onShown() {
       el.removeEventListener('shown.bs.modal', onShown);
       renderGrupoChart(row.grupo, 'pubs');
+      if (row.zona) renderZonaChart(row.zona, 'pubs');
+    });
+  } else if (row.zona) {
+    const el = document.getElementById('detailModal');
+    el.addEventListener('shown.bs.modal', function onShown() {
+      el.removeEventListener('shown.bs.modal', onShown);
+      renderZonaChart(row.zona, 'pubs');
     });
   }
   modal.show();
@@ -771,6 +824,74 @@ function renderGrupoChart(grupo, metric) {
       }
     });
   } catch (e) { console.warn('Grupo chart error:', e); }
+}
+
+function renderZonaChart(zona, metric) {
+  metric = metric || 'pubs';
+  document.querySelectorAll('.chart-zona-metric').forEach(b => {
+    b.classList.toggle('active', b.dataset.metric === metric);
+  });
+  if (window._zonaChart) { window._zonaChart.destroy(); window._zonaChart = null; }
+  const canvas = document.getElementById('chartZona');
+  if (!canvas) return;
+
+  const METRIC_FIELD = { pubs: 'publicaciones', vis: 'visualizaciones', ints: 'interacciones', msjs: 'mensajes' };
+  const METRIC_LABELS = { pubs: 'Publicaciones', vis: 'Visualizaciones', ints: 'Interacciones', msjs: 'Mensajes' };
+  const METRIC_COLORS = { pubs: '#0f172a', vis: '#f59e0b', ints: '#10b981', msjs: '#6366f1' };
+  const field = METRIC_FIELD[metric] || 'publicaciones';
+
+  // Todos los rowIndex de la zona
+  const zoneRowIndexes = new Set(marketingData.filter(r => r.zona === zona && r.grupo !== 'Perfil Estandar').map(r => r.rowIndex));
+  const hEntries = historialData.filter(r => zoneRowIndexes.has(r.filaOrigen));
+
+  // Sumar por fecha (todos los grupos de la zona)
+  const summed = {};
+  hEntries.forEach(r => {
+    if (!r.fechaActualizacion) return;
+    if (!summed[r.fechaActualizacion]) summed[r.fechaActualizacion] = {};
+    ['publicaciones', 'visualizaciones', 'interacciones', 'comentarios', 'mensajes'].forEach(f => {
+      summed[r.fechaActualizacion][f] = (summed[r.fechaActualizacion][f] || 0) + (r[f] || 0);
+    });
+  });
+
+  const dates = Object.keys(summed).filter(Boolean).sort((a, b) => {
+    const da = parseDate(a), db = parseDate(b);
+    if (!da || !db) return 0;
+    return da - db;
+  });
+
+  const labels = dates.map(f => f.substring(0, 5));
+  const values = dates.map(f => summed[f][field] || 0);
+
+  if (labels.length === 1) {
+    labels.unshift(''); labels.push('');
+    values.unshift(null); values.push(null);
+  }
+
+  try {
+    window._zonaChart = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: METRIC_LABELS[metric] || metric,
+          data: values,
+          borderColor: METRIC_COLORS[metric] || '#0f172a',
+          backgroundColor: (METRIC_COLORS[metric] || '#0f172a') + '20',
+          borderWidth: 2,
+          pointRadius: 4,
+          tension: 0.3,
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { ticks: { beginAtZero: true, precision: 0 } } }
+      }
+    });
+  } catch (e) { console.warn('Zona chart error:', e); }
 }
 
 function initCharts(chartData) {

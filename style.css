@@ -443,6 +443,46 @@ body.sidebar-open .main-content {
     min-width: 0;
 }
 
+/* Zone KPIs */
+.zone-kpi-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
+    box-shadow: var(--shadow-sm);
+    height: 100%;
+    transition: var(--transition-smooth);
+}
+.zone-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+}
+.zone-kpi-name {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 8px;
+}
+.zone-kpi-stats {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: 0.8rem;
+}
+.zone-kpi-stats span {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+.zone-kpi-stats span i {
+    font-size: 0.7rem;
+    opacity: 0.6;
+}
+
 /* ============================================================
    CHARTS & TABLES
    ============================================================ */
