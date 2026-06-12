@@ -293,6 +293,24 @@
                     </div>
                 </div>
 
+                <div class="card data-table-card mb-4">
+                    <div class="card-header-clean d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="table-card-title">Zonas</h5>
+                            <span class="text-muted small">Gestioná las zonas geográficas</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex gap-2 mb-3">
+                            <input type="text" id="zona-nombre-input" class="form-control form-control-sm custom-input" placeholder="Nombre de la zona..." style="max-width:250px">
+                            <button class="btn btn-sm btn-action-primary" onclick="addZona()">
+                                <i class="bi bi-plus-circle me-1"></i>Agregar
+                            </button>
+                        </div>
+                        <div id="zonas-list"></div>
+                    </div>
+                </div>
+
                 <div class="card data-table-card">
                     <div class="card-header-clean d-flex justify-content-between align-items-center">
                         <div>

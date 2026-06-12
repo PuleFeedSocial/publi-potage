@@ -98,6 +98,7 @@ let currentRole = '';
 let chartsInstances = {};
 let marketingData = [];
 let gruposData = [];
+let zonasData = [];
 let historialData = [];
 let filterPeriod = 'all';
 
@@ -120,6 +121,7 @@ function switchView(viewName) {
     subtitle.innerText = 'Administra los permisos y códigos de activación de tu equipo';
     loadUsers();
     loadCodes();
+    loadZonas();
   }
 }
 
@@ -233,7 +235,9 @@ function renderDashboard(data, chartData) {
 
 function populateFilterDropdowns() {
   const grupos = [...new Set(marketingData.map(r => r.grupo).filter(Boolean))].filter(g => g !== 'Perfil Estandar');
-  const zonas = [...new Set(marketingData.map(r => r.zona).filter(Boolean))];
+  let zonas = [...new Set(marketingData.map(r => r.zona).filter(Boolean))];
+  zonasData.forEach(z => { if (z.nombre && !zonas.includes(z.nombre)) zonas.push(z.nombre); });
+  zonas.sort();
 
   const selGrupo = document.getElementById('filter-grupo');
   if (selGrupo) {
@@ -394,6 +398,15 @@ function loadGrupos() {
     .catch(() => {});
 }
 
+function loadZonas() {
+  apiFetch('/api/zonas').then(({ status, body }) => {
+    if (status === 200) {
+      zonasData = body.data || [];
+      renderZonas();
+    }
+  });
+}
+
 function loadHistorial() {
   fetch(API_BASE + '/api/historial', {
     headers: { 'Authorization': 'Bearer ' + getToken() }
@@ -408,7 +421,8 @@ function loadHistorial() {
 }
 
 function populateSelects() {
-  const zonas = [...new Set(marketingData.map(r => r.zona).filter(Boolean))];
+  let zonas = [...new Set(zonasData.map(r => r.nombre).filter(Boolean)), ...new Set(marketingData.map(r => r.zona).filter(Boolean))];
+  zonas = [...new Set(zonas)]; // dedup
   let grupos = [...new Set(gruposData.map(r => r.nombre).filter(Boolean))];
   if (grupos.length === 0) {
     grupos = [...new Set(marketingData.map(r => r.grupo).filter(Boolean))];
@@ -1092,6 +1106,46 @@ function deleteCode(id) {
     });
 }
 
+function renderZonas() {
+  const container = document.getElementById('zonas-list');
+  if (!container) return;
+  if (!zonasData.length) {
+    container.innerHTML = '<div class="text-muted small py-2">No hay zonas configuradas.</div>';
+    return;
+  }
+  container.innerHTML = zonasData.map(z => `
+    <div class="d-flex justify-content-between align-items-center py-1 border-bottom border-light">
+      <span class="small">${z.nombre}</span>
+      <button class="btn btn-sm btn-link text-danger p-0" onclick="deleteZona(${z.id})">
+        <i class="bi bi-x-circle"></i>
+      </button>
+    </div>
+  `).join('');
+}
+
+function addZona() {
+  const input = document.getElementById('zona-nombre-input');
+  const nombre = input ? input.value.trim() : '';
+  if (!nombre) return alert('Escribí el nombre de la zona.');
+  apiFetch('/api/zonas', {
+    method: 'POST',
+    body: JSON.stringify({ nombre })
+  }).then(({ status, body }) => {
+    if (status !== 201) return alert(body.error || 'Error al crear zona.');
+    input.value = '';
+    loadZonas();
+  });
+}
+
+function deleteZona(id) {
+  if (!confirm('¿Eliminar esta zona?')) return;
+  apiFetch('/api/zonas/' + id, { method: 'DELETE' })
+    .then(({ status, body }) => {
+      if (status !== 200) { alert(body.error || 'Error al eliminar.'); return; }
+      loadZonas();
+    });
+}
+
 function logVisit() {
   apiFetch('/api/logs/visit', { method: 'POST' }).catch(() => {});
 }
@@ -1117,6 +1171,7 @@ function enterApp(user) {
   logVisit();
   if (isAdmin) {
     loadUsers();
+    loadZonas();
   }
   document.getElementById('current-page-title').innerText = 'Dashboard Publicaciones';
   document.getElementById('current-page-subtitle').innerText = 'Rendimiento en tiempo real de cuentas de Facebook';

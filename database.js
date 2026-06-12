@@ -62,6 +62,14 @@ async function getDb() {
     )
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS zonas (
+      id SERIAL PRIMARY KEY,
+      nombre TEXT UNIQUE NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   db = {
     run: async (sql, params) => {
       return await pool.query(toPg(sql), params);
