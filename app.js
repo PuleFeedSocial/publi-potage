@@ -115,13 +115,11 @@ function switchView(viewName) {
   if (viewName === 'dashboard') {
     title.innerText = 'Dashboard Publicaciones';
     subtitle.innerText = 'Rendimiento en tiempo real de cuentas de Facebook';
-    showAnnouncement();
   } else {
     title.innerText = 'Gestión de Usuarios y Códigos';
     subtitle.innerText = 'Administra los permisos y códigos de activación de tu equipo';
     loadUsers();
     loadCodes();
-    loadAnnouncementForm();
   }
 }
 
@@ -163,6 +161,14 @@ function refreshMarketingData() {
 function renderDashboard(data, chartData) {
   data = data || marketingData;
   chartData = chartData || data;
+
+  // Ordenar: más reciente primero
+  data = [...data].sort((a, b) => {
+    const da = parseDate(a.fecha), db = parseDate(b.fecha);
+    if (!da || !db) return 0;
+    return db - da;
+  });
+
   const kpiData = data.filter(r => r.grupo !== 'Perfil Estandar');
   const grupos = [...new Set(kpiData.map(r => r.grupo).filter(Boolean))];
   const totalPubs = kpiData.reduce((s, r) => s + r.publicaciones, 0);
@@ -617,7 +623,7 @@ function openDetailModal(rowData) {
 
   const footer = `
     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
-    <button type="button" class="btn btn-sm btn-outline-success" onclick="updateEntry(JSON.parse(decodeURIComponent('${encodeURIComponent(JSON.stringify(row))}')))">
+    <button type="button" class="btn btn-sm btn-outline-success" onclick="openUpdateModal(JSON.parse(decodeURIComponent('${encodeURIComponent(JSON.stringify(row))}')))">
       <i class="bi bi-arrow-repeat me-1"></i>Actualizar
     </button>
     <button type="button" class="btn btn-sm btn-action-primary" id="detail-edit-btn">
@@ -645,45 +651,63 @@ function openDetailModal(rowData) {
   modal.show();
 }
 
-function updateEntry(rowData) {
+function openUpdateModal(rowData) {
   if (typeof rowData === 'string') rowData = JSON.parse(decodeURIComponent(rowData));
   const row = rowData;
+  document.getElementById('upd-row-index').value = row.rowIndex;
+  document.getElementById('upd-pubs').value = row.publicaciones;
+  document.getElementById('upd-vis').value = row.visualizaciones;
+  document.getElementById('upd-int').value = row.interacciones;
+  document.getElementById('upd-com').value = row.comentarios;
+  document.getElementById('upd-msj').value = row.mensajes;
+  // Guardar referencia para el save
+  document.getElementById('upd-row-index').dataset.fecha = row.fecha || '';
+  document.getElementById('upd-row-index').dataset.grupo = row.grupo || '';
+  document.getElementById('upd-row-index').dataset.zona = row.zona || '';
+  new bootstrap.Modal(document.getElementById('updateModal')).show();
+}
+
+function saveUpdate() {
+  const rowIndex = parseInt(document.getElementById('upd-row-index').value);
+  const fecha = document.getElementById('upd-row-index').dataset.fecha;
+  const grupo = document.getElementById('upd-row-index').dataset.grupo;
+  const zona = document.getElementById('upd-row-index').dataset.zona;
+
+  const data = {
+    fecha,
+    grupo,
+    zona,
+    publicaciones: parseInt(document.getElementById('upd-pubs').value) || 0,
+    visualizaciones: parseInt(document.getElementById('upd-vis').value) || 0,
+    interacciones: parseInt(document.getElementById('upd-int').value) || 0,
+    comentarios: parseInt(document.getElementById('upd-com').value) || 0,
+    mensajes: parseInt(document.getElementById('upd-msj').value) || 0
+  };
+
   const today = new Date();
   const dd = String(today.getDate()).padStart(2, '0');
   const mm = String(today.getMonth() + 1).padStart(2, '0');
   const yyyy = today.getFullYear();
+  const fechaActualizacion = dd + '/' + mm + '/' + yyyy;
 
   const snapshot = {
-    fechaActualizacion: dd + '/' + mm + '/' + yyyy,
-    filaOrigen: row.rowIndex,
-    grupo: row.grupo,
-    fechaPublicacion: row.fecha,
-    zona: row.zona,
-    publicaciones: row.publicaciones,
-    visualizaciones: row.visualizaciones,
-    interacciones: row.interacciones,
-    comentarios: row.comentarios,
-    mensajes: row.mensajes
+    fechaActualizacion,
+    filaOrigen: rowIndex,
+    grupo,
+    fechaPublicacion: fecha,
+    zona,
+    publicaciones: data.publicaciones,
+    visualizaciones: data.visualizaciones,
+    interacciones: data.interacciones,
+    comentarios: data.comentarios,
+    mensajes: data.mensajes
   };
 
-  fetch(API_BASE + '/api/historial', {
-    method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
-    body: JSON.stringify(snapshot)
-  }).then(r => r.json()).then(res => {
-    if (res.error) return alert('Error al actualizar: ' + res.error);
-    return fetch(API_BASE + '/api/historial', {
-      headers: { 'Authorization': 'Bearer ' + getToken() }
-    });
-  }).then(r => {
-    if (!r) return;
-    return r.json().then(b => ({ status: r.status, body: b }));
-  }).then(({ status, body }) => {
-    if (status === 200) {
-      historialData = body.data || [];
-      openDetailModal(row);
-    }
-  }).catch(() => {});
+  try { bootstrap.Modal.getInstance(document.getElementById('updateModal')).hide(); } catch {}
+
+  updateMarketingRow(rowIndex, data);
+  postHistorial(snapshot);
+  bootstrap.Modal.getInstance(document.getElementById('detailModal')).hide();
 }
 
 function renderGrupoChart(grupo, metric) {
@@ -947,72 +971,6 @@ function deleteCode(id) {
     });
 }
 
-let announcementDismissed = false;
-
-// Anuncio del sistema (API, visible para todos los usuarios autenticados)
-function saveAnnouncement() {
-  const title = document.getElementById('announcement-title-input').value.trim();
-  const msg = document.getElementById('announcement-msg-input').value.trim();
-  console.log('saveAnnouncement: title="' + title + '" msg="' + msg + '"');
-  if (!title && !msg) return alert('Escribí al menos un título o mensaje.');
-  apiFetch('/api/announcement', {
-    method: 'PUT',
-    body: JSON.stringify({ title, message: msg })
-  }).then(({ status, body }) => {
-    console.log('saveAnnouncement PUT response:', status, body);
-    if (status !== 200) return alert(body.error || 'Error al guardar.');
-    announcementDismissed = false;
-    showAnnouncement();
-  }).catch((err) => {
-    console.error('saveAnnouncement PUT error:', err);
-    alert('Error de conexión al guardar el anuncio. ¿El servidor está corriendo?');
-  });
-}
-
-function clearAnnouncement() {
-  apiFetch('/api/announcement', { method: 'DELETE' }).then(({ status }) => {
-    if (status !== 200) return;
-    document.getElementById('announcement-title-input').value = '';
-    document.getElementById('announcement-msg-input').value = '';
-    const banner = document.getElementById('announcement-banner');
-    if (banner) banner.classList.add('d-none');
-  });
-}
-
-function showAnnouncement() {
-  const banner = document.getElementById('announcement-banner');
-  console.log('showAnnouncement: banner=', !!banner, 'announcementDismissed=', announcementDismissed);
-  if (!banner || announcementDismissed) { if (banner) banner.classList.add('d-none'); return; }
-  apiFetch('/api/announcement').then(({ status, body }) => {
-    console.log('showAnnouncement GET response:', status, body);
-    if (status !== 200 || !body || (!body.title && !body.message)) {
-      banner.classList.add('d-none');
-      return;
-    }
-    document.getElementById('announcement-title').textContent = body.title || '';
-    document.getElementById('announcement-message').textContent = body.message || '';
-    banner.classList.remove('d-none');
-  }).catch((err) => {
-    console.error('showAnnouncement GET error:', err);
-    banner.classList.add('d-none');
-  });
-}
-
-function dismissAnnouncement() {
-  announcementDismissed = true;
-  const banner = document.getElementById('announcement-banner');
-  if (banner) banner.classList.add('d-none');
-}
-
-function loadAnnouncementForm() {
-  apiFetch('/api/announcement').then(({ status, body }) => {
-    if (status === 200 && body) {
-      document.getElementById('announcement-title-input').value = body.title || '';
-      document.getElementById('announcement-msg-input').value = body.message || '';
-    }
-  });
-}
-
 function logVisit() {
   apiFetch('/api/logs/visit', { method: 'POST' }).catch(() => {});
 }
@@ -1035,7 +993,6 @@ function enterApp(user) {
   loadMarketingData();
   loadGrupos();
   loadHistorial();
-  showAnnouncement();
   logVisit();
   if (isAdmin) {
     loadUsers();

@@ -62,16 +62,6 @@ async function getDb() {
     )
   `);
 
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS announcements (
-      id SERIAL PRIMARY KEY,
-      title TEXT DEFAULT '',
-      message TEXT DEFAULT '',
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_by INTEGER REFERENCES users(id)
-    )
-  `);
-
   db = {
     run: async (sql, params) => {
       return await pool.query(toPg(sql), params);

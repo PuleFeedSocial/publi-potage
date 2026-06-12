@@ -119,17 +119,6 @@
 
             <div id="view-dashboard" class="view-section">
 
-                <div id="announcement-banner" class="alert alert-info alert-dismissible fade d-none mb-3" role="alert">
-                    <div class="d-flex align-items-start gap-2">
-                        <i class="bi bi-megaphone-fill me-2 fs-5"></i>
-                        <div>
-                            <strong id="announcement-title"></strong>
-                            <p id="announcement-message" class="mb-0 small"></p>
-                        </div>
-                    </div>
-                    <button type="button" class="btn-close" onclick="dismissAnnouncement()"></button>
-                </div>
-
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div class="d-flex align-items-center gap-2">
                         <span class="text-muted small" id="data-source-badge">
@@ -301,33 +290,6 @@
                     </div>
                 </div>
 
-                <div class="card data-table-card mb-4">
-                    <div class="card-header-clean d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="table-card-title">Anuncio del Sistema</h5>
-                            <span class="text-muted small">Visible para todos los usuarios en el dashboard</span>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-2">
-                            <label class="form-label small fw-medium text-secondary">Título</label>
-                            <input type="text" id="announcement-title-input" class="form-control custom-input" placeholder="Ej. Nueva actualización disponible">
-                        </div>
-                        <div class="mb-2">
-                            <label class="form-label small fw-medium text-secondary">Mensaje</label>
-                            <textarea id="announcement-msg-input" class="form-control custom-input" rows="2" placeholder="Escribí el anuncio..."></textarea>
-                        </div>
-                        <div class="d-flex gap-2">
-                            <button class="btn btn-sm btn-action-primary" onclick="saveAnnouncement()">
-                                <i class="bi bi-check-circle me-1"></i>Publicar Anuncio
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="clearAnnouncement()">
-                                <i class="bi bi-trash3 me-1"></i>Eliminar Anuncio
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
                 <div class="card data-table-card">
                     <div class="card-header-clean d-flex justify-content-between align-items-center">
                         <div>
@@ -411,6 +373,51 @@
                 </div>
                 <div class="modal-body pt-3" id="detailBody"></div>
                 <div class="modal-footer border-0 pt-0" id="detailFooter"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Actualizar métricas -->
+    <div class="modal fade" id="updateModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content custom-modal">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-semibold text-dark">
+                        <i class="bi bi-arrow-repeat me-2"></i>Actualizar Métricas
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-3">
+                    <input type="hidden" id="upd-row-index">
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="form-label small fw-medium text-secondary">Publicaciones</label>
+                            <input type="number" id="upd-pubs" class="form-control custom-input" min="0">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-medium text-secondary">Visualizaciones</label>
+                            <input type="number" id="upd-vis" class="form-control custom-input" min="0">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-medium text-secondary">Interacciones</label>
+                            <input type="number" id="upd-int" class="form-control custom-input" min="0">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-medium text-secondary">Comentarios</label>
+                            <input type="number" id="upd-com" class="form-control custom-input" min="0">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-medium text-secondary">Mensajes</label>
+                            <input type="number" id="upd-msj" class="form-control custom-input" min="0">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-sm btn-action-primary" onclick="saveUpdate()">
+                        <i class="bi bi-check-circle me-1"></i>Guardar
+                    </button>
+                </div>
             </div>
         </div>
     </div>
