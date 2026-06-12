@@ -48,6 +48,10 @@
                     <i class="bi bi-diagram-3"></i>
                     <span>Grupos</span>
                 </a>
+                <div class="menu-item submenu-item" id="btn-nav-zonas" onclick="switchView('zonas')" style="cursor:pointer;">
+                    <i class="bi bi-geo-alt-fill"></i>
+                    <span>Zonas</span>
+                </div>
 
                 <div class="menu-section-label" id="gestion-label">Gestión</div>
                 <div id="gestion-items">
@@ -293,24 +297,6 @@
                     </div>
                 </div>
 
-                <div class="card data-table-card mb-4">
-                    <div class="card-header-clean d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="table-card-title">Zonas</h5>
-                            <span class="text-muted small">Gestioná las zonas geográficas</span>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div class="d-flex gap-2 mb-3">
-                            <input type="text" id="zona-nombre-input" class="form-control form-control-sm custom-input" placeholder="Nombre de la zona..." style="max-width:250px">
-                            <button class="btn btn-sm btn-action-primary" onclick="addZona()">
-                                <i class="bi bi-plus-circle me-1"></i>Agregar
-                            </button>
-                        </div>
-                        <div id="zonas-list"></div>
-                    </div>
-                </div>
-
                 <div class="card data-table-card">
                     <div class="card-header-clean d-flex justify-content-between align-items-center">
                         <div>
@@ -339,6 +325,105 @@
                             </tbody>
                         </table>
                     </div>
+                </div>
+
+            </div>
+
+            <div id="view-zonas" class="view-section d-none">
+
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h5 class="fw-semibold mb-1">Panel de Zonas</h5>
+                        <span class="text-muted small">Métricas agrupadas por zona geográfica</span>
+                    </div>
+                    <div class="d-flex gap-2 align-items-center">
+                        <input type="text" id="zona-nombre-input" class="form-control form-control-sm custom-input" placeholder="Nueva zona..." style="max-width:180px">
+                        <button class="btn btn-sm btn-action-primary" onclick="addZona()">
+                            <i class="bi bi-plus-circle me-1"></i>Agregar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filtros zona -->
+                <div class="card filter-card mb-3">
+                    <div class="card-body py-2">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-6 col-md-2">
+                                <label class="form-label small mb-1 text-secondary">Zona</label>
+                                <select class="form-select form-select-sm" id="filter-zona-zonas" onchange="renderZonasDashboard()">
+                                    <option value="">Todas</option>
+                                </select>
+                            </div>
+                            <div class="col-6 col-md-2">
+                                <label class="form-label small mb-1 text-secondary">Período</label>
+                                <div class="d-flex gap-1">
+                                    <button class="btn btn-sm btn-outline-secondary filter-period-zonas active" data-period="all" onclick="setPeriodZonas('all')">Todo</button>
+                                    <button class="btn btn-sm btn-outline-secondary filter-period-zonas" data-period="7" onclick="setPeriodZonas('7')">7d</button>
+                                    <button class="btn btn-sm btn-outline-secondary filter-period-zonas" data-period="15" onclick="setPeriodZonas('15')">15d</button>
+                                    <button class="btn btn-sm btn-outline-secondary filter-period-zonas" data-period="30" onclick="setPeriodZonas('30')">30d</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KPIs zona -->
+                <div id="zonas-kpi-container" class="row g-2 g-md-3 mb-4"></div>
+
+                <!-- Gráficos zona -->
+                <div class="row g-3 g-md-4 mb-4">
+                    <div class="col-md-6">
+                        <div class="chart-container-card">
+                            <h5 class="chart-card-title">Publicaciones por Zona</h5>
+                            <div class="chart-wrapper">
+                                <canvas id="chartZonasPubs"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="chart-container-card">
+                            <h5 class="chart-card-title">Interacciones por Zona</h5>
+                            <div class="chart-wrapper">
+                                <canvas id="chartZonasInts"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabla zonas -->
+                <div class="card data-table-card">
+                    <div class="card-header-clean d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="table-card-title">Resumen por Zona</h5>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table custom-table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Zona</th>
+                                    <th class="text-center">Publicaciones</th>
+                                    <th class="text-center">Visualizaciones</th>
+                                    <th class="text-center">Interacciones</th>
+                                    <th class="text-center">Comentarios</th>
+                                    <th class="text-center">Mensajes</th>
+                                    <th class="text-center">Grupos</th>
+                                </tr>
+                            </thead>
+                            <tbody id="zonas-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Lista zonas guardadas -->
+                <div class="card data-table-card mt-4">
+                    <div class="card-header-clean">
+                        <div>
+                            <h5 class="table-card-title">Zonas Configuradas</h5>
+                            <span class="text-muted small">Zonas disponibles en el sistema</span>
+                        </div>
+                    </div>
+                    <div class="card-body" id="zonas-list"></div>
                 </div>
 
             </div>

@@ -101,6 +101,7 @@ let gruposData = [];
 let zonasData = [];
 let historialData = [];
 let filterPeriod = 'all';
+let filterPeriodZonas = 'all';
 
 function switchView(viewName) {
   if (viewName === 'users' && currentRole !== 'admin') {
@@ -109,13 +110,20 @@ function switchView(viewName) {
   }
   document.getElementById('btn-nav-dashboard').classList.toggle('active', viewName === 'dashboard');
   document.getElementById('btn-nav-users').classList.toggle('active', viewName === 'users');
+  document.getElementById('btn-nav-zonas').classList.toggle('active', viewName === 'zonas');
   document.getElementById('view-dashboard').classList.toggle('d-none', viewName !== 'dashboard');
   document.getElementById('view-users').classList.toggle('d-none', viewName !== 'users');
+  document.getElementById('view-zonas').classList.toggle('d-none', viewName !== 'zonas');
   const title = document.getElementById('current-page-title');
   const subtitle = document.getElementById('current-page-subtitle');
   if (viewName === 'dashboard') {
     title.innerText = 'Dashboard Publicaciones';
     subtitle.innerText = 'Rendimiento en tiempo real de cuentas de Facebook';
+  } else if (viewName === 'zonas') {
+    title.innerText = 'Dashboard Zonas';
+    subtitle.innerText = 'Métricas agrupadas por zona geográfica';
+    loadZonas();
+    renderZonasDashboard();
   } else {
     title.innerText = 'Gestión de Usuarios y Códigos';
     subtitle.innerText = 'Administra los permisos y códigos de activación de tu equipo';
@@ -283,6 +291,14 @@ function setPeriod(days) {
   applyFilters();
 }
 
+function setPeriodZonas(days) {
+  filterPeriodZonas = days;
+  document.querySelectorAll('.filter-period-zonas').forEach(b => {
+    b.classList.toggle('active', b.dataset.period === days);
+  });
+  renderZonasDashboard();
+}
+
 function buildPeriodLimit() {
   if (!filterPeriod || filterPeriod === 'all') return null;
   const now = new Date();
@@ -403,6 +419,18 @@ function loadZonas() {
     if (status === 200) {
       zonasData = body.data || [];
       renderZonas();
+      // Poblar select de filtro en vista zonas
+      const sel = document.getElementById('filter-zona-zonas');
+      if (sel) {
+        const current = sel.value;
+        sel.innerHTML = '<option value="">Todas</option>';
+        zonasData.forEach(z => {
+          const opt = document.createElement('option');
+          opt.value = z.nombre; opt.textContent = z.nombre;
+          sel.appendChild(opt);
+        });
+        sel.value = current;
+      }
     }
   });
 }
@@ -908,6 +936,106 @@ function renderZonaChart(zona, metric) {
   } catch (e) { console.warn('Zona chart error:', e); }
 }
 
+function renderZonasDashboard() {
+  // Destruir charts anteriores
+  ['chartZonasPubs', 'chartZonasInts'].forEach(id => {
+    if (chartsInstances[id]) { try { chartsInstances[id].destroy(); } catch {} delete chartsInstances[id]; }
+  });
+
+  const zonaFilter = document.getElementById('filter-zona-zonas')?.value || '';
+  const periodLimit = (() => {
+    if (!filterPeriodZonas || filterPeriodZonas === 'all') return null;
+    const now = new Date();
+    const limit = new Date(now);
+    limit.setDate(limit.getDate() - parseInt(filterPeriodZonas));
+    limit.setHours(0, 0, 0, 0);
+    return limit;
+  })();
+
+  let data = marketingData.filter(r => r.grupo !== 'Perfil Estandar');
+  if (zonaFilter) data = data.filter(r => r.zona === zonaFilter);
+  if (periodLimit) data = data.filter(r => { const d = parseDate(r.fecha); return d && d >= periodLimit; });
+
+  // Agrupar por zona
+  const zones = {};
+  data.forEach(r => {
+    const z = r.zona || 'Sin zona';
+    if (!zones[z]) zones[z] = { zona: z, publicaciones: 0, visualizaciones: 0, interacciones: 0, comentarios: 0, mensajes: 0, grupos: new Set() };
+    zones[z].publicaciones += r.publicaciones || 0;
+    zones[z].visualizaciones += r.visualizaciones || 0;
+    zones[z].interacciones += r.interacciones || 0;
+    zones[z].comentarios += r.comentarios || 0;
+    zones[z].mensajes += r.mensajes || 0;
+    zones[z].grupos.add(r.grupo);
+  });
+
+  const sortedZones = Object.values(zones).sort((a, b) => b.publicaciones - a.publicaciones);
+
+  // KPIs por zona
+  const kpiContainer = document.getElementById('zonas-kpi-container');
+  if (kpiContainer) {
+    if (!sortedZones.length) { kpiContainer.innerHTML = ''; } else {
+      kpiContainer.innerHTML = sortedZones.map(z => `
+        <div class="col-6 col-md-4 col-lg">
+          <div class="zone-kpi-card">
+            <div class="zone-kpi-name">${z.zona}</div>
+            <div class="zone-kpi-stats">
+              <span title="Pubs"><i class="bi bi-file-text"></i> ${z.publicaciones}</span>
+              <span title="Vis"><i class="bi bi-eye"></i> ${z.visualizaciones}</span>
+              <span title="Int"><i class="bi bi-hand-thumbs-up"></i> ${z.interacciones}</span>
+              <span title="Msj"><i class="bi bi-chat-dots"></i> ${z.mensajes}</span>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
+  // Tabla
+  const tbody = document.getElementById('zonas-table-body');
+  if (tbody) {
+    tbody.innerHTML = sortedZones.map(z => `
+      <tr>
+        <td class="fw-medium">${z.zona}</td>
+        <td class="text-center">${z.publicaciones}</td>
+        <td class="text-center fw-medium">${z.visualizaciones}</td>
+        <td class="text-center text-success fw-medium">${z.interacciones}</td>
+        <td class="text-center">${z.comentarios}</td>
+        <td class="text-center text-indigo fw-medium">${z.mensajes}</td>
+        <td class="text-center">${z.grupos.size}</td>
+      </tr>
+    `).join('');
+  }
+
+  // Gráficos de barras por zona
+  const labels = sortedZones.map(z => z.zona);
+  const pubsData = sortedZones.map(z => z.publicaciones);
+  const intsData = sortedZones.map(z => z.interacciones);
+
+  function makeBar(id, color, dataArr) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (!labels.length) return;
+    try {
+      chartsInstances[id] = new Chart(el, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{ data: dataArr, backgroundColor: color, borderRadius: 4 }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { y: { ticks: { beginAtZero: true, precision: 0 } }, x: { ticks: { maxRotation: 30 } } }
+        }
+      });
+    } catch (e) { console.warn('Zonas chart error:', e); }
+  }
+
+  makeBar('chartZonasPubs', '#0f172a', pubsData);
+  makeBar('chartZonasInts', '#10b981', intsData);
+}
+
 function initCharts(chartData) {
   Object.values(chartsInstances).forEach(c => { try { c.destroy(); } catch {} });
   chartsInstances = {};
@@ -1168,10 +1296,10 @@ function enterApp(user) {
   loadMarketingData();
   loadGrupos();
   loadHistorial();
+  loadZonas();
   logVisit();
   if (isAdmin) {
     loadUsers();
-    loadZonas();
   }
   document.getElementById('current-page-title').innerText = 'Dashboard Publicaciones';
   document.getElementById('current-page-subtitle').innerText = 'Rendimiento en tiempo real de cuentas de Facebook';
