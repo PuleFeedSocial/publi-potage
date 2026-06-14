@@ -1047,8 +1047,6 @@ function initCharts(chartData, periodLimit) {
 
   const rowIndexes = new Set(chartData.map(r => r.rowIndex));
   let hEntries = historialData.filter(h => rowIndexes.has(h.filaOrigen));
-
-  // Aplicar filtro de periodo sobre fechaActualizacion del historial
   if (periodLimit) {
     hEntries = hEntries.filter(h => {
       const d = parseDate(h.fechaActualizacion);
@@ -1056,69 +1054,70 @@ function initCharts(chartData, periodLimit) {
     });
   }
 
-  let fechas, labels, pubs, ints, msjs;
+  // --- Publicaciones: usa marketingData (filas agregadas, no actualizadas) ---
+  let pubsData = chartData;
+  if (periodLimit) pubsData = pubsData.filter(r => { const d = parseDate(r.fecha); return d && d >= periodLimit; });
+  const pubsLatest = {};
+  pubsData.forEach(r => {
+    const key = r.fecha + '|' + r.grupo;
+    if (!pubsLatest[key] || r.rowIndex > pubsLatest[key].rowIndex) pubsLatest[key] = r;
+  });
+  const pubsDeduped = Object.values(pubsLatest);
+  const pubsFechas = [...new Set(pubsDeduped.map(r => r.fecha).filter(Boolean))].sort((a, b) => {
+    const da = parseDate(a), db = parseDate(b); if (!da || !db) return 0; return da - db;
+  });
+  const pubsLabels = pubsFechas.map(f => f.substring(0, 5));
+  const pubsVals = pubsFechas.map(f => pubsDeduped.filter(r => r.fecha === f).reduce((s, r) => s + (r.publicaciones || 0), 0));
 
-  if (hEntries.length > 0) {
+  // --- Interacciones: usa historial (actualizaciones) ---
+  function buildHistorialSeries(entries, field, periodLimit) {
+    let data = entries;
+    if (periodLimit) data = data.filter(h => { const d = parseDate(h.fechaActualizacion); return d && d >= periodLimit; });
+    if (data.length === 0) return { labels: [], values: [] };
     const byDate = {};
-    hEntries.forEach(h => {
+    data.forEach(h => {
       if (!h.fechaActualizacion) return;
-      if (!byDate[h.fechaActualizacion]) byDate[h.fechaActualizacion] = { pubs: 0, ints: 0, msjs: 0 };
-      byDate[h.fechaActualizacion].pubs += h.publicaciones || 0;
-      byDate[h.fechaActualizacion].ints += h.interacciones || 0;
-      byDate[h.fechaActualizacion].msjs += h.mensajes || 0;
+      byDate[h.fechaActualizacion] = (byDate[h.fechaActualizacion] || 0) + (h[field] || 0);
     });
-
-    fechas = Object.keys(byDate).filter(Boolean).sort((a, b) => {
-      const da = parseDate(a), db = parseDate(b);
-      if (!da || !db) return 0;
-      return da - db;
+    const dates = Object.keys(byDate).filter(Boolean).sort((a, b) => {
+      const da = parseDate(a), db = parseDate(b); if (!da || !db) return 0; return da - db;
     });
+    return { labels: dates.map(f => f.substring(0, 5)), values: dates.map(f => byDate[f]) };
+  }
 
-    labels = fechas.map(f => f.substring(0, 5));
-    pubs = fechas.map(f => byDate[f].pubs);
-    ints = fechas.map(f => byDate[f].ints);
-    msjs = fechas.map(f => byDate[f].msjs);
+  const intsSeries = buildHistorialSeries(hEntries, 'interacciones');
+  const msjsSeries = buildHistorialSeries(hEntries, 'mensajes');
 
-    console.log('initCharts (historial): fechas=' + fechas.join(', ') + ' pubs=' + pubs.join(',') + ' ints=' + ints.join(',') + ' msjs=' + msjs.join(','));
-  } else {
-    // Fallback: usar chartData ya filtrado (grupo/zona) + periodo
-    let fallbackData = chartData;
-    if (periodLimit) {
-      fallbackData = fallbackData.filter(r => {
-        const d = parseDate(r.fecha);
-        return d && d >= periodLimit;
-      });
-    }
-
+  // Si no hay historial para interacciones/mensajes, caer a marketingData
+  if (!intsSeries.labels.length) {
+    const fb = periodLimit ? chartData.filter(r => { const d = parseDate(r.fecha); return d && d >= periodLimit; }) : chartData;
     const latest = {};
-    fallbackData.forEach(r => {
-      const key = r.fecha + '|' + r.grupo;
-      if (!latest[key] || r.rowIndex > latest[key].rowIndex) latest[key] = r;
+    fb.forEach(r => { const k = r.fecha + '|' + r.grupo; if (!latest[k] || r.rowIndex > latest[k].rowIndex) latest[k] = r; });
+    const dedup = Object.values(latest);
+    const fechas = [...new Set(dedup.map(r => r.fecha).filter(Boolean))].sort((a, b) => {
+      const da = parseDate(a), db = parseDate(b); if (!da || !db) return 0; return da - db;
     });
-    const deduped = Object.values(latest);
-
-    fechas = [...new Set(deduped.map(r => r.fecha).filter(Boolean))].sort((a, b) => {
-      const da = parseDate(a), db = parseDate(b);
-      if (!da || !db) return 0;
-      return da - db;
+    intsSeries.labels = fechas.map(f => f.substring(0, 5));
+    intsSeries.values = fechas.map(f => dedup.filter(r => r.fecha === f).reduce((s, r) => s + (r.interacciones || 0), 0));
+  }
+  if (!msjsSeries.labels.length) {
+    const fb = periodLimit ? chartData.filter(r => { const d = parseDate(r.fecha); return d && d >= periodLimit; }) : chartData;
+    const latest = {};
+    fb.forEach(r => { const k = r.fecha + '|' + r.grupo; if (!latest[k] || r.rowIndex > latest[k].rowIndex) latest[k] = r; });
+    const dedup = Object.values(latest);
+    const fechas = [...new Set(dedup.map(r => r.fecha).filter(Boolean))].sort((a, b) => {
+      const da = parseDate(a), db = parseDate(b); if (!da || !db) return 0; return da - db;
     });
-
-    labels = fechas.map(f => f.substring(0, 5));
-    pubs = fechas.map(f => deduped.filter(r => r.fecha === f).reduce((s, r) => s + (r.publicaciones || 0), 0));
-    ints = fechas.map(f => deduped.filter(r => r.fecha === f).reduce((s, r) => s + (r.interacciones || 0), 0));
-    msjs = fechas.map(f => deduped.filter(r => r.fecha === f).reduce((s, r) => s + (r.mensajes || 0), 0));
-
-    console.log('initCharts (marketing): fechas=' + fechas.join(', ') + ' pubs=' + pubs.join(',') + ' ints=' + ints.join(',') + ' msjs=' + msjs.join(','));
+    msjsSeries.labels = fechas.map(f => f.substring(0, 5));
+    msjsSeries.values = fechas.map(f => dedup.filter(r => r.fecha === f).reduce((s, r) => s + (r.mensajes || 0), 0));
   }
 
-  // Si hay una sola fecha, centrar el punto con padding de nulls a los costados
-  if (labels.length === 1) {
-    labels.unshift('');
-    labels.push('');
-    [pubs, ints, msjs].forEach(arr => { arr.unshift(null); arr.push(null); });
-  }
+  // Padding para un solo punto
+  if (pubsLabels.length === 1) { pubsLabels.unshift(''); pubsLabels.push(''); pubsVals.unshift(null); pubsVals.push(null); }
+  if (intsSeries.labels.length === 1) { intsSeries.labels.unshift(''); intsSeries.labels.push(''); intsSeries.values.unshift(null); intsSeries.values.push(null); }
+  if (msjsSeries.labels.length === 1) { msjsSeries.labels.unshift(''); msjsSeries.labels.push(''); msjsSeries.values.unshift(null); msjsSeries.values.push(null); }
 
-  function makeChart(id, color, bg, dataArr, label) {
+  function makeChart(id, color, bg, dataArr, labels, label) {
     const el = document.getElementById(id);
     if (!el) return;
     try {
@@ -1148,9 +1147,9 @@ function initCharts(chartData, periodLimit) {
     } catch (e) { console.warn('Chart error ' + id + ':', e); }
   }
 
-  makeChart('chartPublicaciones', '#0f172a', null, pubs);
-  makeChart('chartInteracciones', '#10b981', 'rgba(16, 185, 129, 0.1)', ints);
-  makeChart('chartComparativo', '#6366f1', 'rgba(99, 102, 241, 0.1)', msjs, 'Msj');
+  makeChart('chartPublicaciones', '#0f172a', null, pubsVals, pubsLabels);
+  makeChart('chartInteracciones', '#10b981', 'rgba(16, 185, 129, 0.1)', intsSeries.values, intsSeries.labels);
+  makeChart('chartComparativo', '#6366f1', 'rgba(99, 102, 241, 0.1)', msjsSeries.values, msjsSeries.labels, 'Msj');
 }
 function loadUsers() {
   apiFetch('/api/auth/users').then(({ status, body }) => {
