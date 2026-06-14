@@ -168,7 +168,7 @@ function refreshMarketingData() {
   }).then(() => loadMarketingData()).catch(() => loadMarketingData());
 }
 
-function renderDashboard(data, chartData) {
+function renderDashboard(data, chartData, periodLimit) {
   data = data || marketingData;
   chartData = chartData || data;
 
@@ -238,7 +238,7 @@ function renderDashboard(data, chartData) {
         <td><span class="badge-zone zone-${zClass}">${row.zona || ''}</span></td>`;
     tbody.appendChild(tr);
   });
-  initCharts(chartData);
+  initCharts(chartData, periodLimit);
 }
 
 function populateFilterDropdowns() {
@@ -326,9 +326,14 @@ function applyFilters() {
     });
   }
 
-  let chartData = [...filtered.filter(r => r.grupo !== 'Perfil Estandar')];
+  // chartData = todas las filas (sin filtro de periodo) para que initCharts
+  // pueda matchear historial por fechaActualizacion
+  let chartBase = marketingData.filter(r => r.grupo !== 'Perfil Estandar');
+  if (grupo) chartBase = chartBase.filter(r => r.grupo === grupo);
+  if (zona) chartBase = chartBase.filter(r => r.zona === zona);
+  if (fecha) chartBase = chartBase.filter(r => r.fecha === fecha);
 
-  renderDashboard(filtered, chartData);
+  renderDashboard(filtered, chartBase, periodLimit);
   const countEl = document.getElementById('results-count');
   if (countEl) {
     const total = marketingData.length;
@@ -1036,19 +1041,24 @@ function renderZonasDashboard() {
   makeBar('chartZonasInts', '#10b981', intsData);
 }
 
-function initCharts(chartData) {
+function initCharts(chartData, periodLimit) {
   Object.values(chartsInstances).forEach(c => { try { c.destroy(); } catch {} });
   chartsInstances = {};
 
-  // Obtener rowIndexes del chartData filtrado
   const rowIndexes = new Set(chartData.map(r => r.rowIndex));
-  // Filtrar historial que corresponda a esas filas
   let hEntries = historialData.filter(h => rowIndexes.has(h.filaOrigen));
+
+  // Aplicar filtro de periodo sobre fechaActualizacion del historial
+  if (periodLimit) {
+    hEntries = hEntries.filter(h => {
+      const d = parseDate(h.fechaActualizacion);
+      return d && d >= periodLimit;
+    });
+  }
 
   let fechas, labels, pubs, ints, msjs;
 
   if (hEntries.length > 0) {
-    // Agrupar por fechaActualizacion sumando todos los grupos
     const byDate = {};
     hEntries.forEach(h => {
       if (!h.fechaActualizacion) return;
@@ -1071,9 +1081,17 @@ function initCharts(chartData) {
 
     console.log('initCharts (historial): fechas=' + fechas.join(', ') + ' pubs=' + pubs.join(',') + ' ints=' + ints.join(',') + ' msjs=' + msjs.join(','));
   } else {
-    // Fallback a marketingData
+    // Fallback: usar chartData ya filtrado (grupo/zona) + periodo
+    let fallbackData = chartData;
+    if (periodLimit) {
+      fallbackData = fallbackData.filter(r => {
+        const d = parseDate(r.fecha);
+        return d && d >= periodLimit;
+      });
+    }
+
     const latest = {};
-    chartData.forEach(r => {
+    fallbackData.forEach(r => {
       const key = r.fecha + '|' + r.grupo;
       if (!latest[key] || r.rowIndex > latest[key].rowIndex) latest[key] = r;
     });
