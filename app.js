@@ -1040,26 +1040,58 @@ function initCharts(chartData) {
   Object.values(chartsInstances).forEach(c => { try { c.destroy(); } catch {} });
   chartsInstances = {};
 
-  console.log('initCharts: chartData rows=' + chartData.length + ' fechas=' + [...new Set(chartData.map(r => r.fecha))].join(', '));
-  const latest = {};
-  chartData.forEach(r => {
-    const key = r.fecha + '|' + r.grupo;
-    if (!latest[key] || r.rowIndex > latest[key].rowIndex) latest[key] = r;
-  });
-  const deduped = Object.values(latest);
+  // Obtener rowIndexes del chartData filtrado
+  const rowIndexes = new Set(chartData.map(r => r.rowIndex));
+  // Filtrar historial que corresponda a esas filas
+  let hEntries = historialData.filter(h => rowIndexes.has(h.filaOrigen));
 
-  const fechas = [...new Set(deduped.map(r => r.fecha).filter(Boolean))].sort((a, b) => {
-    const da = parseDate(a), db = parseDate(b);
-    if (!da || !db) return 0;
-    return da - db;
-  });
+  let fechas, labels, pubs, ints, msjs;
 
-  const labels = fechas.map(f => f.substring(0, 5));
-  const pubs = fechas.map(f => deduped.filter(r => r.fecha === f).reduce((s, r) => s + (r.publicaciones || 0), 0));
-  const ints = fechas.map(f => deduped.filter(r => r.fecha === f).reduce((s, r) => s + (r.interacciones || 0), 0));
-  const msjs = fechas.map(f => deduped.filter(r => r.fecha === f).reduce((s, r) => s + (r.mensajes || 0), 0));
+  if (hEntries.length > 0) {
+    // Agrupar por fechaActualizacion sumando todos los grupos
+    const byDate = {};
+    hEntries.forEach(h => {
+      if (!h.fechaActualizacion) return;
+      if (!byDate[h.fechaActualizacion]) byDate[h.fechaActualizacion] = { pubs: 0, ints: 0, msjs: 0 };
+      byDate[h.fechaActualizacion].pubs += h.publicaciones || 0;
+      byDate[h.fechaActualizacion].ints += h.interacciones || 0;
+      byDate[h.fechaActualizacion].msjs += h.mensajes || 0;
+    });
 
-  console.log('initCharts: deduped=' + deduped.length + ' fechas_unicas=' + fechas.join(', ') + ' labels=' + labels.join(', ') + ' pubs=' + pubs.join(',') + ' ints=' + ints.join(',') + ' msjs=' + msjs.join(','));
+    fechas = Object.keys(byDate).filter(Boolean).sort((a, b) => {
+      const da = parseDate(a), db = parseDate(b);
+      if (!da || !db) return 0;
+      return da - db;
+    });
+
+    labels = fechas.map(f => f.substring(0, 5));
+    pubs = fechas.map(f => byDate[f].pubs);
+    ints = fechas.map(f => byDate[f].ints);
+    msjs = fechas.map(f => byDate[f].msjs);
+
+    console.log('initCharts (historial): fechas=' + fechas.join(', ') + ' pubs=' + pubs.join(',') + ' ints=' + ints.join(',') + ' msjs=' + msjs.join(','));
+  } else {
+    // Fallback a marketingData
+    const latest = {};
+    chartData.forEach(r => {
+      const key = r.fecha + '|' + r.grupo;
+      if (!latest[key] || r.rowIndex > latest[key].rowIndex) latest[key] = r;
+    });
+    const deduped = Object.values(latest);
+
+    fechas = [...new Set(deduped.map(r => r.fecha).filter(Boolean))].sort((a, b) => {
+      const da = parseDate(a), db = parseDate(b);
+      if (!da || !db) return 0;
+      return da - db;
+    });
+
+    labels = fechas.map(f => f.substring(0, 5));
+    pubs = fechas.map(f => deduped.filter(r => r.fecha === f).reduce((s, r) => s + (r.publicaciones || 0), 0));
+    ints = fechas.map(f => deduped.filter(r => r.fecha === f).reduce((s, r) => s + (r.interacciones || 0), 0));
+    msjs = fechas.map(f => deduped.filter(r => r.fecha === f).reduce((s, r) => s + (r.mensajes || 0), 0));
+
+    console.log('initCharts (marketing): fechas=' + fechas.join(', ') + ' pubs=' + pubs.join(',') + ' ints=' + ints.join(',') + ' msjs=' + msjs.join(','));
+  }
 
   // Si hay una sola fecha, centrar el punto con padding de nulls a los costados
   if (labels.length === 1) {
