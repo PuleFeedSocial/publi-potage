@@ -133,10 +133,16 @@
                 </div>
 
                 <div class="card data-table-card">
-                    <div class="card-header-clean d-flex justify-content-between align-items-center">
+                    <div class="card-header-clean d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <div>
                             <h5 class="table-card-title">Listado de Grupos</h5>
                             <span class="text-muted small">Datos desde la hoja "Grupos" · <span id="grupos-count">0</span> grupos</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <select id="grupos-filter-zona" class="form-select form-select-sm custom-input" style="width:auto;min-width:140px" onchange="renderGruposPage()">
+                                <option value="">Todas las zonas</option>
+                            </select>
+                            <span class="text-muted small"><i class="bi bi-database"></i> <span id="grupos-pubs-total">0</span> pubs</span>
                         </div>
                     </div>
                     <div class="table-responsive">
@@ -146,6 +152,7 @@
                                     <th>Nombre del Grupo</th>
                                     <th>Enlace</th>
                                     <th>Zona</th>
+                                    <th class="text-center">Publicaciones</th>
                                     <th class="text-end">Acciones</th>
                                 </tr>
                             </thead>
@@ -244,34 +251,54 @@
 
         function loadGruposPage() {
             const tbody = document.getElementById('grupos-page-table-body');
-            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Cargando...</td></tr>';
-            fetch(API_BASE + '/api/grupos', {
-                headers: { 'Authorization': 'Bearer ' + getToken() }
-            })
-                .then(r => r.json().then(b => ({ status: r.status, body: b })))
-                .then(({ status, body }) => {
-                    if (status !== 200) {
-                        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">' + (body.error || 'Error') + '</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Cargando...</td></tr>';
+            Promise.all([
+                fetch(API_BASE + '/api/grupos', { headers: { 'Authorization': 'Bearer ' + getToken() } }),
+                fetch(API_BASE + '/api/marketing', { headers: { 'Authorization': 'Bearer ' + getToken() } })
+            ])
+                .then(([rGrupos, rMarketing]) => Promise.all([
+                    rGrupos.json().then(b => ({ status: rGrupos.status, body: b })),
+                    rMarketing.json().then(b => ({ status: rMarketing.status, body: b }))
+                ]))
+                .then(([gruposRes, marketingRes]) => {
+                    if (gruposRes.status !== 200) {
+                        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">' + (gruposRes.body.error || 'Error') + '</td></tr>';
                         return;
                     }
-                    gruposPageData = body.data || [];
+                    gruposPageData = gruposRes.body.data || [];
+                    const marketingData = (marketingRes.body.data || []);
+                    // Compute pubs per group
+                    window._gruposPubs = {};
+                    marketingData.forEach(r => {
+                        const g = r.grupo;
+                        if (g) window._gruposPubs[g] = (window._gruposPubs[g] || 0) + (r.publicaciones || 0);
+                    });
+                    // Populate zone filter
+                    const zonas = [...new Set(gruposPageData.map(g => g.zona).filter(Boolean))].sort();
+                    const selZona = document.getElementById('grupos-filter-zona');
+                    const currentZona = selZona.value;
+                    selZona.innerHTML = '<option value="">Todas las zonas</option>';
+                    zonas.forEach(z => { const o = document.createElement('option'); o.value = z; o.textContent = z; selZona.appendChild(o); });
+                    selZona.value = currentZona;
                     renderGruposPage();
-                    populateZonas();
-                    document.getElementById('data-source-badge-grupos').innerHTML = '<i class="bi bi-database"></i> Grupos · ' + gruposPageData.length + ' registros';
                     document.getElementById('grupos-count').innerText = gruposPageData.length;
                 })
                 .catch(() => {
-                    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Error de conexión</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Error de conexión</td></tr>';
                 });
         }
 
         function renderGruposPage() {
             const tbody = document.getElementById('grupos-page-table-body');
+            const zonaFilter = document.getElementById('grupos-filter-zona').value;
+            let filtered = gruposPageData;
+            if (zonaFilter) filtered = filtered.filter(g => g.zona === zonaFilter);
             tbody.innerHTML = '';
-            gruposPageData.forEach((g, i) => {
+            filtered.forEach((g, i) => {
                 const tr = document.createElement('tr');
                 tr.style.animation = 'fadeSlideUp 0.3s ease-out forwards';
                 tr.style.animationDelay = (i * 0.04) + 's';
+                const pubs = window._gruposPubs[g.nombre] || 0;
                 const enlaceDisplay = g.enlace
                     ? '<a href="' + g.enlace + '" target="_blank" class="small text-muted">' + g.enlace.substring(0, 45) + '...</a>'
                     : '<span class="text-muted small">—</span>';
@@ -279,6 +306,7 @@
                     <td class="fw-medium text-dark">${g.nombre}</td>
                     <td class="small">${enlaceDisplay}</td>
                     <td><span class="badge-zone zone-${(g.zona||'').toLowerCase().replace(/ /g,'-')}">${g.zona || '—'}</span></td>
+                    <td class="text-center fw-semibold text-primary">${pubs}</td>
                     <td class="text-end">
                         <button class="btn btn-sm btn-link text-primary p-0 me-2" onclick="editGrupoPage(${g.rowIndex})" title="Editar">
                             <i class="bi bi-pencil-fill"></i>
@@ -289,6 +317,12 @@
                     </td>`;
                 tbody.appendChild(tr);
             });
+            if (!filtered.length) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Sin resultados</td></tr>';
+            }
+            // Update total pubs
+            const totalPubs = filtered.reduce((s, g) => s + (window._gruposPubs[g.nombre] || 0), 0);
+            document.getElementById('grupos-pubs-total').innerText = totalPubs;
         }
 
         function openAddGrupo() {

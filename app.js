@@ -102,6 +102,8 @@ let zonasData = [];
 let historialData = [];
 let filterPeriod = 'all';
 let filterPeriodZonas = 'all';
+let pageActual = 1;
+const PAGE_SIZE = 10;
 
 function switchView(viewName) {
   if (viewName === 'users' && currentRole !== 'admin') {
@@ -217,9 +219,14 @@ function renderDashboard(data, chartData, periodLimit) {
     }
   }
 
+  const totalPages = Math.max(1, Math.ceil(data.length / PAGE_SIZE));
+  if (pageActual > totalPages) pageActual = totalPages;
+  const start = (pageActual - 1) * PAGE_SIZE;
+  const pageData = data.slice(start, start + PAGE_SIZE);
+
   const tbody = document.getElementById('marketing-table-body');
   tbody.innerHTML = '';
-  data.forEach((row, idx) => {
+  pageData.forEach(row => {
     let zClass = (row.zona || '').toLowerCase().replace(/ /g, '-');
     const tr = document.createElement('tr');
     tr.style.cursor = 'pointer';
@@ -238,6 +245,24 @@ function renderDashboard(data, chartData, periodLimit) {
         <td><span class="badge-zone zone-${zClass}">${row.zona || ''}</span></td>`;
     tbody.appendChild(tr);
   });
+
+  const pagContainer = document.getElementById('pagination-controls');
+  if (pagContainer) {
+    let pagHtml = '';
+    if (totalPages > 1) {
+      pagHtml += `<li class="page-item ${pageActual <= 1 ? 'disabled' : ''}"><button class="page-link" onclick="goToPage(${pageActual - 1})">&laquo;</button></li>`;
+      for (let p = 1; p <= totalPages; p++) {
+        if (p === 1 || p === totalPages || Math.abs(p - pageActual) <= 2) {
+          pagHtml += `<li class="page-item ${p === pageActual ? 'active' : ''}"><button class="page-link" onclick="goToPage(${p})">${p}</button></li>`;
+        } else if (Math.abs(p - pageActual) === 3) {
+          pagHtml += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+        }
+      }
+      pagHtml += `<li class="page-item ${pageActual >= totalPages ? 'disabled' : ''}"><button class="page-link" onclick="goToPage(${pageActual + 1})">&raquo;</button></li>`;
+    }
+    pagContainer.innerHTML = pagHtml;
+  }
+
   initCharts(chartData, periodLimit);
 }
 
@@ -275,6 +300,11 @@ function populateFilterDropdowns() {
   if (filterFecha) filterFecha.value = '';
 }
 
+function goToPage(p) {
+  pageActual = Math.max(1, p);
+  applyFilters();
+}
+
 function parseDate(str) {
   if (!str) return null;
   const parts = str.split('/');
@@ -309,6 +339,7 @@ function buildPeriodLimit() {
 }
 
 function applyFilters() {
+  pageActual = 1;
   const grupo = document.getElementById('filter-grupo').value;
   const zona = document.getElementById('filter-zona').value;
   const rawFecha = document.getElementById('filter-fecha').value;
