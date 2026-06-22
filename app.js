@@ -224,6 +224,9 @@ function renderDashboard(data, chartData, periodLimit) {
   const start = (pageActual - 1) * PAGE_SIZE;
   const pageData = data.slice(start, start + PAGE_SIZE);
 
+  const pagInfo = document.getElementById('pag-info');
+  if (pagInfo) pagInfo.innerText = totalPages > 1 ? `Página ${pageActual} de ${totalPages} (${data.length} registros)` : `${data.length} registros`;
+
   const tbody = document.getElementById('marketing-table-body');
   tbody.innerHTML = '';
   pageData.forEach(row => {
@@ -250,17 +253,42 @@ function renderDashboard(data, chartData, periodLimit) {
   if (pagContainer) {
     let pagHtml = '';
     if (totalPages > 1) {
-      pagHtml += `<li class="page-item ${pageActual <= 1 ? 'disabled' : ''}"><button class="page-link" onclick="goToPage(${pageActual - 1})">&laquo;</button></li>`;
+      pagHtml += `<li class="page-item ${pageActual <= 1 ? 'disabled' : ''}"><button class="pag-btn" data-page="${pageActual - 1}">&laquo;</button></li>`;
       for (let p = 1; p <= totalPages; p++) {
         if (p === 1 || p === totalPages || Math.abs(p - pageActual) <= 2) {
-          pagHtml += `<li class="page-item ${p === pageActual ? 'active' : ''}"><button class="page-link" onclick="goToPage(${p})">${p}</button></li>`;
+          pagHtml += `<li class="page-item ${p === pageActual ? 'active' : ''}"><button class="pag-btn" data-page="${p}">${p}</button></li>`;
         } else if (Math.abs(p - pageActual) === 3) {
-          pagHtml += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+          pagHtml += `<li class="page-item disabled"><span class="pag-dots">...</span></li>`;
         }
       }
-      pagHtml += `<li class="page-item ${pageActual >= totalPages ? 'disabled' : ''}"><button class="page-link" onclick="goToPage(${pageActual + 1})">&raquo;</button></li>`;
+      pagHtml += `<li class="page-item ${pageActual >= totalPages ? 'disabled' : ''}"><button class="pag-btn" data-page="${pageActual + 1}">&raquo;</button></li>`;
+      pagHtml += `<li class="page-item ms-2"><input type="number" id="pag-goto" class="pag-input" min="1" max="${totalPages}" placeholder="#" title="Ir a página"><button class="pag-go-btn" id="pag-go" title="Ir"><i class="bi bi-arrow-right"></i></button></li>`;
     }
     pagContainer.innerHTML = pagHtml;
+    if (!pagContainer._listener) {
+      pagContainer._listener = true;
+      pagContainer.addEventListener('click', function(e) {
+        const btn = e.target.closest('.pag-btn');
+        if (btn) { goToPage(parseInt(btn.dataset.page)); return; }
+        const goBtn = e.target.closest('#pag-go');
+        if (goBtn) {
+          const input = document.getElementById('pag-goto');
+          const p = parseInt(input.value);
+          const max = parseInt(input.getAttribute('max'));
+          if (p >= 1 && p <= max) goToPage(p);
+        }
+      });
+      pagContainer.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          const input = e.target.closest('#pag-goto');
+          if (input) {
+            const p = parseInt(input.value);
+            const max = parseInt(input.getAttribute('max'));
+            if (p >= 1 && p <= max) goToPage(p);
+          }
+        }
+      });
+    }
   }
 
   initCharts(chartData, periodLimit);

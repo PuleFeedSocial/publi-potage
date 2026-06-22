@@ -1390,3 +1390,106 @@ body.sidebar-open .main-content {
         font-size: 1rem;
     }
 }
+
+/* Paginación */
+.pagination-custom {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.pag-btn {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--text-main);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.pag-btn:hover:not(:disabled) {
+  border-color: var(--primary-color);
+  background: var(--primary-color);
+  color: #fff;
+}
+.pag-btn:disabled,
+.page-item.disabled .pag-btn {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
+}
+.page-item.active .pag-btn {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: #fff;
+  font-weight: 600;
+}
+.pag-dots {
+  background: transparent !important;
+  border: none !important;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  letter-spacing: 2px;
+  padding: 0 4px;
+  min-width: 24px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.pag-input {
+  width: 46px;
+  height: 34px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0 6px;
+  font-size: 0.78rem;
+  text-align: center;
+  outline: none;
+  background: var(--bg-card);
+  color: var(--text-main);
+  transition: var(--transition-smooth);
+}
+.pag-input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(15,23,42,0.08);
+}
+.pag-input::placeholder {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+.pag-go-btn {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--text-main);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 2px;
+}
+.pag-go-btn:hover {
+  border-color: var(--primary-color);
+  background: var(--primary-color);
+  color: #fff;
+}
+#pagination-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+#pagination-controls .page-item {
+  list-style: none;
+}
