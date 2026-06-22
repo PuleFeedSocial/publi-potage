@@ -20,8 +20,12 @@ function convertDates(row) {
 async function getDb() {
   if (db) return db;
 
+  let connStr = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/publi_potage';
+  // Limpiar parametros que el driver pg no soporta
+  connStr = connStr.replace(/&channel_binding=[^&]*/g, '').replace(/\?channel_binding=[^&]*&?/g, '?');
+
   const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/publi_potage',
+    connectionString: connStr,
     ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
   });
 
