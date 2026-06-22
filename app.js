@@ -302,7 +302,7 @@ function populateFilterDropdowns() {
 
 function goToPage(p) {
   pageActual = Math.max(1, p);
-  applyFilters();
+  applyFilters(false);
 }
 
 function parseDate(str) {
@@ -338,8 +338,8 @@ function buildPeriodLimit() {
   return limit;
 }
 
-function applyFilters() {
-  pageActual = 1;
+function applyFilters(resetPage) {
+  if (resetPage !== false) pageActual = 1;
   const grupo = document.getElementById('filter-grupo').value;
   const zona = document.getElementById('filter-zona').value;
   const rawFecha = document.getElementById('filter-fecha').value;
