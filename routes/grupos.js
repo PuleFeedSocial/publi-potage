@@ -40,7 +40,7 @@ router.get('/', authenticate, async (req, res) => {
     if (!s) return res.status(503).json({ error: 'Google Sheets no configurado.' });
 
     const result = await s.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID, range: SHEET_NAME + '!A:C', valueRenderOption: 'FORMATTED_VALUE'
+      spreadsheetId: SHEET_ID, range: SHEET_NAME + '!A:D', valueRenderOption: 'FORMATTED_VALUE'
     });
 
     const rows = result.data.values || [];
@@ -52,7 +52,8 @@ router.get('/', authenticate, async (req, res) => {
         rowIndex: i + 1,
         nombre: (row[0] || '').trim(),
         enlace: (row[1] || '').trim(),
-        zona: (row[2] || '').trim()
+        zona: (row[2] || '').trim(),
+        fechaIngreso: (row[3] || '').trim()
       });
     }
     cache = data;
@@ -68,13 +69,13 @@ router.post('/', authenticate, async (req, res) => {
   try {
     const s = sheets();
     if (!s) return res.status(503).json({ error: 'Google Sheets no configurado.' });
-    const { nombre, enlace, zona } = req.body;
+    const { nombre, enlace, zona, fechaIngreso } = req.body;
     if (!nombre) return res.status(400).json({ error: 'Nombre del grupo es obligatorio.' });
 
     await s.spreadsheets.values.append({
-      spreadsheetId: SHEET_ID, range: SHEET_NAME + '!A:C',
+      spreadsheetId: SHEET_ID, range: SHEET_NAME + '!A:D',
       valueInputOption: 'USER_ENTERED', insertDataOption: 'INSERT_ROWS',
-      resource: { values: [[nombre, enlace || '', zona || '']] }
+      resource: { values: [[nombre, enlace || '', zona || '', fechaIngreso || '']] }
     });
     invalidateCache();
 
@@ -92,13 +93,13 @@ router.put('/:rowIndex', authenticate, async (req, res) => {
     if (!s) return res.status(503).json({ error: 'Google Sheets no configurado.' });
     const rowIndex = parseInt(req.params.rowIndex);
     if (isNaN(rowIndex) || rowIndex < 2) return res.status(400).json({ error: 'Índice inválido.' });
-    const { nombre, enlace, zona } = req.body;
+    const { nombre, enlace, zona, fechaIngreso } = req.body;
     if (!nombre) return res.status(400).json({ error: 'Nombre del grupo es obligatorio.' });
 
     await s.spreadsheets.values.update({
-      spreadsheetId: SHEET_ID, range: SHEET_NAME + `!A${rowIndex}:C${rowIndex}`,
+      spreadsheetId: SHEET_ID, range: SHEET_NAME + `!A${rowIndex}:D${rowIndex}`,
       valueInputOption: 'USER_ENTERED',
-      resource: { values: [[nombre, enlace || '', zona || '']] }
+      resource: { values: [[nombre, enlace || '', zona || '', fechaIngreso || '']] }
     });
     invalidateCache();
 

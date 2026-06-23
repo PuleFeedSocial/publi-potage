@@ -156,6 +156,7 @@
                                     <th>Nombre del Grupo</th>
                                     <th>Enlace</th>
                                     <th>Zona</th>
+                                    <th class="text-center">Fec. Ingreso</th>
                                     <th class="text-center">Publicaciones</th>
                                     <th class="text-end">Acciones</th>
                                 </tr>
@@ -197,6 +198,10 @@
                                 <option value="Todos">Todos</option>
                             </select>
                             <input type="text" id="grupo-page-zona-custom" class="form-control custom-input d-none mt-1" placeholder="Nueva zona...">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-medium text-secondary">Fecha de Ingreso</label>
+                            <input type="text" id="grupo-page-fecha" class="form-control custom-input" placeholder="dd/mm/aaaa">
                         </div>
                     </div>
                     <div class="modal-footer border-0 pt-0">
@@ -255,7 +260,7 @@
 
         function loadGruposPage() {
             const tbody = document.getElementById('grupos-page-table-body');
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Cargando...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Cargando...</td></tr>';
             Promise.all([
                 fetch(API_BASE + '/api/grupos', { headers: { 'Authorization': 'Bearer ' + getToken() } }),
                 fetch(API_BASE + '/api/marketing', { headers: { 'Authorization': 'Bearer ' + getToken() } })
@@ -266,7 +271,7 @@
                 ]))
                 .then(([gruposRes, marketingRes]) => {
                     if (gruposRes.status !== 200) {
-                        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">' + (gruposRes.body.error || 'Error') + '</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">' + (gruposRes.body.error || 'Error') + '</td></tr>';
                         return;
                     }
                     gruposPageData = gruposRes.body.data || [];
@@ -288,7 +293,7 @@
                     document.getElementById('grupos-count').innerText = gruposPageData.length;
                 })
                 .catch(() => {
-                    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Error de conexión</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Error de conexión</td></tr>';
                 });
         }
 
@@ -306,10 +311,12 @@
                 const enlaceDisplay = g.enlace
                     ? '<a href="' + g.enlace + '" target="_blank" class="small text-muted">' + g.enlace.substring(0, 45) + '...</a>'
                     : '<span class="text-muted small">—</span>';
+                const fechaDisplay = g.fechaIngreso || '—';
                 tr.innerHTML = `
                     <td class="fw-medium text-dark">${g.nombre}</td>
                     <td class="small">${enlaceDisplay}</td>
                     <td><span class="badge-zone zone-${(g.zona||'').toLowerCase().replace(/ /g,'-')}">${g.zona || '—'}</span></td>
+                    <td class="text-center small text-muted">${fechaDisplay}</td>
                     <td class="text-center fw-semibold text-primary">${pubs}</td>
                     <td class="text-end">
                         <button class="btn btn-sm btn-link text-primary p-0 me-2" onclick="editGrupoPage(${g.rowIndex})" title="Editar">
@@ -322,7 +329,7 @@
                 tbody.appendChild(tr);
             });
             if (!filtered.length) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Sin resultados</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Sin resultados</td></tr>';
             }
             // Update total pubs
             const totalPubs = filtered.reduce((s, g) => s + (window._gruposPubs[g.nombre] || 0), 0);
@@ -337,6 +344,7 @@
             document.getElementById('grupo-page-zona').value = '';
             document.getElementById('grupo-page-zona-custom').value = '';
             document.getElementById('grupo-page-zona-custom').classList.add('d-none');
+            document.getElementById('grupo-page-fecha').value = '';
             populateZonas();
             new bootstrap.Modal(document.getElementById('grupoPageModal')).show();
         }
@@ -346,6 +354,7 @@
             const nombre = document.getElementById('grupo-page-nombre').value.trim();
             const enlace = document.getElementById('grupo-page-enlace').value.trim();
             const zona = getZonaValue();
+            const fechaIngreso = document.getElementById('grupo-page-fecha').value.trim();
             if (!nombre) return alert('El nombre del grupo es obligatorio.');
 
             const rowIndex = document.getElementById('grupo-page-row-index').value;
@@ -355,7 +364,7 @@
             fetch(API_BASE + url, {
                 method,
                 headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nombre, enlace, zona })
+                body: JSON.stringify({ nombre, enlace, zona, fechaIngreso })
             })
                 .then(r => r.json())
                 .then(res => {
@@ -372,6 +381,7 @@
             document.getElementById('grupo-page-row-index').value = rowIndex;
             document.getElementById('grupo-page-nombre').value = g.nombre;
             document.getElementById('grupo-page-enlace').value = g.enlace || '';
+            document.getElementById('grupo-page-fecha').value = g.fechaIngreso || '';
             populateZonas();
             if (g.zona && ![...document.getElementById('grupo-page-zona').options].some(o => o.value === g.zona)) {
                 document.getElementById('grupo-page-zona').value = '__otro__';
