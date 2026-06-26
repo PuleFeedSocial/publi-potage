@@ -553,6 +553,37 @@ function populateSelects() {
   toggleCustomInputs();
 }
 
+function filterGruposByZona() {
+  const zona = document.getElementById('mk-zona').value;
+  const sel = document.getElementById('mk-grupo');
+  const current = sel.value;
+
+  let grupos;
+  if (zona && zona !== '__otro__') {
+    grupos = [...new Set(gruposData.filter(g => g.zona === zona).map(g => g.nombre).filter(Boolean))];
+    if (grupos.length === 0) {
+      grupos = [...new Set(marketingData.filter(r => r.zona === zona).map(r => r.grupo).filter(Boolean))];
+    }
+  } else {
+    grupos = [...new Set(gruposData.map(r => r.nombre).filter(Boolean))];
+    if (grupos.length === 0) {
+      grupos = [...new Set(marketingData.map(r => r.grupo).filter(Boolean))];
+    }
+  }
+
+  sel.innerHTML = '<option value="">Seleccionar...</option>';
+  grupos.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v; opt.textContent = v;
+    sel.appendChild(opt);
+  });
+  const otro = document.createElement('option');
+  otro.value = '__otro__'; otro.textContent = 'Otro...';
+  sel.appendChild(otro);
+  if ([...sel.options].some(o => o.value === current)) sel.value = current;
+  toggleCustomInputs();
+}
+
 function toggleCustomInputs() {
   ['mk-grupo', 'mk-zona'].forEach(id => {
     const sel = document.getElementById(id);
@@ -618,6 +649,7 @@ function openEditModal(rowData) {
   } else {
     document.getElementById('mk-zona').value = row.zona || '';
   }
+  filterGruposByZona();
   toggleCustomInputs();
   new bootstrap.Modal(document.getElementById('mkModal')).show();
 }

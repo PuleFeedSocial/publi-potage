@@ -193,11 +193,10 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label small fw-medium text-secondary">Zona</label>
-                            <select id="grupo-page-zona" class="form-select custom-input" onchange="toggleZonaCustom()">
+                            <select id="grupo-page-zona" class="form-select custom-input">
                                 <option value="">Seleccionar...</option>
                                 <option value="Todos">Todos</option>
                             </select>
-                            <input type="text" id="grupo-page-zona-custom" class="form-control custom-input d-none mt-1" placeholder="Nueva zona...">
                         </div>
                         <div class="mb-3">
                             <label class="form-label small fw-medium text-secondary">Fecha de Ingreso</label>
@@ -224,18 +223,8 @@
 
         let gruposPageData = [];
 
-        function toggleZonaCustom() {
-            const sel = document.getElementById('grupo-page-zona');
-            const custom = document.getElementById('grupo-page-zona-custom');
-            if (sel.value === '__otro__') {
-                custom.classList.remove('d-none');
-            } else {
-                custom.classList.add('d-none');
-            }
-        }
-
         function populateZonas() {
-            const zonas = [...new Set(gruposPageData.map(g => g.zona).filter(Boolean))];
+            const zonas = [...new Set([...gruposPageData.map(g => g.zona).filter(Boolean), ...(window.zonasData || []).map(z => z.nombre).filter(Boolean)])];
             const sel = document.getElementById('grupo-page-zona');
             const current = sel.value;
             sel.innerHTML = '<option value="">Seleccionar...</option><option value="Todos">Todos</option>';
@@ -244,18 +233,11 @@
                 opt.value = v; opt.textContent = v;
                 sel.appendChild(opt);
             });
-            const otro = document.createElement('option');
-            otro.value = '__otro__'; otro.textContent = 'Otro...';
-            sel.appendChild(otro);
             sel.value = current;
-            toggleZonaCustom();
         }
 
         function getZonaValue() {
-            const sel = document.getElementById('grupo-page-zona');
-            const custom = document.getElementById('grupo-page-zona-custom');
-            if (sel.value === '__otro__') return custom.value.trim();
-            return sel.value;
+            return document.getElementById('grupo-page-zona').value;
         }
 
         function loadGruposPage() {
@@ -342,8 +324,6 @@
             document.getElementById('grupo-page-nombre').value = '';
             document.getElementById('grupo-page-enlace').value = '';
             document.getElementById('grupo-page-zona').value = '';
-            document.getElementById('grupo-page-zona-custom').value = '';
-            document.getElementById('grupo-page-zona-custom').classList.add('d-none');
             document.getElementById('grupo-page-fecha').value = '';
             populateZonas();
             new bootstrap.Modal(document.getElementById('grupoPageModal')).show();
@@ -383,13 +363,7 @@
             document.getElementById('grupo-page-enlace').value = g.enlace || '';
             document.getElementById('grupo-page-fecha').value = g.fechaIngreso || '';
             populateZonas();
-            if (g.zona && ![...document.getElementById('grupo-page-zona').options].some(o => o.value === g.zona)) {
-                document.getElementById('grupo-page-zona').value = '__otro__';
-                document.getElementById('grupo-page-zona-custom').value = g.zona;
-                document.getElementById('grupo-page-zona-custom').classList.remove('d-none');
-            } else {
-                document.getElementById('grupo-page-zona').value = g.zona || '';
-            }
+            document.getElementById('grupo-page-zona').value = g.zona || '';
             new bootstrap.Modal(document.getElementById('grupoPageModal')).show();
         }
 
