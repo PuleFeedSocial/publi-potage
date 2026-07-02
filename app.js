@@ -157,7 +157,6 @@ function loadMarketingData() {
       document.getElementById('data-source-badge').innerHTML = '<i class="bi bi-database"></i> Google Sheets';
       document.getElementById('filter-fecha').value = '';
       populateFilterDropdowns();
-      applyFilters();
     })
     .catch((err) => {
       tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Error de red: ' + (err.message || 'desconocido') + '</td></tr>';
@@ -295,22 +294,9 @@ function renderDashboard(data, chartData, periodLimit) {
 }
 
 function populateFilterDropdowns() {
-  const grupos = [...new Set(marketingData.map(r => r.grupo).filter(Boolean))].filter(g => g !== 'Perfil Estandar');
   let zonas = [...new Set(marketingData.map(r => r.zona).filter(Boolean))];
   zonasData.forEach(z => { if (z.nombre && !zonas.includes(z.nombre)) zonas.push(z.nombre); });
   zonas.sort();
-
-  const selGrupo = document.getElementById('filter-grupo');
-  if (selGrupo) {
-    const current = selGrupo.value;
-    selGrupo.innerHTML = '<option value="">Todos</option>';
-    grupos.forEach(v => {
-      const opt = document.createElement('option');
-      opt.value = v; opt.textContent = v;
-      selGrupo.appendChild(opt);
-    });
-    selGrupo.value = current;
-  }
 
   const selZona = document.getElementById('filter-zona');
   if (selZona) {
@@ -324,8 +310,36 @@ function populateFilterDropdowns() {
     selZona.value = current;
   }
 
+  refreshGruposByZona();
+
   const filterFecha = document.getElementById('filter-fecha');
   if (filterFecha) filterFecha.value = '';
+}
+
+function refreshGruposByZona() {
+  const zona = document.getElementById('filter-zona').value;
+  const sel = document.getElementById('filter-grupo');
+  if (!sel) return;
+  const current = sel.value;
+
+  let grupos;
+  if (zona) {
+    grupos = [...new Set(gruposData.filter(g => g.zona === zona).map(g => g.nombre).filter(Boolean))];
+    grupos = [...new Set([...grupos, ...marketingData.filter(r => r.zona === zona && r.grupo !== 'Perfil Estandar').map(r => r.grupo).filter(Boolean)])];
+  } else {
+    grupos = [...new Set(gruposData.map(r => r.nombre).filter(Boolean))];
+    grupos = [...new Set([...grupos, ...marketingData.filter(r => r.grupo !== 'Perfil Estandar').map(r => r.grupo).filter(Boolean)])];
+  }
+
+  sel.innerHTML = '<option value="">Todos</option>';
+  grupos.sort().forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v; opt.textContent = v;
+    sel.appendChild(opt);
+  });
+  if ([...sel.options].some(o => o.value === current)) sel.value = current;
+
+  applyFilters();
 }
 
 function goToPage(p) {
@@ -409,11 +423,7 @@ function clearFilters() {
   document.querySelectorAll('.filter-period').forEach(b => {
     b.classList.toggle('active', b.dataset.period === 'all');
   });
-
-  let chartData = [...marketingData.filter(r => r.grupo !== 'Perfil Estandar')];
-  renderDashboard(marketingData, chartData);
-  const countEl = document.getElementById('results-count');
-  if (countEl) countEl.innerText = marketingData.length + ' resultados';
+  refreshGruposByZona();
 }
 
 function marketingFetch(method, body) {
@@ -473,7 +483,11 @@ function loadGrupos() {
   })
     .then(r => r.json().then(b => ({ status: r.status, body: b })))
     .then(({ status, body }) => {
-      if (status === 200) gruposData = body.data || [];
+      if (status === 200) {
+        gruposData = body.data || [];
+        const selGrupo = document.getElementById('filter-grupo');
+        if (selGrupo && selGrupo.options.length > 0) refreshGruposByZona();
+      }
     })
     .catch(() => {});
 }
