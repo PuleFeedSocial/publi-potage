@@ -1066,7 +1066,7 @@ function renderZonasDashboard() {
   if (zonaFilter) data = data.filter(r => r.zona === zonaFilter);
   if (periodLimit) data = data.filter(r => { const d = parseDate(r.fecha); return d && d >= periodLimit; });
 
-  // Agrupar por zona
+  // Agrupar por zona desde marketingData
   const zones = {};
   data.forEach(r => {
     const z = r.zona || 'Sin zona';
@@ -1077,6 +1077,14 @@ function renderZonasDashboard() {
     zones[z].comentarios += r.comentarios || 0;
     zones[z].mensajes += r.mensajes || 0;
     zones[z].grupos.add(r.grupo);
+  });
+
+  // Agregar grupos desde gruposData que no aparecieron en marketingData
+  gruposData.forEach(g => {
+    if (!g.zona) return;
+    const z = g.zona;
+    if (!zones[z]) zones[z] = { zona: z, publicaciones: 0, visualizaciones: 0, interacciones: 0, comentarios: 0, mensajes: 0, grupos: new Set() };
+    zones[z].grupos.add(g.nombre);
   });
 
   const sortedZones = Object.values(zones).sort((a, b) => b.publicaciones - a.publicaciones);
