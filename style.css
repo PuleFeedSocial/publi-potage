@@ -1493,3 +1493,34 @@ body.sidebar-open .main-content {
 #pagination-controls .page-item {
   list-style: none;
 }
+
+/* Estatus badges */
+.badge-estatus {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.est-sin-definir {
+  background: #f1f5f9;
+  color: #64748b;
+}
+.est-publicada {
+  background: #dcfce7;
+  color: #166534;
+}
+.est-eliminada {
+  background: #fee2e2;
+  color: #991b1b;
+}
+.est-suprimida {
+  background: #fef3c7;
+  color: #92400e;
+}
+.est-en-revision {
+  background: #dbeafe;
+  color: #1e40af;
+}

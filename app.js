@@ -137,7 +137,7 @@ function switchView(viewName) {
 
 function loadMarketingData() {
   const tbody = document.getElementById('marketing-table-body');
-  tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Cargando...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Cargando...</td></tr>';
 
   fetch(API_BASE + '/api/marketing', {
     headers: { 'Authorization': 'Bearer ' + getToken() }
@@ -150,7 +150,7 @@ function loadMarketingData() {
       if (status !== 200) {
         const msg = body.error || 'Error ' + status;
         document.getElementById('data-source-badge').innerHTML = '<i class="bi bi-exclamation-triangle text-danger"></i> ' + msg;
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">' + msg + '</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">' + msg + '</td></tr>';
         return;
       }
       marketingData = body.data || [];
@@ -159,7 +159,7 @@ function loadMarketingData() {
       populateFilterDropdowns();
     })
     .catch((err) => {
-      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Error de red: ' + (err.message || 'desconocido') + '</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Error de red: ' + (err.message || 'desconocido') + '</td></tr>';
     });
 }
 
@@ -244,7 +244,8 @@ function renderDashboard(data, chartData, periodLimit) {
         <td class="text-center text-success fw-medium">${row.interacciones}</td>
         <td class="text-center">${row.comentarios}</td>
         <td class="text-center text-indigo fw-medium">${row.mensajes}</td>
-        <td><span class="badge-zone zone-${zClass}">${row.zona || ''}</span></td>`;
+        <td><span class="badge-zone zone-${zClass}">${row.zona || ''}</span></td>
+        <td class="text-center"><span class="badge-estatus est-${(row.estatus||'SIN DEFINIR').toLowerCase().replace(/ /g,'-')}">${row.estatus || 'SIN DEFINIR'}</span></td>`;
     tbody.appendChild(tr);
   });
 
@@ -626,6 +627,7 @@ function openAddModal() {
   document.getElementById('mk-zona').value = '';
   document.getElementById('mk-zona-custom').value = '';
   document.getElementById('mk-zona-custom').classList.add('d-none');
+  document.getElementById('mk-estatus').value = 'SIN DEFINIR';
   document.getElementById('mk-delete-btn').classList.add('d-none');
   populateSelects();
   new bootstrap.Modal(document.getElementById('mkModal')).show();
@@ -664,6 +666,7 @@ function openEditModal(rowData) {
     document.getElementById('mk-zona').value = row.zona || '';
   }
   filterGruposByZona();
+  document.getElementById('mk-estatus').value = row.estatus || 'SIN DEFINIR';
   toggleCustomInputs();
   new bootstrap.Modal(document.getElementById('mkModal')).show();
 }
@@ -691,7 +694,8 @@ function saveMarketingRow() {
     interacciones: parseInt(document.getElementById('mk-int').value) || 0,
     comentarios: parseInt(document.getElementById('mk-com').value) || 0,
     mensajes: parseInt(document.getElementById('mk-msj').value) || 0,
-    zona: mkFieldValue('mk-zona')
+    zona: mkFieldValue('mk-zona'),
+    estatus: document.getElementById('mk-estatus').value
   };
   if (!data.fecha || !data.grupo) return alert('Fecha y Grupo son obligatorios.');
   const isNewGrupo = document.getElementById('mk-grupo').value === '__otro__' && data.grupo;
@@ -816,6 +820,7 @@ function openDetailModal(rowData) {
       <div class="col-6 col-md-4"><div class="text-muted small">Comentarios</div><div class="fw-medium">${row.comentarios}</div></div>
       <div class="col-6 col-md-4"><div class="text-muted small">Mensajes</div><div class="fw-medium">${row.mensajes}</div></div>
       <div class="col-6 col-md-4"><div class="text-muted small">Zona</div><div class="fw-medium">${row.zona || '—'}</div></div>
+      <div class="col-6 col-md-4"><div class="text-muted small">Estatus</div><div class="fw-medium"><span class="badge-estatus est-${(row.estatus||'SIN DEFINIR').toLowerCase().replace(/ /g,'-')}">${row.estatus || 'SIN DEFINIR'}</span></div></div>
     </div>
     ${histHtml}${chartHtml}${zonaChartHtml}`;
 
@@ -865,6 +870,7 @@ function openUpdateModal(rowData) {
   document.getElementById('upd-int').value = row.interacciones;
   document.getElementById('upd-com').value = row.comentarios;
   document.getElementById('upd-msj').value = row.mensajes;
+  document.getElementById('upd-estatus').value = row.estatus || 'SIN DEFINIR';
   // Guardar referencia para el save
   document.getElementById('upd-row-index').dataset.fecha = row.fecha || '';
   document.getElementById('upd-row-index').dataset.grupo = row.grupo || '';
@@ -886,7 +892,8 @@ function saveUpdate() {
     visualizaciones: parseInt(document.getElementById('upd-vis').value) || 0,
     interacciones: parseInt(document.getElementById('upd-int').value) || 0,
     comentarios: parseInt(document.getElementById('upd-com').value) || 0,
-    mensajes: parseInt(document.getElementById('upd-msj').value) || 0
+    mensajes: parseInt(document.getElementById('upd-msj').value) || 0,
+    estatus: document.getElementById('upd-estatus').value
   };
 
   const today = new Date();

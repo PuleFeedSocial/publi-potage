@@ -257,6 +257,7 @@
                                     <th class="text-center">Comentarios</th>
                                     <th class="text-center">Mensajes</th>
                                     <th>Zona</th>
+                                    <th class="text-center">Estatus</th>
                                 </tr>
                             </thead>
                             <tbody id="marketing-table-body">
@@ -519,6 +520,16 @@
                             <label class="form-label small fw-medium text-secondary">Mensajes</label>
                             <input type="number" id="upd-msj" class="form-control custom-input" min="0">
                         </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-medium text-secondary">Estatus</label>
+                            <select id="upd-estatus" class="form-select custom-input">
+                                <option value="SIN DEFINIR">SIN DEFINIR</option>
+                                <option value="PUBLICADA">PUBLICADA</option>
+                                <option value="ELIMINADA">ELIMINADA</option>
+                                <option value="SUPRIMIDA">SUPRIMIDA</option>
+                                <option value="EN REVISION">EN REVISION</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer border-0 pt-0">
@@ -580,6 +591,16 @@
                                 <option value="">Seleccionar...</option>
                             </select>
                             <input type="text" id="mk-zona-custom" class="form-control custom-input d-none mt-1" placeholder="Nueva zona...">
+                        </div>
+                        <div class="col-6 col-md-4">
+                            <label class="form-label small fw-medium text-secondary">Estatus</label>
+                            <select id="mk-estatus" class="form-select custom-input">
+                                <option value="SIN DEFINIR">SIN DEFINIR</option>
+                                <option value="PUBLICADA">PUBLICADA</option>
+                                <option value="ELIMINADA">ELIMINADA</option>
+                                <option value="SUPRIMIDA">SUPRIMIDA</option>
+                                <option value="EN REVISION">EN REVISION</option>
+                            </select>
                         </div>
                     </div>
                 </div>

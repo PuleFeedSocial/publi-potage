@@ -47,7 +47,7 @@ async function readMarketingData() {
 
   const result = await s.spreadsheets.values.get({
     spreadsheetId: SHEET_ID,
-    range: TARGET_SHEET + '!A:H',
+    range: TARGET_SHEET + '!A:I',
     valueRenderOption: 'FORMATTED_VALUE'
   });
 
@@ -69,7 +69,8 @@ async function readMarketingData() {
       interacciones: parseInt(row[4]) || 0,
       comentarios: parseInt(row[5]) || 0,
       mensajes: parseInt(row[6]) || 0,
-      zona: (row[7] || '').trim()
+      zona: (row[7] || '').trim(),
+      estatus: (row[8] || 'SIN DEFINIR').trim()
     });
   }
   return data;
@@ -101,17 +102,17 @@ router.post('/', authenticate, async (req, res) => {
     const s = sheets();
     if (!s) return res.status(503).json({ error: 'Google Sheets no configurado.' });
 
-    const { fecha, grupo, publicaciones, visualizaciones, interacciones, comentarios, mensajes, zona } = req.body;
+    const { fecha, grupo, publicaciones, visualizaciones, interacciones, comentarios, mensajes, zona, estatus } = req.body;
 
     const appendRes = await s.spreadsheets.values.append({
       spreadsheetId: SHEET_ID,
-      range: TARGET_SHEET + '!A:H',
+      range: TARGET_SHEET + '!A:I',
       valueInputOption: 'USER_ENTERED',
       insertDataOption: 'INSERT_ROWS',
       resource: {
         values: [[
           fecha || '', grupo || '', publicaciones || 0, visualizaciones || 0,
-          interacciones || 0, comentarios || 0, mensajes || 0, zona || ''
+          interacciones || 0, comentarios || 0, mensajes || 0, zona || '', estatus || 'SIN DEFINIR'
         ]]
       }
     });
@@ -140,16 +141,16 @@ router.put('/:rowIndex', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Índice de fila inválido.' });
     }
 
-    const { fecha, grupo, publicaciones, visualizaciones, interacciones, comentarios, mensajes, zona } = req.body;
+    const { fecha, grupo, publicaciones, visualizaciones, interacciones, comentarios, mensajes, zona, estatus } = req.body;
 
     await s.spreadsheets.values.update({
       spreadsheetId: SHEET_ID,
-      range: TARGET_SHEET + '!A' + rowIndex + ':H' + rowIndex,
+      range: TARGET_SHEET + '!A' + rowIndex + ':I' + rowIndex,
       valueInputOption: 'USER_ENTERED',
       resource: {
         values: [[
           fecha || '', grupo || '', publicaciones || 0, visualizaciones || 0,
-          interacciones || 0, comentarios || 0, mensajes || 0, zona || ''
+          interacciones || 0, comentarios || 0, mensajes || 0, zona || '', estatus || 'SIN DEFINIR'
         ]]
       }
     });
