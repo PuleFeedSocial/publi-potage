@@ -105,6 +105,10 @@ let filterPeriodZonas = 'all';
 let pageActual = 1;
 const PAGE_SIZE = 10;
 
+function isEstatusActivo(estatus) {
+  return estatus === 'PUBLICADA' || estatus === 'SIN DEFINIR' || !estatus;
+}
+
 function switchView(viewName) {
   if (viewName === 'users' && currentRole !== 'admin') {
     alert('Acceso denegado: Solo los administradores pueden gestionar usuarios.');
@@ -180,7 +184,7 @@ function renderDashboard(data, chartData, periodLimit) {
     return db - da;
   });
 
-  const kpiData = data.filter(r => r.grupo !== 'Perfil Estandar');
+  const kpiData = data.filter(r => r.grupo !== 'Perfil Estandar' && isEstatusActivo(r.estatus));
   const grupos = [...new Set(kpiData.map(r => r.grupo).filter(Boolean))];
   const totalPubs = kpiData.reduce((s, r) => s + r.publicaciones, 0);
   const totalVis = kpiData.reduce((s, r) => s + r.visualizaciones, 0);
@@ -402,7 +406,7 @@ function applyFilters(resetPage) {
 
   // chartData = todas las filas (sin filtro de periodo) para que initCharts
   // pueda matchear historial por fechaActualizacion
-  let chartBase = marketingData.filter(r => r.grupo !== 'Perfil Estandar');
+  let chartBase = marketingData.filter(r => r.grupo !== 'Perfil Estandar' && isEstatusActivo(r.estatus));
   if (grupo) chartBase = chartBase.filter(r => r.grupo === grupo);
   if (zona) chartBase = chartBase.filter(r => r.zona === zona);
   if (fecha) chartBase = chartBase.filter(r => r.fecha === fecha);
@@ -793,7 +797,7 @@ function openDetailModal(rowData) {
 
   let zonaChartHtml = '';
   if (row.zona) {
-    const zoneRows = marketingData.filter(r => r.zona === row.zona && r.grupo !== 'Perfil Estandar');
+    const zoneRows = marketingData.filter(r => r.zona === row.zona && r.grupo !== 'Perfil Estandar' && isEstatusActivo(r.estatus));
     if (zoneRows.length) {
       zonaChartHtml = `
       <hr class="my-3">
@@ -938,7 +942,7 @@ function renderGrupoChart(grupo, metric) {
   const field = METRIC_FIELD[metric] || 'publicaciones';
 
   // Usar historial: filtrar por rowIndex del grupo (mas robusto que campo grupo)
-  const groupRows = new Set(marketingData.filter(r => r.grupo === grupo).map(r => r.rowIndex));
+  const groupRows = new Set(marketingData.filter(r => r.grupo === grupo && isEstatusActivo(r.estatus)).map(r => r.rowIndex));
   const hEntries = historialData.filter(r => groupRows.has(r.filaOrigen));
 
   // Solo la ultima entrada por fecha (no sumar)
@@ -1000,7 +1004,7 @@ function renderZonaChart(zona, metric) {
   const field = METRIC_FIELD[metric] || 'publicaciones';
 
   // Todos los rowIndex de la zona
-  const zoneRowIndexes = new Set(marketingData.filter(r => r.zona === zona && r.grupo !== 'Perfil Estandar').map(r => r.rowIndex));
+  const zoneRowIndexes = new Set(marketingData.filter(r => r.zona === zona && r.grupo !== 'Perfil Estandar' && isEstatusActivo(r.estatus)).map(r => r.rowIndex));
   const hEntries = historialData.filter(r => zoneRowIndexes.has(r.filaOrigen));
 
   // Sumar por fecha (todos los grupos de la zona)
@@ -1069,7 +1073,7 @@ function renderZonasDashboard() {
     return limit;
   })();
 
-  let data = marketingData.filter(r => r.grupo !== 'Perfil Estandar');
+  let data = marketingData.filter(r => r.grupo !== 'Perfil Estandar' && isEstatusActivo(r.estatus));
   if (zonaFilter) data = data.filter(r => r.zona === zonaFilter);
   if (periodLimit) data = data.filter(r => { const d = parseDate(r.fecha); return d && d >= periodLimit; });
 

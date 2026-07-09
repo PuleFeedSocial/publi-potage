@@ -268,7 +268,9 @@
                     marketingData.forEach(r => {
                         const g = r.grupo;
                         if (g) {
-                            window._gruposPubs[g] = (window._gruposPubs[g] || 0) + (r.publicaciones || 0);
+                            if (isEstatusActivo(r.estatus)) {
+                                window._gruposPubs[g] = (window._gruposPubs[g] || 0) + (r.publicaciones || 0);
+                            }
                             if (!window._gruposEstatus[g]) window._gruposEstatus[g] = { PUBLICADA: 0, ELIMINADA: 0, SUPRIMIDA: 0, 'EN REVISION': 0 };
                             const est = r.estatus || 'SIN DEFINIR';
                             if (window._gruposEstatus[g][est] !== undefined) window._gruposEstatus[g][est]++;
