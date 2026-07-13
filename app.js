@@ -360,6 +360,16 @@ function parseDate(str) {
   return isNaN(d.getTime()) ? null : d;
 }
 
+function todayStr() {
+  const d = new Date();
+  return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
+}
+
+function isoToDate(iso) {
+  const p = iso.split('-');
+  return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : iso;
+}
+
 function setPeriod(days) {
   filterPeriod = days;
   document.querySelectorAll('.filter-period').forEach(b => {
@@ -390,7 +400,7 @@ function applyFilters(resetPage) {
   const grupo = document.getElementById('filter-grupo').value;
   const zona = document.getElementById('filter-zona').value;
   const rawFecha = document.getElementById('filter-fecha').value;
-  const fecha = rawFecha ? (() => { const p = rawFecha.split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : ''; })() : '';
+  const fecha = rawFecha ? isoToDate(rawFecha) : '';
   const periodLimit = buildPeriodLimit();
 
   let filtered = marketingData;
@@ -553,8 +563,7 @@ function saveBulkMarketing() {
   if (!rawFecha) return alert('La fecha es obligatoria.');
   if (!selected.length) return alert('Seleccioná al menos un grupo.');
 
-  const p = rawFecha.split('-');
-  const fecha = p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : rawFecha;
+  const fecha = isoToDate(rawFecha);
   const zona = document.getElementById('bulk-zona').value;
   if (!zona) return alert('Seleccioná una zona.');
 
@@ -569,11 +578,7 @@ function saveBulkMarketing() {
     estatus: document.getElementById('bulk-estatus').value
   };
 
-  const today = new Date();
-  const dd = String(today.getDate()).padStart(2, '0');
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
-  const yyyy = today.getFullYear();
-  const fechaActualizacion = dd + '/' + mm + '/' + yyyy;
+  const fechaActualizacion = todayStr();
 
   try { bootstrap.Modal.getInstance(document.getElementById('bulkModal')).hide(); } catch {}
 
@@ -609,9 +614,6 @@ function saveBulkMarketing() {
       completed++;
       if (completed === total) {
         loadMarketingData();
-        if (!hasError && total > 1) {
-          // Pequeño toast visual opcional
-        }
       }
     });
   });
@@ -821,9 +823,7 @@ function saveMarketingRow() {
   const rawFecha = document.getElementById('mk-fecha').value.trim();
   const rowIndex = document.getElementById('mk-row-index').value;
 
-  const fecha = rowIndex
-    ? (window._editOriginalFecha || '')
-    : (() => { const p = rawFecha.split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : rawFecha; })();
+  const fecha = rowIndex ? (window._editOriginalFecha || '') : isoToDate(rawFecha);
 
   const data = {
     fecha,
@@ -840,11 +840,7 @@ function saveMarketingRow() {
   if (document.getElementById('mk-zona').value === '__otro__' && !data.zona) return alert('Escribí el nombre de la zona.');
   const isNewGrupo = document.getElementById('mk-grupo').value === '__otro__' && data.grupo;
 
-  const today = new Date();
-  const dd = String(today.getDate()).padStart(2, '0');
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
-  const yyyy = today.getFullYear();
-  const fechaActualizacion = dd + '/' + mm + '/' + yyyy;
+  const fechaActualizacion = todayStr();
 
   const save = () => {
     try { bootstrap.Modal.getInstance(document.getElementById('mkModal')).hide(); } catch {}
@@ -891,7 +887,7 @@ function openDetailModal(rowData) {
   if (window._zonaChart) { window._zonaChart.destroy(); window._zonaChart = null; }
 
   const grupoInfo = gruposData.find(g => g.nombre === row.grupo);
-  const grupoLink = grupoInfo && grupoInfo.enlace ? grupoInfo.enlace : null;
+  const grupoLink = grupoInfo && grupoInfo.enlace && /^https?:\/\//i.test(grupoInfo.enlace) ? grupoInfo.enlace : null;
 
   const historiales = historialData.filter(h => h.filaOrigen === row.rowIndex);
   let histHtml = '';
@@ -1039,11 +1035,7 @@ function saveUpdate() {
     estatus: document.getElementById('upd-estatus').value
   };
 
-  const today = new Date();
-  const dd = String(today.getDate()).padStart(2, '0');
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
-  const yyyy = today.getFullYear();
-  const fechaActualizacion = dd + '/' + mm + '/' + yyyy;
+  const fechaActualizacion = todayStr();
 
   const snapshot = {
     fechaActualizacion,

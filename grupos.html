@@ -304,8 +304,9 @@
                 tr.style.animationDelay = (i * 0.04) + 's';
                 const pubs = window._gruposPubs[g.nombre] || 0;
                 const est = window._gruposEstatus[g.nombre] || {};
-                const enlaceDisplay = g.enlace
-                    ? '<a href="' + g.enlace + '" target="_blank" class="small text-muted">' + g.enlace.substring(0, 45) + '...</a>'
+                const enlaceSafe = g.enlace && /^https?:\/\//i.test(g.enlace) ? g.enlace : null;
+                const enlaceDisplay = enlaceSafe
+                    ? '<a href="' + enlaceSafe + '" target="_blank" class="small text-muted">' + enlaceSafe.substring(0, 45) + '...</a>'
                     : '<span class="text-muted small">—</span>';
                 const fechaDisplay = g.fechaIngreso || '—';
                 tr.innerHTML = `
