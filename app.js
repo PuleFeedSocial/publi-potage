@@ -482,6 +482,135 @@ function deleteMarketingRow(rowIndex) {
   });
 }
 
+// --- Carga Múltiple ---
+function openBulkModal() {
+  document.getElementById('bulk-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('bulk-pubs').value = 0;
+  document.getElementById('bulk-vis').value = 0;
+  document.getElementById('bulk-int').value = 0;
+  document.getElementById('bulk-com').value = 0;
+  document.getElementById('bulk-msj').value = 0;
+  document.getElementById('bulk-estatus').value = 'SIN DEFINIR';
+
+  let zonas = [...new Set(zonasData.map(r => r.nombre).filter(Boolean)), ...new Set(marketingData.map(r => r.zona).filter(Boolean))];
+  zonas = [...new Set(zonas)];
+  const selZona = document.getElementById('bulk-zona');
+  selZona.innerHTML = '<option value="">Seleccionar...</option>';
+  zonas.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v; opt.textContent = v;
+    selZona.appendChild(opt);
+  });
+
+  filterGruposBulk();
+  new bootstrap.Modal(document.getElementById('bulkModal')).show();
+}
+
+function filterGruposBulk() {
+  const zona = document.getElementById('bulk-zona').value;
+  const sel = document.getElementById('bulk-grupos');
+  const previousSelected = [...sel.selectedOptions].map(o => o.value);
+
+  let grupos;
+  if (zona) {
+    grupos = [...new Set(gruposData.filter(g => g.zona === zona).map(g => g.nombre).filter(Boolean))];
+    grupos = [...new Set([...grupos, ...marketingData.filter(r => r.zona === zona && r.grupo !== 'Perfil Estandar').map(r => r.grupo).filter(Boolean)])];
+  } else {
+    grupos = [...new Set(gruposData.map(r => r.nombre).filter(Boolean))];
+    grupos = [...new Set([...grupos, ...marketingData.filter(r => r.grupo !== 'Perfil Estandar').map(r => r.grupo).filter(Boolean)])];
+  }
+
+  sel.innerHTML = '';
+  grupos.sort().forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v; opt.textContent = v;
+    if (previousSelected.includes(v)) opt.selected = true;
+    sel.appendChild(opt);
+  });
+
+  updateBulkButtonText();
+}
+
+function updateBulkButtonText() {
+  const sel = document.getElementById('bulk-grupos');
+  if (!sel) return;
+  const count = sel.selectedOptions.length;
+  const btn = document.querySelector('#bulkModal .btn-action-primary');
+  if (btn) btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Publicar en ' + count + ' grupo' + (count !== 1 ? 's' : '');
+}
+
+function saveBulkMarketing() {
+  const rawFecha = document.getElementById('bulk-fecha').value.trim();
+  const selGrupos = document.getElementById('bulk-grupos');
+  const selected = [...selGrupos.selectedOptions].map(o => o.value);
+
+  if (!rawFecha) return alert('La fecha es obligatoria.');
+  if (!selected.length) return alert('Seleccioná al menos un grupo.');
+
+  const p = rawFecha.split('-');
+  const fecha = p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : rawFecha;
+  const zona = document.getElementById('bulk-zona').value;
+  if (!zona) return alert('Seleccioná una zona.');
+
+  const baseData = {
+    fecha,
+    publicaciones: parseInt(document.getElementById('bulk-pubs').value) || 0,
+    visualizaciones: parseInt(document.getElementById('bulk-vis').value) || 0,
+    interacciones: parseInt(document.getElementById('bulk-int').value) || 0,
+    comentarios: parseInt(document.getElementById('bulk-com').value) || 0,
+    mensajes: parseInt(document.getElementById('bulk-msj').value) || 0,
+    zona,
+    estatus: document.getElementById('bulk-estatus').value
+  };
+
+  const today = new Date();
+  const dd = String(today.getDate()).padStart(2, '0');
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const yyyy = today.getFullYear();
+  const fechaActualizacion = dd + '/' + mm + '/' + yyyy;
+
+  try { bootstrap.Modal.getInstance(document.getElementById('bulkModal')).hide(); } catch {}
+
+  let completed = 0;
+  const total = selected.length;
+  let hasError = false;
+
+  selected.forEach(grupo => {
+    const data = { ...baseData, grupo };
+    const snapshot = {
+      fechaActualizacion,
+      filaOrigen: 0,
+      grupo,
+      fechaPublicacion: fecha,
+      zona,
+      publicaciones: baseData.publicaciones,
+      visualizaciones: baseData.visualizaciones,
+      interacciones: baseData.interacciones,
+      comentarios: baseData.comentarios,
+      mensajes: baseData.mensajes
+    };
+
+    marketingFetch('POST', data).then(res => {
+      if (res.error) {
+        if (!hasError) { hasError = true; alert('Error en ' + grupo + ': ' + res.error); }
+        return;
+      }
+      if (res.rowIndex) {
+        snapshot.filaOrigen = res.rowIndex;
+        postHistorial(snapshot);
+      }
+    }).finally(() => {
+      completed++;
+      if (completed === total) {
+        loadMarketingData();
+        if (!hasError && total > 1) {
+          // Pequeño toast visual opcional
+        }
+      }
+    });
+  });
+}
+
 function loadGrupos() {
   fetch(API_BASE + '/api/grupos', {
     headers: { 'Authorization': 'Bearer ' + getToken() }
@@ -702,6 +831,7 @@ function saveMarketingRow() {
     estatus: document.getElementById('mk-estatus').value
   };
   if (!data.fecha || !data.grupo) return alert('Fecha y Grupo son obligatorios.');
+  if (document.getElementById('mk-zona').value === '__otro__' && !data.zona) return alert('Escribí el nombre de la zona.');
   const isNewGrupo = document.getElementById('mk-grupo').value === '__otro__' && data.grupo;
 
   const today = new Date();
@@ -714,7 +844,7 @@ function saveMarketingRow() {
     try { bootstrap.Modal.getInstance(document.getElementById('mkModal')).hide(); } catch {}
 
     const snapshot = {
-      fechaActualizacion: rowIndex ? fechaActualizacion : data.fecha,
+      fechaActualizacion,
       filaOrigen: rowIndex ? parseInt(rowIndex) : 0,
       grupo: data.grupo,
       fechaPublicacion: data.fecha,
@@ -753,6 +883,9 @@ function openDetailModal(rowData) {
 
   if (window._grupoChart) { window._grupoChart.destroy(); window._grupoChart = null; }
   if (window._zonaChart) { window._zonaChart.destroy(); window._zonaChart = null; }
+
+  const grupoInfo = gruposData.find(g => g.nombre === row.grupo);
+  const grupoLink = grupoInfo && grupoInfo.enlace ? grupoInfo.enlace : null;
 
   const historiales = historialData.filter(h => h.filaOrigen === row.rowIndex);
   let histHtml = '';
@@ -817,7 +950,7 @@ function openDetailModal(rowData) {
   const html = `
     <div class="row g-3">
       <div class="col-6 col-md-4"><div class="text-muted small">Fecha</div><div class="fw-medium">${row.fecha || '—'}</div></div>
-      <div class="col-6 col-md-4"><div class="text-muted small">Grupo</div><div class="fw-medium">${row.grupo || '—'}</div></div>
+      <div class="col-6 col-md-4"><div class="text-muted small">Grupo</div><div class="fw-medium">${row.grupo || '—'}${grupoLink ? ' <a href="' + grupoLink + '" target="_blank" class="text-decoration-none" title="Abrir grupo"><i class="bi bi-box-arrow-up-right ms-1 text-muted"></i></a>' : ''}</div></div>
       <div class="col-6 col-md-4"><div class="text-muted small">Publicaciones</div><div class="fw-medium">${row.publicaciones}</div></div>
       <div class="col-6 col-md-4"><div class="text-muted small">Visualizaciones</div><div class="fw-medium">${row.visualizaciones}</div></div>
       <div class="col-6 col-md-4"><div class="text-muted small">Interacciones</div><div class="fw-medium">${row.interacciones}</div></div>
@@ -920,10 +1053,11 @@ function saveUpdate() {
   };
 
   try { bootstrap.Modal.getInstance(document.getElementById('updateModal')).hide(); } catch {}
+  const detailEl = document.getElementById('detailModal');
+  if (detailEl && bootstrap.Modal.getInstance(detailEl)) bootstrap.Modal.getInstance(detailEl).hide();
 
   updateMarketingRow(rowIndex, data);
   postHistorial(snapshot);
-  bootstrap.Modal.getInstance(document.getElementById('detailModal')).hide();
 }
 
 function renderGrupoChart(grupo, metric) {

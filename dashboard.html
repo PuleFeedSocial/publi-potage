@@ -241,7 +241,10 @@
                         </div>
                         <div class="d-flex gap-2">
                             <button class="btn btn-sm btn-action-primary" onclick="openAddModal()">
-                                <i class="bi bi-plus-circle-fill me-1"></i> Agregar publicación
+                                <i class="bi bi-plus-circle-fill me-1"></i> Agregar
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="openBulkModal()">
+                                <i class="bi bi-layers-fill me-1"></i> Carga múltiple
                             </button>
                         </div>
                     </div>
@@ -611,6 +614,74 @@
                     <button type="button" class="btn btn-sm btn-light-muted" data-bs-dismiss="modal">Cancelar</button>
                     <button type="button" class="btn btn-sm btn-action-primary" onclick="saveMarketingRow()">
                         <i class="bi bi-check-lg me-1"></i>Guardar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Carga Múltiple -->
+    <div class="modal fade" id="bulkModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content custom-modal">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-semibold text-dark">
+                        <i class="bi bi-layers-fill me-2"></i>Carga Múltiple de Publicaciones
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-3">
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="form-label small fw-medium text-secondary">Fecha</label>
+                            <input type="date" id="bulk-fecha" class="form-control custom-input">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-medium text-secondary">Zona</label>
+                            <select id="bulk-zona" class="form-select custom-input" onchange="filterGruposBulk()">
+                                <option value="">Seleccionar...</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-medium text-secondary">Grupos <span class="text-muted fw-normal">(Ctrl+clic para seleccionar varios)</span></label>
+                            <select id="bulk-grupos" class="form-select custom-input" multiple style="min-height:160px" onchange="updateBulkButtonText()"></select>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small fw-medium text-secondary">Publicaciones</label>
+                            <input type="number" id="bulk-pubs" class="form-control custom-input" value="0" min="0">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small fw-medium text-secondary">Visualizaciones</label>
+                            <input type="number" id="bulk-vis" class="form-control custom-input" value="0" min="0">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small fw-medium text-secondary">Interacciones</label>
+                            <input type="number" id="bulk-int" class="form-control custom-input" value="0" min="0">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small fw-medium text-secondary">Comentarios</label>
+                            <input type="number" id="bulk-com" class="form-control custom-input" value="0" min="0">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small fw-medium text-secondary">Mensajes</label>
+                            <input type="number" id="bulk-msj" class="form-control custom-input" value="0" min="0">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small fw-medium text-secondary">Estatus</label>
+                            <select id="bulk-estatus" class="form-select custom-input">
+                                <option value="SIN DEFINIR">SIN DEFINIR</option>
+                                <option value="PUBLICADA">PUBLICADA</option>
+                                <option value="ELIMINADA">ELIMINADA</option>
+                                <option value="SUPRIMIDA">SUPRIMIDA</option>
+                                <option value="EN REVISION">EN REVISION</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-sm btn-light-muted" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-sm btn-action-primary" onclick="saveBulkMarketing()">
+                        <i class="bi bi-check-lg me-1"></i>Publicar en 0 grupos
                     </button>
                 </div>
             </div>

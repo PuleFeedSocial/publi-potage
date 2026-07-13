@@ -162,6 +162,7 @@
                                     <th class="text-center">Eliminada</th>
                                     <th class="text-center">Suprimida</th>
                                     <th class="text-center">Revisión</th>
+                                    <th class="text-center">S/Def</th>
                                     <th class="text-end">Acciones</th>
                                 </tr>
                             </thead>
@@ -246,7 +247,7 @@
 
         function loadGruposPage() {
             const tbody = document.getElementById('grupos-page-table-body');
-            tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">Cargando...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">Cargando...</td></tr>';
             Promise.all([
                 fetch(API_BASE + '/api/grupos', { headers: { 'Authorization': 'Bearer ' + getToken() } }),
                 fetch(API_BASE + '/api/marketing', { headers: { 'Authorization': 'Bearer ' + getToken() } })
@@ -257,7 +258,7 @@
                 ]))
                 .then(([gruposRes, marketingRes]) => {
                     if (gruposRes.status !== 200) {
-                        tbody.innerHTML = '<tr><td colspan="10" class="text-center text-danger">' + (gruposRes.body.error || 'Error') + '</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="11" class="text-center text-danger">' + (gruposRes.body.error || 'Error') + '</td></tr>';
                         return;
                     }
                     gruposPageData = gruposRes.body.data || [];
@@ -271,13 +272,13 @@
                             if (isEstatusActivo(r.estatus)) {
                                 window._gruposPubs[g] = (window._gruposPubs[g] || 0) + (r.publicaciones || 0);
                             }
-                            if (!window._gruposEstatus[g]) window._gruposEstatus[g] = { PUBLICADA: 0, ELIMINADA: 0, SUPRIMIDA: 0, 'EN REVISION': 0 };
+                            if (!window._gruposEstatus[g]) window._gruposEstatus[g] = { PUBLICADA: 0, ELIMINADA: 0, SUPRIMIDA: 0, 'EN REVISION': 0, 'SIN DEFINIR': 0 };
                             const est = r.estatus || 'SIN DEFINIR';
                             if (window._gruposEstatus[g][est] !== undefined) window._gruposEstatus[g][est]++;
                         }
                     });
                     // Populate zone filter
-                    const zonas = [...new Set(gruposPageData.map(g => g.zona).filter(Boolean))].sort();
+                    const zonas = [...new Set([...gruposPageData.map(g => g.zona).filter(Boolean), ...(window.zonasData || []).map(z => z.nombre).filter(Boolean)])].sort();
                     const selZona = document.getElementById('grupos-filter-zona');
                     const currentZona = selZona.value;
                     selZona.innerHTML = '<option value="">Todas las zonas</option>';
@@ -287,7 +288,7 @@
                     document.getElementById('grupos-count').innerText = gruposPageData.length;
                 })
                 .catch(() => {
-                    tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">Error de conexión</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">Error de conexión</td></tr>';
                 });
         }
 
@@ -317,6 +318,7 @@
                     <td class="text-center"><span class="badge-estatus est-eliminada">${est.ELIMINADA || 0}</span></td>
                     <td class="text-center"><span class="badge-estatus est-suprimida">${est.SUPRIMIDA || 0}</span></td>
                     <td class="text-center"><span class="badge-estatus est-en-revision">${est['EN REVISION'] || 0}</span></td>
+                    <td class="text-center"><span class="badge-estatus est-sin-definir">${est['SIN DEFINIR'] || 0}</span></td>
                     <td class="text-end">
                         <button class="btn btn-sm btn-link text-primary p-0 me-2" onclick="editGrupoPage(${g.rowIndex})" title="Editar">
                             <i class="bi bi-pencil-fill"></i>
@@ -328,7 +330,7 @@
                 tbody.appendChild(tr);
             });
             if (!filtered.length) {
-                tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">Sin resultados</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">Sin resultados</td></tr>';
             }
             // Update total pubs
             const totalPubs = filtered.reduce((s, g) => s + (window._gruposPubs[g.nombre] || 0), 0);
