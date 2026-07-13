@@ -508,8 +508,8 @@ function openBulkModal() {
 
 function filterGruposBulk() {
   const zona = document.getElementById('bulk-zona').value;
-  const sel = document.getElementById('bulk-grupos');
-  const previousSelected = [...sel.selectedOptions].map(o => o.value);
+  const container = document.getElementById('bulk-grupos-container');
+  const checked = [...container.querySelectorAll('input[type=checkbox]:checked')].map(cb => cb.value);
 
   let grupos;
   if (zona) {
@@ -520,29 +520,35 @@ function filterGruposBulk() {
     grupos = [...new Set([...grupos, ...marketingData.filter(r => r.grupo !== 'Perfil Estandar').map(r => r.grupo).filter(Boolean)])];
   }
 
-  sel.innerHTML = '';
+  container.innerHTML = '';
   grupos.sort().forEach(v => {
-    const opt = document.createElement('option');
-    opt.value = v; opt.textContent = v;
-    if (previousSelected.includes(v)) opt.selected = true;
-    sel.appendChild(opt);
+    const label = document.createElement('label');
+    label.className = 'bulk-grupo-item';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = v;
+    if (checked.includes(v)) cb.checked = true;
+    cb.addEventListener('change', updateBulkButtonText);
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(' ' + v));
+    container.appendChild(label);
   });
 
   updateBulkButtonText();
 }
 
 function updateBulkButtonText() {
-  const sel = document.getElementById('bulk-grupos');
-  if (!sel) return;
-  const count = sel.selectedOptions.length;
+  const container = document.getElementById('bulk-grupos-container');
+  if (!container) return;
+  const count = container.querySelectorAll('input[type=checkbox]:checked').length;
   const btn = document.querySelector('#bulkModal .btn-action-primary');
   if (btn) btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Publicar en ' + count + ' grupo' + (count !== 1 ? 's' : '');
 }
 
 function saveBulkMarketing() {
   const rawFecha = document.getElementById('bulk-fecha').value.trim();
-  const selGrupos = document.getElementById('bulk-grupos');
-  const selected = [...selGrupos.selectedOptions].map(o => o.value);
+  const container = document.getElementById('bulk-grupos-container');
+  const selected = [...container.querySelectorAll('input[type=checkbox]:checked')].map(cb => cb.value);
 
   if (!rawFecha) return alert('La fecha es obligatoria.');
   if (!selected.length) return alert('Seleccioná al menos un grupo.');
