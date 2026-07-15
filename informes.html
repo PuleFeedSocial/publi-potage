@@ -454,11 +454,20 @@
                 .then(res => {
                     if (res.error) return alert(res.error);
                     bootstrap.Modal.getInstance(document.getElementById('syncModal')).hide();
-                    alert('Sincronización completada.\n\n' +
+                    let msg = 'Sincronización completada.\n\n' +
                         'Total filas procesadas: ' + res.total + '\n' +
                         'Actualizadas: ' + res.actualizados + '\n' +
                         'Sin coincidencia: ' + res.sinMatch + '\n' +
-                        'Ya actualizadas: ' + (res.yaActualizados || 0));
+                        'Ya actualizadas: ' + (res.yaActualizados || 0);
+                    if (res.sinMatch > 0 && res.sinMatchEjemplos && res.sinMatchEjemplos.length) {
+                        msg += '\n\nEjemplos sin match:\n' +
+                            res.sinMatchEjemplos.map(e => '  • ' + e.grupo + ' — ' + e.fecha).join('\n');
+                    }
+                    if (res.metricasKeysMuestra && res.metricasKeysMuestra.length) {
+                        msg += '\n\nClaves en Métricas (muestra):\n' +
+                            res.metricasKeysMuestra.map(k => '  • ' + k).join('\n');
+                    }
+                    alert(msg);
                     loadInformes();
                 })
                 .catch(err => alert('Error: ' + err.message))

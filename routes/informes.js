@@ -168,20 +168,29 @@ router.post('/sync', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'La hoja Métricas no tiene el formato esperado.' });
     }
 
-    // Build lookup keyed by (grupo|fecha)
+    // Normalize a string for loose comparison (remove spaces, separators, case)
+    const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    // Build lookup keyed by (grupo|fecha) — store under both exact and normalized key
     const metricasMap = {};
+    const metricasKeys = [];
     for (let i = headerIdx + 1; i < metricasRows.length; i++) {
       const row = metricasRows[i];
       if (!row[0]) continue;
       const grupo = (row[1] || '').trim();
       const fecha = (row[0] || '').trim();
       if (!grupo || !fecha) continue;
-      metricasMap[grupo.toLowerCase() + '|' + fecha.toLowerCase()] = {
+      const exact = grupo.toLowerCase() + '|' + fecha.toLowerCase();
+      const normalized = norm(grupo) + '|' + norm(fecha);
+      const entry = {
         rowIndex: i + 1,
         visualizaciones: parseInt(row[3]) || 0,
         interacciones: parseInt(row[4]) || 0,
         comentarios: parseInt(row[5]) || 0
       };
+      metricasMap[exact] = entry;
+      if (normalized !== exact) metricasMap[normalized] = entry;
+      metricasKeys.push(exact);
     }
 
     // Read Informes sheet
@@ -211,6 +220,7 @@ router.post('/sync', authenticate, async (req, res) => {
     let sinMatch = 0;
     let yaActualizados = 0;
     const detalles = [];
+    const sinMatchEjemplos = [];
 
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
@@ -220,8 +230,16 @@ router.post('/sync', authenticate, async (req, res) => {
       const fecha = (row[colIdx.fecha] || '').trim();
       if (!grupo || !fecha) { sinMatch++; continue; }
 
-      const match = metricasMap[grupo.toLowerCase() + '|' + fecha.toLowerCase()];
-      if (!match) { sinMatch++; continue; }
+      // Try exact, then normalized
+      const exactKey = grupo.toLowerCase() + '|' + fecha.toLowerCase();
+      const normKey = norm(grupo) + '|' + norm(fecha);
+      let match = metricasMap[exactKey] || metricasMap[normKey];
+
+      if (!match) {
+        sinMatch++;
+        if (sinMatchEjemplos.length < 10) sinMatchEjemplos.push({ grupo, fecha });
+        continue;
+      }
 
       // Compare numeric fields
       const fieldMappings = [
@@ -275,7 +293,15 @@ router.post('/sync', authenticate, async (req, res) => {
 
     logAction(req.user.id, req.user.email, 'Sincronización Informes → Métricas', actualizados + ' filas actualizadas, ' + sinMatch + ' sin coincidencia', req.ip);
 
-    res.json({ total: rows.length - 1, actualizados, sinMatch, yaActualizados, detalles });
+    res.json({
+      total: rows.length - 1,
+      actualizados,
+      sinMatch,
+      yaActualizados,
+      detalles,
+      sinMatchEjemplos,
+      metricasKeysMuestra: metricasKeys.slice(0, 10)
+    });
   } catch (err) {
     console.error('Sync error:', err);
     res.status(500).json({ error: err.message });
