@@ -181,26 +181,42 @@ router.post('/sync', authenticate, async (req, res) => {
         const d = new Date(parseInt(iso[1]), parseInt(iso[2]) - 1, parseInt(iso[3]));
         if (!isNaN(d.getTime())) return d;
       }
-      // DD/MM/YYYY or MM/DD/YYYY
-      const parts = s.split(/[/\-.]/);
-      if (parts.length === 3) {
+      // DD/MM/YYYY or MM/DD/YYYY — also handles "DD/MM/YYYY HH:mm" etc
+      const parts = s.split(/[/\-.\s]/).filter(Boolean);
+      if (parts.length >= 3) {
         const nums = parts.map(p => parseInt(p));
         if (nums[2] > 1900) {
-          let d = new Date(nums[2], nums[1] - 1, nums[0]);
-          if (!isNaN(d.getTime())) return d;
-          d = new Date(nums[2], nums[0] - 1, nums[1]);
-          if (!isNaN(d.getTime())) return d;
+          // Detect orientation: if either part is NaN, skip numeric approach
+          if (!isNaN(nums[0]) && !isNaN(nums[1])) {
+            let d;
+            if (nums[0] > 12) {
+              // First > 12 → DD/MM/YYYY
+              d = new Date(nums[2], nums[1] - 1, nums[0]);
+            } else if (nums[1] > 12) {
+              // Second > 12 → MM/DD/YYYY
+              d = new Date(nums[2], nums[0] - 1, nums[1]);
+            } else {
+              // Ambiguous: try DD/MM first (more common in Spanish locale)
+              d = new Date(nums[2], nums[1] - 1, nums[0]);
+              // Verify no month overflow: JS silently wraps months (14→Mar next year)
+              if (d.getMonth() !== Math.abs(nums[1] - 1) % 12) {
+                d = new Date(nums[2], nums[0] - 1, nums[1]);
+              }
+            }
+            if (d && !isNaN(d.getTime())) return d;
+          }
         }
       }
-      // fallback
+      // Try text-based dates like "Jul 15, 2026" or "15-jul-2026"
       const d = new Date(s);
-      return isNaN(d.getTime()) ? null : d;
+      if (!isNaN(d.getTime()) && d.getFullYear() > 1900) return d;
+      return null;
     }
 
     // Check if a date string falls within the last 7 days (inclusive)
     function isWithinLast7Days(dateStr) {
       const d = parseFecha(dateStr);
-      if (!d) return false;
+      if (!d) return null; // null = couldn't parse, don't filter
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const weekAgo = new Date(today);
@@ -268,8 +284,9 @@ router.post('/sync', authenticate, async (req, res) => {
       const fecha = (row[colIdx.fecha] || '').trim();
       if (!grupo || !fecha) { sinMatch++; continue; }
 
-      // Solo procesar filas de los últimos 7 días
-      if (!isWithinLast7Days(fecha)) { fueraRango++; continue; }
+      // Solo procesar filas de los últimos 7 días (si la fecha se puede parsear)
+      const enRango = isWithinLast7Days(fecha);
+      if (enRango === false) { fueraRango++; continue; }
 
       // Try exact, then normalized
       const exactKey = grupo.toLowerCase() + '|' + fecha.toLowerCase();
