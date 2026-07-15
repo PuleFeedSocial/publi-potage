@@ -171,6 +171,43 @@ router.post('/sync', authenticate, async (req, res) => {
     // Normalize a string for loose comparison (remove spaces, separators, case)
     const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 
+    // Parse date from various formats, returns Date or null
+    function parseFecha(str) {
+      if (!str) return null;
+      const s = str.trim();
+      // ISO: YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss
+      const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s);
+      if (iso) {
+        const d = new Date(parseInt(iso[1]), parseInt(iso[2]) - 1, parseInt(iso[3]));
+        if (!isNaN(d.getTime())) return d;
+      }
+      // DD/MM/YYYY or MM/DD/YYYY
+      const parts = s.split(/[/\-.]/);
+      if (parts.length === 3) {
+        const nums = parts.map(p => parseInt(p));
+        if (nums[2] > 1900) {
+          let d = new Date(nums[2], nums[1] - 1, nums[0]);
+          if (!isNaN(d.getTime())) return d;
+          d = new Date(nums[2], nums[0] - 1, nums[1]);
+          if (!isNaN(d.getTime())) return d;
+        }
+      }
+      // fallback
+      const d = new Date(s);
+      return isNaN(d.getTime()) ? null : d;
+    }
+
+    // Check if a date string falls within the last 7 days (inclusive)
+    function isWithinLast7Days(dateStr) {
+      const d = parseFecha(dateStr);
+      if (!d) return false;
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const weekAgo = new Date(today);
+      weekAgo.setDate(weekAgo.getDate() - 6);
+      return d >= weekAgo && d <= today;
+    }
+
     // Build lookup keyed by (grupo|fecha) — store under both exact and normalized key
     const metricasMap = {};
     const metricasKeys = [];
@@ -219,6 +256,7 @@ router.post('/sync', authenticate, async (req, res) => {
     let actualizados = 0;
     let sinMatch = 0;
     let yaActualizados = 0;
+    let fueraRango = 0;
     const detalles = [];
     const sinMatchEjemplos = [];
 
@@ -229,6 +267,9 @@ router.post('/sync', authenticate, async (req, res) => {
       const grupo = (row[colIdx.grupo] || '').trim();
       const fecha = (row[colIdx.fecha] || '').trim();
       if (!grupo || !fecha) { sinMatch++; continue; }
+
+      // Solo procesar filas de los últimos 7 días
+      if (!isWithinLast7Days(fecha)) { fueraRango++; continue; }
 
       // Try exact, then normalized
       const exactKey = grupo.toLowerCase() + '|' + fecha.toLowerCase();
@@ -298,6 +339,7 @@ router.post('/sync', authenticate, async (req, res) => {
       actualizados,
       sinMatch,
       yaActualizados,
+      fueraRango,
       detalles,
       sinMatchEjemplos,
       metricasKeysMuestra: metricasKeys.slice(0, 10)

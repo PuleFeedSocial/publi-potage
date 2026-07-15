@@ -455,10 +455,11 @@
                     if (res.error) return alert(res.error);
                     bootstrap.Modal.getInstance(document.getElementById('syncModal')).hide();
                     let msg = 'Sincronización completada.\n\n' +
-                        'Total filas procesadas: ' + res.total + '\n' +
+                        'Total filas en Informes: ' + res.total + '\n' +
                         'Actualizadas: ' + res.actualizados + '\n' +
                         'Sin coincidencia: ' + res.sinMatch + '\n' +
-                        'Ya actualizadas: ' + (res.yaActualizados || 0);
+                        'Ya actualizadas: ' + (res.yaActualizados || 0) + '\n' +
+                        'Fuera de rango (>7 días): ' + (res.fueraRango || 0);
                     if (res.sinMatch > 0 && res.sinMatchEjemplos && res.sinMatchEjemplos.length) {
                         msg += '\n\nEjemplos sin match:\n' +
                             res.sinMatchEjemplos.map(e => '  • ' + e.grupo + ' — ' + e.fecha).join('\n');
