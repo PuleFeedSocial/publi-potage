@@ -137,6 +137,9 @@
                         <button class="btn btn-sm btn-outline-secondary" onclick="loadInformes()" title="Recargar">
                             <i class="bi bi-arrow-clockwise"></i> Recargar
                         </button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="openSyncModal()" title="Sincronizar datos importados con la hoja Métricas">
+                            <i class="bi bi-arrow-left-right me-1"></i> Sincronizar con métricas
+                        </button>
                         <button class="btn btn-sm btn-action-primary" onclick="importCSV()">
                             <i class="bi bi-upload me-1"></i> Importar CSV
                         </button>
@@ -184,6 +187,29 @@
                     <button type="button" class="btn btn-sm btn-light-muted" data-bs-dismiss="modal">Cancelar</button>
                     <button type="button" class="btn btn-sm btn-action-primary" onclick="confirmImport()">
                         <i class="bi bi-check2 me-1"></i>Confirmar importación
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="syncModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content custom-modal">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-semibold text-dark">
+                        <i class="bi bi-arrow-left-right me-2"></i>Sincronizar con Métricas
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-3">
+                    <p class="text-muted small mb-3">Asigná qué columnas del CSV importado corresponden a cada campo de la hoja Métricas.</p>
+                    <div id="sync-mapping-form"></div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-sm btn-light-muted" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-sm btn-action-primary" onclick="confirmSync()">
+                        <i class="bi bi-arrow-left-right me-1"></i>Sincronizar
                     </button>
                 </div>
             </div>
@@ -361,6 +387,84 @@
                 .then(res => {
                     if (res.error) return alert(res.error);
                     loadInformes();
+                });
+        }
+
+        function openSyncModal() {
+            if (!informesData || !informesData.length) {
+                alert('No hay datos importados para sincronizar.');
+                return;
+            }
+            const columns = Object.keys(informesData[0]).filter(k => k !== 'rowIndex');
+
+            const autoDetect = {
+                grupo: columns.find(c => /(nombre.*p[áa]gina|grupo|page.*name)/i.test(c)) || '',
+                fecha: columns.find(c => /(fecha|date|d[íi]a|post.*date|publicaci[óo]n.*fecha)/i.test(c)) || '',
+                visualizaciones: columns.find(c => /(visualizaciones|views|alcance|reach)/i.test(c)) || '',
+                interacciones: columns.find(c => /(interacciones|interactions|reacciones|engagement)/i.test(c)) || '',
+                comentarios: columns.find(c => /(comentarios|comments)/i.test(c)) || ''
+            };
+
+            const fields = [
+                { key: 'grupo', label: 'Grupo / Página *', required: true },
+                { key: 'fecha', label: 'Fecha *', required: true },
+                { key: 'visualizaciones', label: 'Visualizaciones' },
+                { key: 'interacciones', label: 'Interacciones' },
+                { key: 'comentarios', label: 'Comentarios' }
+            ];
+
+            const form = document.getElementById('sync-mapping-form');
+            form.innerHTML = fields.map(f => {
+                const opts = '<option value="">— No mapear —</option>' +
+                    columns.map(c =>
+                        '<option value="' + esc(c) + '"' +
+                        (c === autoDetect[f.key] ? ' selected' : '') +
+                        '>' + esc(c) + '</option>'
+                    ).join('');
+                return '<div class="mb-3"><label class="form-label small fw-medium">' + f.label +
+                    '</label><select class="form-select form-select-sm" id="sync-map-' + f.key + '">' +
+                    opts + '</select></div>';
+            }).join('');
+
+            new bootstrap.Modal(document.getElementById('syncModal')).show();
+        }
+
+        function confirmSync() {
+            const columnMapping = {};
+            ['grupo', 'fecha', 'visualizaciones', 'interacciones', 'comentarios'].forEach(f => {
+                const val = document.getElementById('sync-map-' + f).value;
+                if (val) columnMapping[f] = val;
+            });
+
+            if (!columnMapping.grupo || !columnMapping.fecha) {
+                alert('Grupo y Fecha son obligatorios.');
+                return;
+            }
+
+            const btn = document.querySelector('#syncModal .btn-action-primary');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Sincronizando...';
+
+            fetch(API_BASE + '/api/informes/sync', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ columnMapping })
+            })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.error) return alert(res.error);
+                    bootstrap.Modal.getInstance(document.getElementById('syncModal')).hide();
+                    alert('Sincronización completada.\n\n' +
+                        'Total filas procesadas: ' + res.total + '\n' +
+                        'Actualizadas: ' + res.actualizados + '\n' +
+                        'Sin coincidencia: ' + res.sinMatch + '\n' +
+                        'Ya actualizadas: ' + (res.yaActualizados || 0));
+                    loadInformes();
+                })
+                .catch(err => alert('Error: ' + err.message))
+                .finally(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-arrow-left-right me-1"></i>Sincronizar';
                 });
         }
 

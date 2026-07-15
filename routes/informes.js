@@ -147,4 +147,139 @@ router.delete('/:rowIndex', authenticate, async (req, res) => {
   }
 });
 
+router.post('/sync', authenticate, async (req, res) => {
+  try {
+    const { columnMapping } = req.body;
+    if (!columnMapping || !columnMapping.grupo || !columnMapping.fecha) {
+      return res.status(400).json({ error: 'Mapeo incompleto. Grupo y Fecha son obligatorios.' });
+    }
+
+    const s = sheets();
+    if (!s) return res.status(503).json({ error: 'Google Sheets no configurado.' });
+
+    // Read Metricas sheet
+    const metricasResult = await s.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID, range: 'Metricas!A:I',
+      valueRenderOption: 'FORMATTED_VALUE'
+    });
+    const metricasRows = metricasResult.data.values || [];
+    const headerIdx = metricasRows.findIndex(r => r[0] === 'Fecha');
+    if (headerIdx === -1) {
+      return res.status(400).json({ error: 'La hoja Métricas no tiene el formato esperado.' });
+    }
+
+    // Build lookup keyed by (grupo|fecha)
+    const metricasMap = {};
+    for (let i = headerIdx + 1; i < metricasRows.length; i++) {
+      const row = metricasRows[i];
+      if (!row[0]) continue;
+      const grupo = (row[1] || '').trim();
+      const fecha = (row[0] || '').trim();
+      if (!grupo || !fecha) continue;
+      metricasMap[grupo.toLowerCase() + '|' + fecha.toLowerCase()] = {
+        rowIndex: i + 1,
+        visualizaciones: parseInt(row[3]) || 0,
+        interacciones: parseInt(row[4]) || 0,
+        comentarios: parseInt(row[5]) || 0
+      };
+    }
+
+    // Read Informes sheet
+    const informesResult = await s.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID, range: 'Informes!A:ZZ',
+      valueRenderOption: 'FORMATTED_VALUE'
+    });
+    const rows = informesResult.data.values || [];
+    if (rows.length < 2) {
+      return res.json({ total: 0, actualizados: 0, sinMatch: 0, mensaje: 'No hay datos en Informes.' });
+    }
+    const headers = rows[0];
+
+    // Resolve column indices from mapping
+    const colIdx = {
+      grupo: headers.indexOf(columnMapping.grupo),
+      fecha: headers.indexOf(columnMapping.fecha),
+      visualizaciones: headers.indexOf(columnMapping.visualizaciones),
+      interacciones: headers.indexOf(columnMapping.interacciones),
+      comentarios: headers.indexOf(columnMapping.comentarios)
+    };
+    if (colIdx.grupo === -1 || colIdx.fecha === -1) {
+      return res.status(400).json({ error: 'Las columnas mapeadas no existen en Informes.' });
+    }
+
+    let actualizados = 0;
+    let sinMatch = 0;
+    let yaActualizados = 0;
+    const detalles = [];
+
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || !row.some(c => c)) continue;
+
+      const grupo = (row[colIdx.grupo] || '').trim();
+      const fecha = (row[colIdx.fecha] || '').trim();
+      if (!grupo || !fecha) { sinMatch++; continue; }
+
+      const match = metricasMap[grupo.toLowerCase() + '|' + fecha.toLowerCase()];
+      if (!match) { sinMatch++; continue; }
+
+      // Compare numeric fields
+      const fieldMappings = [
+        { col: colIdx.visualizaciones, field: 'visualizaciones', colNum: 3 },
+        { col: colIdx.interacciones, field: 'interacciones', colNum: 4 },
+        { col: colIdx.comentarios, field: 'comentarios', colNum: 5 }
+      ];
+
+      const updates = {};
+      fieldMappings.forEach(fm => {
+        if (fm.col === -1) return;
+        const raw = (row[fm.col] || '').toString().replace(/[^0-9.,-]/g, '').replace(',', '.');
+        const csvVal = parseFloat(raw) || 0;
+        if (csvVal > match[fm.field]) {
+          updates[fm.field] = { value: csvVal, colNum: fm.colNum };
+        }
+      });
+
+      if (Object.keys(updates).length === 0) {
+        let allEqual = true;
+        fieldMappings.forEach(fm => {
+          if (fm.col === -1) return;
+          const raw = (row[fm.col] || '').toString().replace(/[^0-9]/g, '');
+          const csvVal = parseInt(raw) || 0;
+          if (csvVal !== match[fm.field]) allEqual = false;
+        });
+        if (allEqual) yaActualizados++;
+        continue;
+      }
+
+      // Update the Metricas row
+      const rowIndex = match.rowIndex;
+      const currentRow = metricasRows[rowIndex - 1];
+      const updatedRow = [...currentRow];
+      while (updatedRow.length < 9) updatedRow.push('');
+
+      Object.values(updates).forEach(u => {
+        updatedRow[u.colNum] = String(u.value);
+      });
+
+      await s.spreadsheets.values.update({
+        spreadsheetId: SHEET_ID,
+        range: 'Metricas!A' + rowIndex + ':I' + rowIndex,
+        valueInputOption: 'USER_ENTERED',
+        resource: { values: [updatedRow] }
+      });
+
+      actualizados++;
+      detalles.push({ grupo, fecha, ...Object.fromEntries(Object.entries(updates).map(([k, v]) => [k, v.value])) });
+    }
+
+    logAction(req.user.id, req.user.email, 'Sincronización Informes → Métricas', actualizados + ' filas actualizadas, ' + sinMatch + ' sin coincidencia', req.ip);
+
+    res.json({ total: rows.length - 1, actualizados, sinMatch, yaActualizados, detalles });
+  } catch (err) {
+    console.error('Sync error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
