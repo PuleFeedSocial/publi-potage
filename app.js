@@ -627,8 +627,7 @@ function loadGrupos() {
     .then(({ status, body }) => {
       if (status === 200) {
         gruposData = body.data || [];
-        const selGrupo = document.getElementById('filter-grupo');
-        if (selGrupo && selGrupo.options.length > 0) refreshGruposByZona();
+        refreshGruposByZona();
       }
     })
     .catch(() => {});
