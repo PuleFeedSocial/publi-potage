@@ -310,7 +310,7 @@
                     : '<span class="text-muted small">—</span>';
                 const fechaDisplay = g.fechaIngreso || '—';
                 tr.innerHTML = `
-                    <td class="fw-medium text-dark">${g.nombre}</td>
+                    <td class="fw-medium"><a href="#" class="text-decoration-none text-dark" onclick="editGrupoPage(${g.rowIndex});return false" title="Editar grupo">${g.nombre} <i class="bi bi-pencil-square text-muted small"></i></a></td>
                     <td class="small">${enlaceDisplay}</td>
                     <td><span class="badge-zone zone-${(g.zona||'').toLowerCase().replace(/ /g,'-')}">${g.zona || '—'}</span></td>
                     <td class="text-center small text-muted">${fechaDisplay}</td>
