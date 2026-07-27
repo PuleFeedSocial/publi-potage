@@ -1205,6 +1205,22 @@ function renderZonasDashboard() {
     return limit;
   })();
 
+  // Cargar grupos fresco para el conteo
+  fetch(API_BASE + '/api/grupos', {
+    headers: { 'Authorization': 'Bearer ' + getToken() }
+  })
+    .then(r => r.json())
+    .then(body => {
+      const freshGrupos = body.data || [];
+      gruposData = freshGrupos;
+      renderZonasDashboardInner(freshGrupos, zonaFilter, periodLimit);
+    })
+    .catch(() => {
+      renderZonasDashboardInner(gruposData, zonaFilter, periodLimit);
+    });
+}
+
+function renderZonasDashboardInner(grupos, zonaFilter, periodLimit) {
   let data = marketingData.filter(r => r.grupo !== 'Perfil Estandar' && isEstatusActivo(r.estatus));
   if (zonaFilter) data = data.filter(r => r.zona === zonaFilter);
   if (periodLimit) data = data.filter(r => { const d = parseDate(r.fecha); return d && d >= periodLimit; });
@@ -1221,8 +1237,8 @@ function renderZonasDashboard() {
     zones[z].mensajes += r.mensajes || 0;
   });
 
-  // Agregar grupos desde gruposData (fuente canónica)
-  gruposData.forEach(g => {
+  // Agregar grupos desde la lista fresca (fuente canónica)
+  grupos.forEach(g => {
     if (!g.zona) return;
     const z = g.zona;
     if (!zones[z]) zones[z] = { zona: z, publicaciones: 0, visualizaciones: 0, interacciones: 0, comentarios: 0, mensajes: 0, grupos: new Set() };
@@ -1230,6 +1246,7 @@ function renderZonasDashboard() {
   });
 
   const sortedZones = Object.values(zones).sort((a, b) => b.publicaciones - a.publicaciones);
+  const totalGruposUnicos = new Set(grupos.filter(g => g.zona).map(g => g.nombre)).size;
 
   // KPIs por zona
   const kpiContainer = document.getElementById('zonas-kpi-container');
@@ -1264,7 +1281,11 @@ function renderZonasDashboard() {
         <td class="text-center text-indigo fw-medium">${z.mensajes}</td>
         <td class="text-center">${z.grupos.size}</td>
       </tr>
-    `).join('');
+    `).join('') + (
+      sortedZones.length > 1
+        ? '<tr class="table-light fw-semibold"><td>Total</td><td class="text-center">' + sortedZones.reduce((s, z) => s + z.publicaciones, 0) + '</td><td class="text-center">' + sortedZones.reduce((s, z) => s + z.visualizaciones, 0) + '</td><td class="text-center">' + sortedZones.reduce((s, z) => s + z.interacciones, 0) + '</td><td class="text-center">' + sortedZones.reduce((s, z) => s + z.comentarios, 0) + '</td><td class="text-center">' + sortedZones.reduce((s, z) => s + z.mensajes, 0) + '</td><td class="text-center">' + totalGruposUnicos + '</td></tr>'
+        : ''
+    );
   }
 
   // Gráficos de barras por zona
