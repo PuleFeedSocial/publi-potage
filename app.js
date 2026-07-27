@@ -1219,10 +1219,9 @@ function renderZonasDashboard() {
     zones[z].interacciones += r.interacciones || 0;
     zones[z].comentarios += r.comentarios || 0;
     zones[z].mensajes += r.mensajes || 0;
-    zones[z].grupos.add(r.grupo);
   });
 
-  // Agregar grupos desde gruposData que no aparecieron en marketingData
+  // Agregar grupos desde gruposData (fuente canónica)
   gruposData.forEach(g => {
     if (!g.zona) return;
     const z = g.zona;
