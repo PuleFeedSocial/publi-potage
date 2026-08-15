@@ -249,18 +249,21 @@
             tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">Cargando...</td></tr>';
             Promise.all([
                 fetch(API_BASE + '/api/grupos', { headers: { 'Authorization': 'Bearer ' + getToken() } }),
-                fetch(API_BASE + '/api/marketing', { headers: { 'Authorization': 'Bearer ' + getToken() } })
+                fetch(API_BASE + '/api/marketing', { headers: { 'Authorization': 'Bearer ' + getToken() } }),
+                fetch(API_BASE + '/api/zonas', { headers: { 'Authorization': 'Bearer ' + getToken() } })
             ])
-                .then(([rGrupos, rMarketing]) => Promise.all([
+                .then(([rGrupos, rMarketing, rZonas]) => Promise.all([
                     rGrupos.json().then(b => ({ status: rGrupos.status, body: b })),
-                    rMarketing.json().then(b => ({ status: rMarketing.status, body: b }))
+                    rMarketing.json().then(b => ({ status: rMarketing.status, body: b })),
+                    rZonas.json().then(b => ({ status: rZonas.status, body: b }))
                 ]))
-                .then(([gruposRes, marketingRes]) => {
+                .then(([gruposRes, marketingRes, zonasRes]) => {
                     if (gruposRes.status !== 200) {
                         tbody.innerHTML = '<tr><td colspan="10" class="text-center text-danger">' + (gruposRes.body.error || 'Error') + '</td></tr>';
                         return;
                     }
                     gruposPageData = gruposRes.body.data || [];
+                    if (zonasRes.status === 200) window.zonasData = zonasRes.body.data || [];
                     const marketingData = (marketingRes.body.data || []);
                     // Compute pubs per group
                     window._gruposPubs = {};
