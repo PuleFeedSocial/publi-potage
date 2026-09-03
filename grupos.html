@@ -146,6 +146,11 @@
                             <select id="grupos-filter-zona" class="form-select form-select-sm custom-input" style="width:auto;min-width:140px" onchange="renderGruposPage()">
                                 <option value="">Todas las zonas</option>
                             </select>
+                            <select id="grupos-sort" class="form-select form-select-sm custom-input" style="width:auto;min-width:200px" onchange="renderGruposPage()">
+                                <option value="">Orden por defecto</option>
+                                <option value="peores">Peores primero (más suprimidas + eliminadas + en revisión)</option>
+                                <option value="mejores">Mejores primero (más PUBLICADA)</option>
+                            </select>
                             <span class="text-muted small"><i class="bi bi-database"></i> <span id="grupos-pubs-total">0</span> pubs</span>
                         </div>
                     </div>
@@ -297,8 +302,24 @@
         function renderGruposPage() {
             const tbody = document.getElementById('grupos-page-table-body');
             const zonaFilter = document.getElementById('grupos-filter-zona').value;
+            const sortMode = document.getElementById('grupos-sort').value;
             let filtered = gruposPageData;
             if (zonaFilter) filtered = filtered.filter(g => g.zona === zonaFilter);
+            if (sortMode) {
+                filtered = [...filtered].sort((a, b) => {
+                    const ea = window._gruposEstatus[a.nombre] || {};
+                    const eb = window._gruposEstatus[b.nombre] || {};
+                    if (sortMode === 'peores') {
+                        const scoreA = (ea.SUPRIMIDA || 0) + (ea.ELIMINADA || 0) + (ea['EN REVISION'] || 0);
+                        const scoreB = (eb.SUPRIMIDA || 0) + (eb.ELIMINADA || 0) + (eb['EN REVISION'] || 0);
+                        return scoreB - scoreA;
+                    }
+                    if (sortMode === 'mejores') {
+                        return (eb.PUBLICADA || 0) - (ea.PUBLICADA || 0);
+                    }
+                    return 0;
+                });
+            }
             tbody.innerHTML = '';
             filtered.forEach((g, i) => {
                 const tr = document.createElement('tr');
