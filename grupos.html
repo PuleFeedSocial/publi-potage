@@ -48,14 +48,16 @@
                     <i class="bi bi-diagram-3"></i>
                     <span>Grupos</span>
                 </a>
-                <a href="dashboard.html" class="menu-item submenu-item" id="btn-nav-zonas" onclick="localStorage.setItem('navTarget','zonas')">
+                <a href="dashboard.html" class="menu-item submenu-item" id="btn-nav-zonas"
+                    onclick="localStorage.setItem('navTarget','zonas')">
                     <i class="bi bi-map-fill"></i>
                     <span>Zonas</span>
                 </a>
 
                 <div class="menu-section-label" id="gestion-label">Gestión</div>
                 <div id="gestion-items">
-                    <a href="dashboard.html" class="menu-item submenu-item" id="btn-nav-users" onclick="localStorage.setItem('navTarget','users')">
+                    <a href="dashboard.html" class="menu-item submenu-item" id="btn-nav-users"
+                        onclick="localStorage.setItem('navTarget','users')">
                         <i class="bi bi-people-fill"></i>
                         <span>Usuarios</span>
                     </a>
@@ -80,7 +82,8 @@
                 </div>
             </div>
             <div class="sidebar-credit">
-                <a href="https://coretech-grd7.onrender.com/" target="_blank" rel="noopener" class="text-decoration-none small">
+                <a href="https://coretech-grd7.onrender.com/" target="_blank" rel="noopener"
+                    class="text-decoration-none small">
                     <i class="bi bi-cpu me-1"></i>CoreTech System
                 </a>
             </div>
@@ -94,7 +97,8 @@
                     </button>
                     <div class="page-context">
                         <h1 class="page-title">Gestión de Grupos</h1>
-                        <p class="page-subtitle text-muted">Administrá los grupos, enlaces y zonas desde la hoja Grupos de Google Sheets</p>
+                        <p class="page-subtitle text-muted">Administrá los grupos, enlaces y zonas desde la hoja Grupos
+                            de Google Sheets</p>
                     </div>
                 </div>
                 <div class="top-navbar-actions">
@@ -140,18 +144,22 @@
                     <div class="card-header-clean d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <div>
                             <h5 class="table-card-title">Listado de Grupos</h5>
-                            <span class="text-muted small">Datos desde la hoja "Grupos" · <span id="grupos-count">0</span> grupos</span>
+                            <span class="text-muted small">Datos desde la hoja "Grupos" · <span
+                                    id="grupos-count">0</span> grupos</span>
                         </div>
                         <div class="d-flex align-items-center gap-2">
-                            <select id="grupos-filter-zona" class="form-select form-select-sm custom-input" style="width:auto;min-width:140px" onchange="renderGruposPage()">
+                            <select id="grupos-filter-zona" class="form-select form-select-sm custom-input"
+                                style="width:auto;min-width:140px" onchange="renderGruposPage()">
                                 <option value="">Todas las zonas</option>
                             </select>
-                            <select id="grupos-sort" class="form-select form-select-sm custom-input" style="width:auto;min-width:200px" onchange="renderGruposPage()">
+                            <select id="grupos-sort" class="form-select form-select-sm custom-input"
+                                style="width:auto;min-width:200px" onchange="renderGruposPage()">
                                 <option value="">Orden por defecto</option>
-                                <option value="peores">Peores primero (más suprimidas + eliminadas + en revisión)</option>
-                                <option value="mejores">Mejores primero (más PUBLICADA)</option>
+                                <option value="peores">Menor puntuacion (supr+elim+revision)</option>
+                                <option value="mejores">Mayor puntuacion (más PUBLICADA)</option>
                             </select>
-                            <span class="text-muted small"><i class="bi bi-database"></i> <span id="grupos-pubs-total">0</span> pubs</span>
+                            <span class="text-muted small"><i class="bi bi-database"></i> <span
+                                    id="grupos-pubs-total">0</span> pubs</span>
                         </div>
                     </div>
                     <div class="table-responsive">
@@ -198,7 +206,8 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label small fw-medium text-secondary">Enlace</label>
-                            <input type="text" id="grupo-page-enlace" class="form-control custom-input" placeholder="Enlace o &quot;Sin Link&quot;">
+                            <input type="text" id="grupo-page-enlace" class="form-control custom-input"
+                                placeholder="Enlace o &quot;Sin Link&quot;">
                         </div>
                         <div class="mb-3">
                             <label class="form-label small fw-medium text-secondary">Zona</label>
@@ -209,11 +218,13 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label small fw-medium text-secondary">Fecha de Ingreso</label>
-                            <input type="text" id="grupo-page-fecha" class="form-control custom-input" placeholder="dd/mm/aaaa">
+                            <input type="text" id="grupo-page-fecha" class="form-control custom-input"
+                                placeholder="dd/mm/aaaa">
                         </div>
                     </div>
                     <div class="modal-footer border-0 pt-0">
-                        <button type="button" class="btn btn-sm btn-light-muted" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-sm btn-light-muted"
+                            data-bs-dismiss="modal">Cancelar</button>
                         <button type="submit" class="btn btn-sm btn-action-primary">Guardar</button>
                     </div>
                 </form>
@@ -339,7 +350,7 @@
                         <button class="btn btn-sm btn-link text-danger p-0 ms-1" onclick="deleteGrupoPage(${g.rowIndex})" title="Eliminar"><i class="bi bi-trash3-fill"></i></button>
                     </td>
                     <td class="small">${enlaceDisplay}</td>
-                    <td><span class="badge-zone zone-${(g.zona||'').toLowerCase().replace(/ /g,'-')}">${g.zona || '—'}</span></td>
+                    <td><span class="badge-zone zone-${(g.zona || '').toLowerCase().replace(/ /g, '-')}">${g.zona || '—'}</span></td>
                     <td class="text-center small text-muted">${fechaDisplay}</td>
                     <td class="text-center fw-semibold text-primary">${pubs}</td>
                     <td class="text-center"><span class="badge-estatus est-publicada">${est.PUBLICADA || 0}</span></td>
