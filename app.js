@@ -1590,7 +1590,7 @@ function addZona() {
 }
 
 function deleteZona(id) {
-  if (!confirm('¿Eliminar esta zona?')) return;
+  if (!confirm('⚠️ ADVERTENCIA: Eliminar esta zona la quitará de la lista de zonas disponibles, pero NO eliminará los grupos ni publicaciones que la usan. Esos grupos seguirán mostrando esta zona en sus filas.\n\n¿Eliminar esta zona de la lista?')) return;
   apiFetch('/api/zonas/' + id, { method: 'DELETE' })
     .then(({ status, body }) => {
       if (status !== 200) { alert(body.error || 'Error al eliminar.'); return; }
