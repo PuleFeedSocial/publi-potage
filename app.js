@@ -26,6 +26,27 @@ function apiFetch(path, options = {}) {
     .then(res => res.json().then(data => ({ status: res.status, body: data })));
 }
 
+function showToast(mensaje, tipo) {
+  tipo = tipo || 'info';
+  let container = document.getElementById('toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toast-container';
+    container.style.cssText = 'position:fixed;top:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px;';
+    document.body.appendChild(container);
+  }
+  const toast = document.createElement('div');
+  const color = tipo === 'success' ? '#16a34a' : (tipo === 'error' ? '#dc2626' : '#0f172a');
+  toast.style.cssText = 'background:' + color + ';color:#fff;padding:10px 16px;border-radius:8px;font-size:0.85rem;font-weight:500;box-shadow:0 4px 12px rgba(0,0,0,0.2);max-width:320px;';
+  toast.innerText = mensaje;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.transition = 'opacity 0.3s';
+    toast.style.opacity = '0';
+    setTimeout(() => toast.remove(), 300);
+  }, 2600);
+}
+
 function handleLogin(e) {
   e.preventDefault();
   const email = document.getElementById('login-email').value.trim();
@@ -173,6 +194,52 @@ function refreshMarketingData() {
   }).then(() => loadMarketingData()).catch(() => loadMarketingData());
 }
 
+function saludDiv(rows) {
+  if (!rows.length) return '<span class="health-dot health-dot-medio"></span>';
+  const total = rows.length;
+  const malas = rows.filter(r => ['ELIMINADA', 'SUPRIMIDA', 'EN REVISION'].includes(r.estatus)).length;
+  const ratio = malas / total;
+  let cls;
+  if (ratio >= 0.5) cls = 'health-dot-malo';
+  else if (ratio >= 0.25) cls = 'health-dot-medio';
+  else cls = 'health-dot-bueno';
+  return '<span class="health-dot ' + cls + '" title="' + malas + ' filas con problemas de ' + total + '"></span>';
+}
+
+function saludZonaClass(rows) {
+  if (!rows.length) return 'zone-health-medio';
+  const total = rows.length;
+  const malas = rows.filter(r => ['ELIMINADA', 'SUPRIMIDA', 'EN REVISION'].includes(r.estatus)).length;
+  const ratio = malas / total;
+  if (ratio >= 0.5) return 'zone-health-malo';
+  if (ratio >= 0.25) return 'zone-health-medio';
+  return 'zone-health-bueno';
+}
+
+function tendenciaKpiHtml(rows, key) {
+  const valid = rows.filter(r => r[key] !== undefined && r[key] !== null);
+  if (valid.length < 4) return '';
+  const sorted = [...valid].sort((a, b) => {
+    const da = parseDate(a.fecha), db = parseDate(b.fecha);
+    if (!da || !db) return 0;
+    return da - db;
+  });
+  const mid = Math.floor(sorted.length / 2);
+  const prev = sorted.slice(0, mid);
+  const recent = sorted.slice(mid);
+  const p = prev.reduce((s, r) => s + (r[key] || 0), 0);
+  const n = recent.reduce((s, r) => s + (r[key] || 0), 0);
+  if (p === 0 && n === 0) return '';
+  if (p === 0) return '<span class="kpi-trend trend-up">nuevo</span>';
+  const diff = ((n - p) / p) * 100;
+  const rounded = Math.round(diff);
+  if (Math.abs(diff) < 0.5) return '<span class="kpi-trend">estable</span>';
+  const icono = rounded > 0 ? '↗' : '↘';
+  const cls = rounded > 0 ? 'trend-up' : 'trend-down';
+  return '<span class="kpi-trend ' + cls + '">' + icono + ' ' + Math.abs(rounded) + '%</span>';
+}
+
+
 function renderDashboard(data, chartData, periodLimit) {
   data = data || marketingData;
   chartData = chartData || data;
@@ -196,6 +263,17 @@ function renderDashboard(data, chartData, periodLimit) {
   document.getElementById('kpi-interacciones').innerText = totalInt;
   document.getElementById('kpi-mensajes').innerText = totalMsj;
 
+  const trendEls = {
+    'trend-publicaciones': 'publicaciones',
+    'trend-visualizaciones': 'visualizaciones',
+    'trend-interacciones': 'interacciones',
+    'trend-mensajes': 'mensajes'
+  };
+  Object.keys(trendEls).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.outerHTML = tendenciaKpiHtml(kpiData, trendEls[id]);
+  });
+
   // KPIs por zona
   const zonas = [...new Set(kpiData.map(r => r.zona).filter(Boolean))].sort();
   const zoneContainer = document.getElementById('zone-kpis-container');
@@ -208,8 +286,8 @@ function renderDashboard(data, chartData, periodLimit) {
         const zi = rows.reduce((s, r) => s + r.interacciones, 0);
         const zm = rows.reduce((s, r) => s + r.mensajes, 0);
         return `<div class="col-6 col-md-4 col-lg">
-          <div class="zone-kpi-card">
-            <div class="zone-kpi-name">${z}</div>
+          <div class="zone-kpi-card zone-health-${saludZonaClass(rows).split('-')[2]}">
+            <div class="zone-kpi-name">${saludDiv(rows)}${z}</div>
             <div class="zone-kpi-stats">
               <span title="Pubs"><i class="bi bi-file-text"></i> ${zp}</span>
               <span title="Vis"><i class="bi bi-eye"></i> ${zv}</span>
@@ -299,33 +377,41 @@ function renderDashboard(data, chartData, periodLimit) {
 }
 
 function populateFilterDropdowns() {
+  // Restaurar filtros guardados (si no se eligieron aún en esta sesión)
+  if (!window._filtersRestored) {
+    window._filtersRestored = true;
+    restoreDashboardFilters();
+  }
+
   let zonas = [...new Set(marketingData.map(r => r.zona).filter(Boolean))];
   zonasData.forEach(z => { if (z.nombre && !zonas.includes(z.nombre)) zonas.push(z.nombre); });
   zonas.sort();
 
   const selZona = document.getElementById('filter-zona');
   if (selZona) {
-    const current = selZona.value;
+    const savedZona = localStorage.getItem('dashZona');
+    const current = savedZona || selZona.value;
     selZona.innerHTML = '<option value="">Todas</option>';
     zonas.forEach(v => {
       const opt = document.createElement('option');
       opt.value = v; opt.textContent = v;
       selZona.appendChild(opt);
     });
-    selZona.value = current;
+    if (current && [...selZona.options].some(o => o.value === current)) selZona.value = current;
   }
 
   refreshGruposByZona();
 
   const filterFecha = document.getElementById('filter-fecha');
-  if (filterFecha) filterFecha.value = '';
+  if (filterFecha) filterFecha.value = localStorage.getItem('dashFecha') || '';
 }
 
 function refreshGruposByZona() {
   const zona = document.getElementById('filter-zona').value;
   const sel = document.getElementById('filter-grupo');
   if (!sel) return;
-  const current = sel.value;
+  let current = sel.value;
+  if (!current) current = localStorage.getItem('dashGrupo') || '';
 
   let grupos;
   if (zona) {
@@ -372,18 +458,57 @@ function isoToDate(iso) {
 
 function setPeriod(days) {
   filterPeriod = days;
+  localStorage.setItem('dashPeriod', days);
   document.querySelectorAll('.filter-period').forEach(b => {
     b.classList.toggle('active', b.dataset.period === days);
   });
   applyFilters();
 }
 
+function saveDashboardFilters() {
+  localStorage.setItem('dashGrupo', document.getElementById('filter-grupo').value);
+  localStorage.setItem('dashZona', document.getElementById('filter-zona').value);
+  localStorage.setItem('dashFecha', document.getElementById('filter-fecha').value);
+  const searchEl = document.getElementById('filter-search');
+  if (searchEl) localStorage.setItem('dashSearch', searchEl.value);
+}
+
+function restoreDashboardFilters() {
+  const savedPeriod = localStorage.getItem('dashPeriod');
+  if (['7', '15', '30'].includes(savedPeriod)) {
+    filterPeriod = savedPeriod;
+    document.querySelectorAll('.filter-period').forEach(b => {
+      b.classList.toggle('active', b.dataset.period === savedPeriod);
+    });
+  }
+  const savedGrupo = localStorage.getItem('dashGrupo');
+  const savedZona = localStorage.getItem('dashZona');
+  const savedFecha = localStorage.getItem('dashFecha');
+  const savedSearch = localStorage.getItem('dashSearch');
+  if (savedGrupo) document.getElementById('filter-grupo').value = savedGrupo;
+  if (savedZona) document.getElementById('filter-zona').value = savedZona;
+  if (savedFecha) document.getElementById('filter-fecha').value = savedFecha;
+  const searchEl = document.getElementById('filter-search');
+  if (searchEl && savedSearch) searchEl.value = savedSearch;
+}
+
 function setPeriodZonas(days) {
   filterPeriodZonas = days;
+  localStorage.setItem('dashPeriodZonas', days);
   document.querySelectorAll('.filter-period-zonas').forEach(b => {
     b.classList.toggle('active', b.dataset.period === days);
   });
   renderZonasDashboard();
+}
+
+function restoreZonasPeriod() {
+  const saved = localStorage.getItem('dashPeriodZonas');
+  if (['7', '15', '30'].includes(saved)) {
+    filterPeriodZonas = saved;
+    document.querySelectorAll('.filter-period-zonas').forEach(b => {
+      b.classList.toggle('active', b.dataset.period === saved);
+    });
+  }
 }
 
 function buildPeriodLimit() {
@@ -407,6 +532,15 @@ function applyFilters(resetPage) {
   if (grupo) filtered = filtered.filter(r => r.grupo === grupo);
   if (zona) filtered = filtered.filter(r => r.zona === zona);
   if (fecha) filtered = filtered.filter(r => r.fecha === fecha);
+  const searchEl = document.getElementById('filter-search');
+  const searchText = searchEl ? (searchEl.value || '').trim().toLowerCase() : '';
+  if (searchText) {
+    filtered = filtered.filter(r => {
+      return (r.grupo || '').toLowerCase().includes(searchText) ||
+             (r.zona || '').toLowerCase().includes(searchText) ||
+             (r.estatus || '').toLowerCase().includes(searchText);
+    });
+  }
   if (periodLimit) {
     filtered = filtered.filter(r => {
       const d = parseDate(r.fecha);
@@ -422,6 +556,7 @@ function applyFilters(resetPage) {
   if (fecha) chartBase = chartBase.filter(r => r.fecha === fecha);
 
   renderDashboard(filtered, chartBase, periodLimit);
+  saveDashboardFilters();
   const countEl = document.getElementById('results-count');
   if (countEl) {
     const total = marketingData.length;
@@ -434,7 +569,14 @@ function clearFilters() {
   document.getElementById('filter-grupo').value = '';
   document.getElementById('filter-zona').value = '';
   document.getElementById('filter-fecha').value = '';
+  const searchEl = document.getElementById('filter-search');
+  if (searchEl) searchEl.value = '';
   filterPeriod = 'all';
+  localStorage.removeItem('dashPeriod');
+  localStorage.setItem('dashGrupo', '');
+  localStorage.setItem('dashZona', '');
+  localStorage.setItem('dashFecha', '');
+  localStorage.setItem('dashSearch', '');
   document.querySelectorAll('.filter-period').forEach(b => {
     b.classList.toggle('active', b.dataset.period === 'all');
   });
@@ -465,8 +607,9 @@ function updateMarketingRow(rowIndex, data) {
     headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   }).then(r => r.json()).then(res => {
-    if (res.error) return;
+    if (res.error) return alert(res.error);
     loadMarketingData();
+    showToast('Publicación actualizada', 'success');
   });
 }
 
@@ -489,6 +632,7 @@ function deleteMarketingRow(rowIndex) {
   }).then(r => r.json()).then(res => {
     if (res.error) return alert(res.error);
     loadMarketingData();
+    showToast('Publicación eliminada', 'success');
   });
 }
 
@@ -614,6 +758,7 @@ function saveBulkMarketing() {
       completed++;
       if (completed === total) {
         loadMarketingData();
+        showToast(hasError ? 'Carga con errores' : (total + ' publicaciones agregadas'), hasError ? 'error' : 'success');
       }
     });
   });
@@ -754,20 +899,21 @@ function toggleCustomInputs() {
 function openAddModal() {
   document.getElementById('mk-modal-title').innerHTML = '<i class="bi bi-plus-circle-fill me-2"></i>Agregar Publicación';
   document.getElementById('mk-row-index').value = '';
-  document.getElementById('mk-fecha').value = new Date().toISOString().split('T')[0];
+  const lastData = (() => { try { return JSON.parse(localStorage.getItem('mkLast') || 'null'); } catch { return null; } })();
+  document.getElementById('mk-fecha').value = (lastData && lastData.fecha) || new Date().toISOString().split('T')[0];
   document.getElementById('mk-fecha').disabled = false;
   document.getElementById('mk-grupo').value = '';
   document.getElementById('mk-grupo-custom').value = '';
   document.getElementById('mk-grupo-custom').classList.add('d-none');
-  document.getElementById('mk-pubs').value = 0;
-  document.getElementById('mk-vis').value = 0;
-  document.getElementById('mk-int').value = 0;
-  document.getElementById('mk-com').value = 0;
-  document.getElementById('mk-msj').value = 0;
+  document.getElementById('mk-pubs').value = (lastData && lastData.publicaciones) || 0;
+  document.getElementById('mk-vis').value = (lastData && lastData.visualizaciones) || 0;
+  document.getElementById('mk-int').value = (lastData && lastData.interacciones) || 0;
+  document.getElementById('mk-com').value = (lastData && lastData.comentarios) || 0;
+  document.getElementById('mk-msj').value = (lastData && lastData.mensajes) || 0;
   document.getElementById('mk-zona').value = '';
   document.getElementById('mk-zona-custom').value = '';
   document.getElementById('mk-zona-custom').classList.add('d-none');
-  document.getElementById('mk-estatus').value = 'SIN DEFINIR';
+  document.getElementById('mk-estatus').value = (lastData && lastData.estatus) || 'SIN DEFINIR';
   document.getElementById('mk-delete-btn').classList.add('d-none');
   populateSelects();
   new bootstrap.Modal(document.getElementById('mkModal')).show();
@@ -861,7 +1007,9 @@ function saveMarketingRow() {
       updateMarketingRow(rowIndex, data);
       postHistorial(snapshot);
     } else {
+      try { localStorage.setItem('mkLast', JSON.stringify({ fecha: rawFecha, publicaciones: data.publicaciones, visualizaciones: data.visualizaciones, interacciones: data.interacciones, comentarios: data.comentarios, mensajes: data.mensajes, estatus: data.estatus })); } catch {}
       addMarketingRow(data, snapshot);
+      showToast('Publicación agregada', 'success');
     }
   };
 
@@ -1251,10 +1399,13 @@ function renderZonasDashboardInner(grupos, zonaFilter, periodLimit) {
   const kpiContainer = document.getElementById('zonas-kpi-container');
   if (kpiContainer) {
     if (!sortedZones.length) { kpiContainer.innerHTML = ''; } else {
-      kpiContainer.innerHTML = sortedZones.map(z => `
+      kpiContainer.innerHTML = sortedZones.map(z => {
+        const rowsZona = data.filter(r => r.zona === z.zona);
+        const saludCls = saludZonaClass(rowsZona);
+        return `
         <div class="col-6 col-md-4 col-lg">
-          <div class="zone-kpi-card">
-            <div class="zone-kpi-name">${z.zona}</div>
+          <div class="zone-kpi-card ${saludCls}">
+            <div class="zone-kpi-name">${saludDiv(rowsZona)}${z.zona} <span class="text-muted small" style="font-weight:400">(${z.grupos.size})</span></div>
             <div class="zone-kpi-stats">
               <span title="Pubs"><i class="bi bi-file-text"></i> ${z.publicaciones}</span>
               <span title="Vis"><i class="bi bi-eye"></i> ${z.visualizaciones}</span>
@@ -1263,7 +1414,8 @@ function renderZonasDashboardInner(grupos, zonaFilter, periodLimit) {
             </div>
           </div>
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
   }
 
@@ -1586,6 +1738,7 @@ function addZona() {
     if (status !== 201) return alert(body.error || 'Error al crear zona.');
     input.value = '';
     loadZonas();
+    showToast('Zona creada', 'success');
   });
 }
 
@@ -1595,6 +1748,7 @@ function deleteZona(id) {
     .then(({ status, body }) => {
       if (status !== 200) { alert(body.error || 'Error al eliminar.'); return; }
       loadZonas();
+      showToast('Zona eliminada', 'success');
     });
 }
 

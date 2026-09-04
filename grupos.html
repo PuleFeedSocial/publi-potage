@@ -149,15 +149,19 @@
                         </div>
                         <div class="d-flex align-items-center gap-2">
                             <select id="grupos-filter-zona" class="form-select form-select-sm custom-input"
-                                style="width:auto;min-width:140px" onchange="renderGruposPage()">
+                                style="width:auto;min-width:140px" onchange="saveGruposFilters();renderGruposPage()">
                                 <option value="">Todas las zonas</option>
                             </select>
                             <select id="grupos-sort" class="form-select form-select-sm custom-input"
-                                style="width:auto;min-width:200px" onchange="renderGruposPage()">
+                                style="width:auto;min-width:200px" onchange="saveGruposFilters();renderGruposPage()">
                                 <option value="">Orden por defecto</option>
                                 <option value="peores">Menor puntuacion (supr+elim+revision)</option>
                                 <option value="mejores">Mayor puntuacion (más PUBLICADA)</option>
                             </select>
+                            <label class="d-inline-flex align-items-center gap-1 small text-muted" title="Mostrar solo grupos con publicaciones suprimidas, eliminadas o en revisión">
+                                <input type="checkbox" id="grupos-solo-problemas" value="1" onchange="saveGruposFilters();renderGruposPage()"> Solo problemas
+                            </label>
+                            <input type="text" id="grupos-search" class="form-control form-control-sm custom-input" placeholder="Buscar..." style="width:auto;min-width:140px" oninput="renderGruposPage()">
                             <span class="text-muted small"><i class="bi bi-database"></i> <span
                                     id="grupos-pubs-total">0</span> pubs</span>
                         </div>
@@ -176,6 +180,7 @@
                                     <th class="text-center">Suprimida</th>
                                     <th class="text-center">Revisión</th>
                                     <th class="text-center">S/Def</th>
+                                    <th class="text-center">Rendimiento</th>
                                 </tr>
                             </thead>
                             <tbody id="grupos-page-table-body">
@@ -260,9 +265,28 @@
             return document.getElementById('grupo-page-zona').value;
         }
 
+        function saveGruposFilters() {
+            localStorage.setItem('gruposFilterZona', document.getElementById('grupos-filter-zona').value);
+            localStorage.setItem('gruposSort', document.getElementById('grupos-sort').value);
+            localStorage.setItem('gruposSoloProblemas', document.getElementById('grupos-solo-problemas').checked ? '1' : '0');
+        }
+
+        function restoreGruposFilters() {
+            const savedZona = localStorage.getItem('gruposFilterZona');
+            const savedSort = localStorage.getItem('gruposSort');
+            const savedSolo = localStorage.getItem('gruposSoloProblemas');
+            const selZona = document.getElementById('grupos-filter-zona');
+            const selSort = document.getElementById('grupos-sort');
+            const chkSolo = document.getElementById('grupos-solo-problemas');
+            if (selZona && savedZona) selZona.value = savedZona;
+            if (selSort && savedSort) selSort.value = savedSort;
+            if (chkSolo && savedSolo === '1') chkSolo.checked = true;
+        }
+
         function loadGruposPage() {
+            restoreGruposFilters();
             const tbody = document.getElementById('grupos-page-table-body');
-            tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">Cargando...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">Cargando...</td></tr>';
             Promise.all([
                 fetch(API_BASE + '/api/grupos', { headers: { 'Authorization': 'Bearer ' + getToken() } }),
                 fetch(API_BASE + '/api/marketing', { headers: { 'Authorization': 'Bearer ' + getToken() } }),
@@ -275,7 +299,7 @@
                 ]))
                 .then(([gruposRes, marketingRes, zonasRes]) => {
                     if (gruposRes.status !== 200) {
-                        tbody.innerHTML = '<tr><td colspan="10" class="text-center text-danger">' + (gruposRes.body.error || 'Error') + '</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="11" class="text-center text-danger">' + (gruposRes.body.error || 'Error') + '</td></tr>';
                         return;
                     }
                     gruposPageData = gruposRes.body.data || [];
@@ -306,7 +330,7 @@
                     document.getElementById('grupos-count').innerText = gruposPageData.length;
                 })
                 .catch(() => {
-                    tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">Error de conexión</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">Error de conexión</td></tr>';
                 });
         }
 
@@ -314,8 +338,22 @@
             const tbody = document.getElementById('grupos-page-table-body');
             const zonaFilter = document.getElementById('grupos-filter-zona').value;
             const sortMode = document.getElementById('grupos-sort').value;
+            const soloProblemas = document.getElementById('grupos-solo-problemas').checked;
+            const search = (document.getElementById('grupos-search').value || '').toLowerCase().trim();
             let filtered = gruposPageData;
             if (zonaFilter) filtered = filtered.filter(g => g.zona === zonaFilter);
+            if (search) {
+                filtered = filtered.filter(g =>
+                    (g.nombre || '').toLowerCase().includes(search) ||
+                    (g.zona || '').toLowerCase().includes(search)
+                );
+            }
+            if (soloProblemas) {
+                filtered = filtered.filter(g => {
+                    const e = window._gruposEstatus[g.nombre] || {};
+                    return (e.SUPRIMIDA || 0) + (e.ELIMINADA || 0) + (e['EN REVISION'] || 0) > 0;
+                });
+            }
             if (sortMode) {
                 filtered = [...filtered].sort((a, b) => {
                     const ea = window._gruposEstatus[a.nombre] || {};
@@ -343,6 +381,14 @@
                     ? '<a href="' + enlaceSafe + '" target="_blank" class="small text-muted">' + enlaceSafe.substring(0, 45) + '...</a>'
                     : '<span class="text-muted small">—</span>';
                 const fechaDisplay = g.fechaIngreso || '—';
+                const malas = (est.SUPRIMIDA || 0) + (est.ELIMINADA || 0) + (est['EN REVISION'] || 0);
+                const buenas = (est.PUBLICADA || 0);
+                let rendBadge = '<span class="text-muted small">—</span>';
+                if (buenas > 0 || malas > 0) {
+                    const score = Math.round((buenas / (buenas + malas)) * 100);
+                    const cls = score >= 70 ? 'est-publicada' : (score >= 40 ? 'est-suprimida' : 'est-eliminada');
+                    rendBadge = '<span class="badge-estatus ' + cls + '">' + score + '%</span>';
+                }
                 tr.innerHTML = `
                     <td class="fw-medium">
                         <a href="#" class="text-decoration-none text-dark" onclick="editGrupoPage(${g.rowIndex});return false" title="Editar grupo">${g.nombre}</a>
@@ -358,11 +404,12 @@
                     <td class="text-center"><span class="badge-estatus est-suprimida">${est.SUPRIMIDA || 0}</span></td>
                     <td class="text-center"><span class="badge-estatus est-en-revision">${est['EN REVISION'] || 0}</span></td>
                     <td class="text-center"><span class="badge-estatus est-sin-definir">${est['SIN DEFINIR'] || 0}</span></td>
+                    <td class="text-center">${rendBadge}</td>
                 `;
                 tbody.appendChild(tr);
             });
             if (!filtered.length) {
-                tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">Sin resultados</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">Sin resultados</td></tr>';
             }
             // Update total pubs
             const totalPubs = filtered.reduce((s, g) => s + (window._gruposPubs[g.nombre] || 0), 0);
@@ -402,6 +449,7 @@
                     if (res.error) return alert(res.error);
                     bootstrap.Modal.getInstance(document.getElementById('grupoPageModal')).hide();
                     loadGruposPage();
+                    showToast(res.message || 'Grupo guardado', 'success');
                 });
         }
 
@@ -428,6 +476,7 @@
                 .then(res => {
                     if (res.error) return alert(res.error);
                     loadGruposPage();
+                    showToast(res.message || 'Grupo eliminado', 'success');
                 });
         }
 

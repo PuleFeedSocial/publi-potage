@@ -143,24 +143,28 @@
                         <div class="kpi-card">
                             <span class="kpi-title">Publicaciones</span>
                             <span class="kpi-value text-dark" id="kpi-publicaciones">—</span>
+                            <span class="kpi-trend" id="trend-publicaciones"></span>
                         </div>
                     </div>
                     <div class="col">
                         <div class="kpi-card">
                             <span class="kpi-title">Visualizaciones</span>
                             <span class="kpi-value text-accent" id="kpi-visualizaciones">—</span>
+                            <span class="kpi-trend" id="trend-visualizaciones"></span>
                         </div>
                     </div>
                     <div class="col">
                         <div class="kpi-card">
                             <span class="kpi-title">Interacciones</span>
                             <span class="kpi-value text-success" id="kpi-interacciones">—</span>
+                            <span class="kpi-trend" id="trend-interacciones"></span>
                         </div>
                     </div>
                     <div class="col">
                         <div class="kpi-card">
                             <span class="kpi-title">Mensajes</span>
                             <span class="kpi-value text-indigo" id="kpi-mensajes">—</span>
+                            <span class="kpi-trend" id="trend-mensajes"></span>
                         </div>
                     </div>
                 </div>
@@ -224,9 +228,14 @@
                                 <input type="date" class="form-control form-control-sm" id="filter-fecha"
                                     onchange="applyFilters()">
                             </div>
-                            <div class="col-6 col-md-2 d-flex align-items-end">
+                            <div class="col-6 col-md-2">
+                                <label class="form-label small mb-1 text-secondary">Buscar</label>
+                                <input type="text" class="form-control form-control-sm" id="filter-search"
+                                    placeholder="Grupo, zona o estatus" oninput="applyFilters()">
+                            </div>
+                            <div class="col-6 col-md-1 d-flex align-items-end">
                                 <button class="btn btn-sm btn-outline-secondary w-100" onclick="clearFilters()">
-                                    <i class="bi bi-x-lg me-1"></i>Limpiar filtros
+                                    <i class="bi bi-x-lg me-1"></i>Limpiar
                                 </button>
                             </div>
                         </div>

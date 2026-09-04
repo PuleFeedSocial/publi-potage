@@ -1555,3 +1555,15 @@ body.sidebar-open .main-content {
   background: #dbeafe;
   color: #1e40af;
 }
+
+/* Semáforo de salud por zona */
+.zone-health-bueno { border-left: 4px solid #16a34a; }
+.zone-health-medio { border-left: 4px solid #f59e0b; }
+.zone-health-malo  { border-left: 4px solid #dc2626; }
+.health-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+.health-dot-bueno { background:#16a34a; }
+.health-dot-medio { background:#f59e0b; }
+.health-dot-malo  { background:#dc2626; }
+.kpi-trend { display:block; font-size:0.72rem; font-weight:600; margin-top:2px; }
+.trend-up { color:#16a34a; }
+.trend-down { color:#dc2626; }
