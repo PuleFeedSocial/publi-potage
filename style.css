@@ -1573,3 +1573,114 @@ body.sidebar-open .main-content {
 #grupoDetailModal .modal-content { border:1px solid rgba(0,0,0,0.08); }
 #grupoDetailModal #detail-grupo-nombre { font-size:1.1rem; }
 #grupoDetailModal #detail-grupo-enlace a { color:#2563eb; text-decoration:underline; word-break:break-all; }
+
+/* ============================================================
+   RESPONSIVE — 768px (tablet / mobile landscape)
+   ============================================================ */
+@media (max-width: 768px) {
+    /* Sidebar */
+    .sidebar { width: 260px; }
+
+    /* Modals: full-width on mobile */
+    .modal-dialog { margin: 8px !important; max-width: calc(100vw - 16px) !important; }
+    .modal-content { border-radius: 12px !important; }
+    .modal-body { padding: 16px !important; }
+
+    /* Bulk modal: metrics 2 columns */
+    #bulkModal .col-6.col-md-3 { flex: 0 0 50%; max-width: 50%; }
+
+    /* Grupos page: top action bar */
+    .view-section > .d-flex.justify-content-between { flex-direction: column !important; gap: 10px !important; }
+    .view-section > .d-flex.justify-content-between > .d-flex { width: 100% !important; justify-content: flex-end !important; }
+
+    /* Grupos page: card-header filters stack */
+    .data-table-card .card-header-clean { flex-direction: column !important; gap: 12px !important; align-items: stretch !important; }
+    .data-table-card .card-header-clean > div:last-child { flex-wrap: wrap !important; gap: 8px !important; }
+    .data-table-card .card-header-clean select,
+    .data-table-card .card-header-clean input[type="text"] { width: 100% !important; min-width: 0 !important; }
+    .data-table-card .card-header-clean label.d-inline-flex { white-space: nowrap; }
+
+    /* Table: smaller padding */
+    .custom-table th { padding: 12px 14px !important; font-size: 0.68rem !important; }
+    .custom-table td { padding: 10px 12px !important; font-size: 0.8rem !important; }
+
+    /* Dashboard: filter card row stack */
+    .filter-card .row.g-2 { gap: 8px !important; }
+    .filter-card .row.g-2 > [class*="col-"] { flex: 0 0 50% !important; max-width: 50% !important; }
+    .filter-card .row.g-2 > .col-6.col-md-1 { flex: 0 0 100% !important; max-width: 100% !important; }
+    .filter-card .btn-group-sm .btn { font-size: 0.72rem; padding: 4px 6px; }
+
+    /* Dashboard: KPI trends */
+    .kpi-trend { font-size: 0.65rem; }
+
+    /* Detail modal: compact layout */
+    #grupoDetailModal .row.g-2 { gap: 6px !important; }
+    #grupoDetailModal .detail-kpi-box { padding: 6px 2px; }
+    #grupoDetailModal .detail-kpi-box .fs-5 { font-size: 1rem !important; }
+    #grupoDetailModal .detail-kpi-box .small { font-size: 0.7rem !important; }
+
+    /* Publicaciones modal: stack fields */
+    #mkModal .row.g-3 > [class*="col-"] { flex: 0 0 100% !important; max-width: 100% !important; }
+
+    /* Zonas dashboard: table smaller */
+    #view-zonas .custom-table th { padding: 10px 10px !important; }
+    #view-zonas .custom-table td { padding: 8px 10px !important; }
+}
+
+/* ============================================================
+   RESPONSIVE — 480px (mobile portrait)
+   ============================================================ */
+@media (max-width: 480px) {
+    /* Sidebar width */
+    .sidebar { width: 240px; }
+
+    /* Modals: almost full-screen feel */
+    .modal-dialog { margin: 4px !important; }
+    .modal-content { border-radius: 10px !important; }
+    .modal-header { padding: 12px 14px 0 !important; }
+    .modal-body { padding: 12px !important; }
+    .modal-footer { padding: 8px 14px 12px !important; }
+    .modal-title { font-size: 0.95rem !important; }
+
+    /* Bulk modal: all metrics 50% */
+    #bulkModal .col-6.col-md-3 { flex: 0 0 50% !important; max-width: 50% !important; }
+    #bulkModal .col-6.col-md-3 label { font-size: 0.72rem !important; }
+    #bulkModal .col-6.col-md-3 input,
+    #bulkModal .col-6.col-md-3 select { font-size: 0.82rem !important; padding: 6px 8px !important; }
+    #bulkModal .bulk-grupos-list { max-height: 150px; }
+    #bulkModal .btn-action-primary { width: 100%; }
+
+    /* Grupos page: filters full width each */
+    .data-table-card .card-header-clean > div:last-child { flex-direction: column !important; }
+    .data-table-card .card-header-clean select,
+    .data-table-card .card-header-clean input[type="text"] { font-size: 0.82rem !important; }
+    .data-table-card .card-header-clean label.d-inline-flex { font-size: 0.78rem !important; }
+
+    /* Table: even smaller */
+    .custom-table th { padding: 10px 10px !important; font-size: 0.62rem !important; letter-spacing: 0.3px; }
+    .custom-table td { padding: 8px 10px !important; font-size: 0.75rem !important; }
+
+    /* Badges: smaller */
+    .badge-estatus { font-size: 0.65rem !important; padding: 2px 7px !important; }
+    .badge-zone { font-size: 0.65rem !important; padding: 3px 7px !important; }
+
+    /* Dashboard: filter card full-width */
+    .filter-card .row.g-2 > [class*="col-"] { flex: 0 0 100% !important; max-width: 100% !important; }
+    .filter-card .btn-group-sm .btn { font-size: 0.68rem; padding: 5px 4px; }
+
+    /* Grupos page: top buttons full width */
+    .view-section > .d-flex.justify-content-between > .d-flex { flex-direction: column !important; }
+    .view-section > .d-flex.justify-content-between > .d-flex .btn { width: 100% !important; }
+
+    /* Detail modal: stack KPIs */
+    #grupoDetailModal .row.g-2.text-center > .col { flex: 0 0 50% !important; max-width: 50% !important; }
+    #grupoDetailModal .detail-kpi-box .fs-5 { font-size: 0.9rem !important; }
+
+    /* Dashboard header: buttons stack */
+    .card-header-clean.d-flex { flex-direction: column !important; gap: 10px !important; align-items: stretch !important; }
+    .card-header-clean.d-flex > .d-flex { justify-content: flex-end !important; }
+
+    /* Pagination */
+    .pag-btn { min-width: 30px; height: 30px; font-size: 0.72rem; }
+    .pag-input { width: 40px; height: 30px; font-size: 0.7rem; }
+}
