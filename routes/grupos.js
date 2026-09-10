@@ -40,7 +40,7 @@ router.get('/', authenticate, async (req, res) => {
     if (!s) return res.status(503).json({ error: 'Google Sheets no configurado.' });
 
     const result = await s.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID, range: SHEET_NAME + '!A:D', valueRenderOption: 'FORMATTED_VALUE'
+      spreadsheetId: SHEET_ID, range: SHEET_NAME + '!A:E', valueRenderOption: 'FORMATTED_VALUE'
     });
 
     const rows = result.data.values || [];
@@ -48,12 +48,14 @@ router.get('/', authenticate, async (req, res) => {
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
       if (!row[0]) continue;
+      const activoRaw = (row[4] || '').trim().toUpperCase();
       data.push({
         rowIndex: i + 1,
         nombre: (row[0] || '').trim(),
         enlace: (row[1] || '').trim(),
         zona: (row[2] || '').trim(),
-        fechaIngreso: (row[3] || '').trim()
+        fechaIngreso: (row[3] || '').trim(),
+        activo: activoRaw === 'FALSE' || activoRaw === '0' || activoRaw === 'INACTIVO' ? false : true
       });
     }
     cache = data;
@@ -69,13 +71,15 @@ router.post('/', authenticate, async (req, res) => {
   try {
     const s = sheets();
     if (!s) return res.status(503).json({ error: 'Google Sheets no configurado.' });
-    const { nombre, enlace, zona, fechaIngreso } = req.body;
+    const { nombre, enlace, zona, fechaIngreso, activo } = req.body;
     if (!nombre) return res.status(400).json({ error: 'Nombre del grupo es obligatorio.' });
 
+    const activoValue = activo === false || activo === 'false' ? 'FALSE' : 'TRUE';
+
     await s.spreadsheets.values.append({
-      spreadsheetId: SHEET_ID, range: SHEET_NAME + '!A:D',
+      spreadsheetId: SHEET_ID, range: SHEET_NAME + '!A:E',
       valueInputOption: 'USER_ENTERED', insertDataOption: 'INSERT_ROWS',
-      resource: { values: [[nombre, enlace || '', zona || '', fechaIngreso || '']] }
+      resource: { values: [[nombre, enlace || '', zona || '', fechaIngreso || '', activoValue]] }
     });
     invalidateCache();
 
@@ -93,13 +97,15 @@ router.put('/:rowIndex', authenticate, async (req, res) => {
     if (!s) return res.status(503).json({ error: 'Google Sheets no configurado.' });
     const rowIndex = parseInt(req.params.rowIndex);
     if (isNaN(rowIndex) || rowIndex < 2) return res.status(400).json({ error: 'Índice inválido.' });
-    const { nombre, enlace, zona, fechaIngreso } = req.body;
+    const { nombre, enlace, zona, fechaIngreso, activo } = req.body;
     if (!nombre) return res.status(400).json({ error: 'Nombre del grupo es obligatorio.' });
 
+    const activoValue = activo === false || activo === 'false' ? 'FALSE' : 'TRUE';
+
     await s.spreadsheets.values.update({
-      spreadsheetId: SHEET_ID, range: SHEET_NAME + `!A${rowIndex}:D${rowIndex}`,
+      spreadsheetId: SHEET_ID, range: SHEET_NAME + `!A${rowIndex}:E${rowIndex}`,
       valueInputOption: 'USER_ENTERED',
-      resource: { values: [[nombre, enlace || '', zona || '', fechaIngreso || '']] }
+      resource: { values: [[nombre, enlace || '', zona || '', fechaIngreso || '', activoValue]] }
     });
     invalidateCache();
 

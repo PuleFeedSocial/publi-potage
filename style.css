@@ -1567,3 +1567,9 @@ body.sidebar-open .main-content {
 .kpi-trend { display:block; font-size:0.72rem; font-weight:600; margin-top:2px; }
 .trend-up { color:#16a34a; }
 .trend-down { color:#dc2626; }
+
+/* Detail modal KPI boxes */
+.detail-kpi-box { background:#f8fafc; border-radius:8px; padding:8px 4px; }
+#grupoDetailModal .modal-content { border:1px solid rgba(0,0,0,0.08); }
+#grupoDetailModal #detail-grupo-nombre { font-size:1.1rem; }
+#grupoDetailModal #detail-grupo-enlace a { color:#2563eb; text-decoration:underline; word-break:break-all; }

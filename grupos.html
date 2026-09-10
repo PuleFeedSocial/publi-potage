@@ -175,12 +175,9 @@
                                     <th>Zona</th>
                                     <th class="text-center">Fec. Ingreso</th>
                                     <th class="text-center">Pubs</th>
-                                    <th class="text-center">Publicada</th>
-                                    <th class="text-center">Eliminada</th>
-                                    <th class="text-center">Suprimida</th>
-                                    <th class="text-center">Revisión</th>
-                                    <th class="text-center">S/Def</th>
+                                    <th class="text-center">Activo</th>
                                     <th class="text-center">Rendimiento</th>
+                                    <th class="text-center">Ver</th>
                                 </tr>
                             </thead>
                             <tbody id="grupos-page-table-body">
@@ -210,6 +207,13 @@
                             <input type="text" id="grupo-page-nombre" class="form-control custom-input" required>
                         </div>
                         <div class="mb-3">
+                            <label class="form-label small fw-medium text-secondary">Estado</label>
+                            <select id="grupo-page-activo" class="form-select custom-input">
+                                <option value="true">Activo</option>
+                                <option value="false">Inactivo</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
                             <label class="form-label small fw-medium text-secondary">Enlace</label>
                             <input type="text" id="grupo-page-enlace" class="form-control custom-input"
                                 placeholder="Enlace o &quot;Sin Link&quot;">
@@ -233,6 +237,73 @@
                         <button type="submit" class="btn btn-sm btn-action-primary">Guardar</button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="grupoDetailModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content custom-modal">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-semibold" id="detail-grupo-title"><i class="bi bi-info-circle-fill me-2 text-primary"></i>Detalle del Grupo</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-2">
+                    <h6 id="detail-grupo-nombre" class="fw-bold mb-3"></h6>
+                    <div class="row g-2 mb-3">
+                        <div class="col-12">
+                            <span class="text-secondary small d-block mb-1">Enlace</span>
+                            <span id="detail-grupo-enlace" class="small"></span>
+                        </div>
+                    </div>
+                    <div class="row g-2 text-center mb-3">
+                        <div class="col">
+                            <div class="detail-kpi-box">
+                                <div class="fw-bold text-primary fs-5" id="detail-grupo-pubs">0</div>
+                                <div class="text-secondary small">Pubs</div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="detail-kpi-box">
+                                <div class="fw-bold text-success fs-5" id="detail-grupo-publicada">0</div>
+                                <div class="text-secondary small">Publicada</div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="detail-kpi-box">
+                                <div class="fw-bold text-danger fs-5" id="detail-grupo-eliminada">0</div>
+                                <div class="text-secondary small">Eliminada</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row g-2 text-center mb-3">
+                        <div class="col">
+                            <div class="detail-kpi-box">
+                                <div class="fw-bold text-warning fs-5" id="detail-grupo-suprimida">0</div>
+                                <div class="text-secondary small">Suprimida</div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="detail-kpi-box">
+                                <div class="fw-bold text-info fs-5" id="detail-grupo-revision">0</div>
+                                <div class="text-secondary small">Revisión</div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="detail-kpi-box">
+                                <div class="fw-bold text-secondary fs-5" id="detail-grupo-sdef">0</div>
+                                <div class="text-secondary small">S/Def</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <span class="text-secondary small">Rendimiento: </span>
+                        <span class="fw-bold text-dark" id="detail-grupo-rendimiento">—</span>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-sm btn-light-muted" data-bs-dismiss="modal">Cerrar</button>
+                </div>
             </div>
         </div>
     </div>
@@ -389,6 +460,9 @@
                     const cls = score >= 70 ? 'est-publicada' : (score >= 40 ? 'est-suprimida' : 'est-eliminada');
                     rendBadge = '<span class="badge-estatus ' + cls + '">' + score + '%</span>';
                 }
+                const activoBadge = g.activo !== false
+                    ? '<span class="badge-estatus est-publicada">Activo</span>'
+                    : '<span class="badge-estatus est-eliminada">Inactivo</span>';
                 tr.innerHTML = `
                     <td class="fw-medium">
                         <a href="#" class="text-decoration-none text-dark" onclick="editGrupoPage(${g.rowIndex});return false" title="Editar grupo">${g.nombre}</a>
@@ -399,17 +473,14 @@
                     <td><span class="badge-zone zone-${(g.zona || '').toLowerCase().replace(/ /g, '-')}">${g.zona || '—'}</span></td>
                     <td class="text-center small text-muted">${fechaDisplay}</td>
                     <td class="text-center fw-semibold text-primary">${pubs}</td>
-                    <td class="text-center"><span class="badge-estatus est-publicada">${est.PUBLICADA || 0}</span></td>
-                    <td class="text-center"><span class="badge-estatus est-eliminada">${est.ELIMINADA || 0}</span></td>
-                    <td class="text-center"><span class="badge-estatus est-suprimida">${est.SUPRIMIDA || 0}</span></td>
-                    <td class="text-center"><span class="badge-estatus est-en-revision">${est['EN REVISION'] || 0}</span></td>
-                    <td class="text-center"><span class="badge-estatus est-sin-definir">${est['SIN DEFINIR'] || 0}</span></td>
+                    <td class="text-center">${activoBadge}</td>
                     <td class="text-center">${rendBadge}</td>
+                    <td class="text-center"><button class="btn btn-sm btn-outline-secondary" onclick="openGrupoDetailModal('${(g.nombre || '').replace(/'/g, "\\'")}')"><i class="bi bi-eye"></i></button></td>
                 `;
                 tbody.appendChild(tr);
             });
             if (!filtered.length) {
-                tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">Sin resultados</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Sin resultados</td></tr>';
             }
             // Update total pubs
             const totalPubs = filtered.reduce((s, g) => s + (window._gruposPubs[g.nombre] || 0), 0);
@@ -423,6 +494,7 @@
             document.getElementById('grupo-page-enlace').value = '';
             document.getElementById('grupo-page-zona').value = '';
             document.getElementById('grupo-page-fecha').value = '';
+            document.getElementById('grupo-page-activo').value = 'true';
             populateZonas();
             new bootstrap.Modal(document.getElementById('grupoPageModal')).show();
         }
@@ -433,6 +505,7 @@
             const enlace = document.getElementById('grupo-page-enlace').value.trim();
             const zona = getZonaValue();
             const fechaIngreso = document.getElementById('grupo-page-fecha').value.trim();
+            const activo = document.getElementById('grupo-page-activo').value === 'true';
             if (!nombre) return alert('El nombre del grupo es obligatorio.');
 
             const rowIndex = document.getElementById('grupo-page-row-index').value;
@@ -442,7 +515,7 @@
             fetch(API_BASE + url, {
                 method,
                 headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nombre, enlace, zona, fechaIngreso })
+                body: JSON.stringify({ nombre, enlace, zona, fechaIngreso, activo })
             })
                 .then(r => r.json())
                 .then(res => {
@@ -463,6 +536,7 @@
             document.getElementById('grupo-page-fecha').value = g.fechaIngreso || '';
             populateZonas();
             document.getElementById('grupo-page-zona').value = g.zona || '';
+            document.getElementById('grupo-page-activo').value = g.activo !== false ? 'true' : 'false';
             new bootstrap.Modal(document.getElementById('grupoPageModal')).show();
         }
 
@@ -478,6 +552,36 @@
                     loadGruposPage();
                     showToast(res.message || 'Grupo eliminado', 'success');
                 });
+        }
+
+        function openGrupoDetailModal(nombre) {
+            const g = gruposPageData.find(x => x.nombre === nombre);
+            if (!g) return;
+            const pubs = window._gruposPubs[g.nombre] || 0;
+            const est = window._gruposEstatus[g.nombre] || {};
+            const malas = (est.SUPRIMIDA || 0) + (est.ELIMINADA || 0) + (est['EN REVISION'] || 0);
+            const buenas = (est.PUBLICADA || 0);
+            let rendicion = '—';
+            if (buenas > 0 || malas > 0) {
+                rendicion = Math.round((buenas / (buenas + malas)) * 100) + '%';
+            }
+
+            document.getElementById('detail-grupo-nombre').innerText = g.nombre;
+            const enlaceEl = document.getElementById('detail-grupo-enlace');
+            if (g.enlace && /^https?:\/\//i.test(g.enlace)) {
+                enlaceEl.innerHTML = '<a href="' + g.enlace + '" target="_blank" rel="noopener">' + g.enlace + '</a>';
+            } else {
+                enlaceEl.innerText = g.enlace || '—';
+            }
+            document.getElementById('detail-grupo-pubs').innerText = pubs;
+            document.getElementById('detail-grupo-publicada').innerText = est.PUBLICADA || 0;
+            document.getElementById('detail-grupo-eliminada').innerText = est.ELIMINADA || 0;
+            document.getElementById('detail-grupo-suprimida').innerText = est.SUPRIMIDA || 0;
+            document.getElementById('detail-grupo-revision').innerText = est['EN REVISION'] || 0;
+            document.getElementById('detail-grupo-sdef').innerText = est['SIN DEFINIR'] || 0;
+            document.getElementById('detail-grupo-rendimiento').innerText = rendicion;
+
+            new bootstrap.Modal(document.getElementById('grupoDetailModal')).show();
         }
 
         document.addEventListener('DOMContentLoaded', () => {

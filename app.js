@@ -667,10 +667,10 @@ function filterGruposBulk() {
 
   let grupos;
   if (zona) {
-    grupos = [...new Set(gruposData.filter(g => g.zona === zona).map(g => g.nombre).filter(Boolean))];
+    grupos = [...new Set(gruposData.filter(g => g.zona === zona && g.activo !== false).map(g => g.nombre).filter(Boolean))];
     grupos = [...new Set([...grupos, ...marketingData.filter(r => r.zona === zona && r.grupo !== 'Perfil Estandar').map(r => r.grupo).filter(Boolean)])];
   } else {
-    grupos = [...new Set(gruposData.map(r => r.nombre).filter(Boolean))];
+    grupos = [...new Set(gruposData.filter(g => g.activo !== false).map(r => r.nombre).filter(Boolean))];
     grupos = [...new Set([...grupos, ...marketingData.filter(r => r.grupo !== 'Perfil Estandar').map(r => r.grupo).filter(Boolean)])];
   }
 
@@ -689,6 +689,16 @@ function filterGruposBulk() {
   });
 
   updateBulkButtonText();
+  filterGruposBulkSearch();
+}
+
+function filterGruposBulkSearch() {
+  const search = (document.getElementById('bulk-grupo-search').value || '').toLowerCase().trim();
+  const items = document.querySelectorAll('#bulk-grupos-container .bulk-grupo-item');
+  items.forEach(label => {
+    const text = label.textContent.toLowerCase();
+    label.style.display = !search || text.includes(search) ? '' : 'none';
+  });
 }
 
 function updateBulkButtonText() {
@@ -815,7 +825,7 @@ function loadHistorial() {
 function populateSelects() {
   let zonas = [...new Set(zonasData.map(r => r.nombre).filter(Boolean)), ...new Set(marketingData.map(r => r.zona).filter(Boolean))];
   zonas = [...new Set(zonas)]; // dedup
-  let grupos = [...new Set(gruposData.map(r => r.nombre).filter(Boolean))];
+  let grupos = [...new Set(gruposData.filter(g => g.activo !== false).map(r => r.nombre).filter(Boolean))];
   if (grupos.length === 0) {
     grupos = [...new Set(marketingData.map(r => r.grupo).filter(Boolean))];
   }
@@ -860,12 +870,12 @@ function filterGruposByZona() {
 
   let grupos;
   if (zona && zona !== '__otro__') {
-    grupos = [...new Set(gruposData.filter(g => g.zona === zona).map(g => g.nombre).filter(Boolean))];
+    grupos = [...new Set(gruposData.filter(g => g.zona === zona && g.activo !== false).map(g => g.nombre).filter(Boolean))];
     if (grupos.length === 0) {
       grupos = [...new Set(marketingData.filter(r => r.zona === zona).map(r => r.grupo).filter(Boolean))];
     }
   } else {
-    grupos = [...new Set(gruposData.map(r => r.nombre).filter(Boolean))];
+    grupos = [...new Set(gruposData.filter(g => g.activo !== false).map(r => r.nombre).filter(Boolean))];
     if (grupos.length === 0) {
       grupos = [...new Set(marketingData.map(r => r.grupo).filter(Boolean))];
     }
