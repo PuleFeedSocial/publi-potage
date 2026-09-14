@@ -2326,9 +2326,33 @@ html[data-theme="dark"] .table-hover tbody tr:hover {
     background-color: #263445;
 }
 
-html[data-theme="dark"] .form-text {
-    color: #94a3b8;
+/* ---------- Tablas Bootstrap en dark ---------- */
+html[data-theme="dark"] {
+    --bs-body-bg: var(--bg-main);
+    --bs-body-color: var(--text-main);
+    --bs-emphasis-color: var(--text-main);
+    --bs-secondary-color: var(--text-muted);
+    --bs-tertiary-color: #94a3b8;
+    --bs-border-color: var(--border-color);
+    --bs-secondary-bg: #1e293b;
+    --bs-tertiary-bg: #263445;
 }
+
+html[data-theme="dark"] .table {
+    --bs-table-bg: var(--bg-card);
+    --bs-table-color: var(--text-main);
+    --bs-table-hover-bg: #263445;
+    background-color: var(--bg-card);
+    color: var(--text-main);
+}
+
+html[data-theme="dark"] .table-bordered,
+html[data-theme="dark"] .table-bordered th,
+html[data-theme="dark"] .table-bordered td {
+    border-color: #263445 !important;
+}
+
+/* ---------- Switch de tema ---------- */
 
 /* ---------- Switch de tema ---------- */
 .theme-toggle-row {
