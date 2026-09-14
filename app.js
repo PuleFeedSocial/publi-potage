@@ -1,5 +1,39 @@
 const API_BASE = window.location.origin.startsWith('http') ? window.location.origin : 'http://localhost:3000';
 
+/* ---------- MODO OSCURO / CLARO ---------- */
+function getTheme() {
+  const saved = localStorage.getItem('potageTheme');
+  if (saved === 'dark' || saved === 'light') return saved;
+  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+  return 'light';
+}
+
+function syncThemeToggle() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const icon = document.querySelector('.theme-toggle-icon');
+  const label = document.querySelector('.theme-toggle-label');
+  if (icon) icon.className = 'bi ' + (isDark ? 'bi-sun-fill' : 'bi-moon-stars-fill') + ' theme-toggle-icon';
+  if (label) label.textContent = isDark ? 'Modo claro' : 'Modo oscuro';
+  const thumb = document.querySelector('.theme-switch-thumb');
+  if (thumb) thumb.style.transform = isDark ? 'translateX(20px)' : '';
+}
+
+function applyTheme(theme) {
+  if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+  else document.documentElement.removeAttribute('data-theme');
+  localStorage.setItem('potageTheme', theme);
+  syncThemeToggle();
+}
+
+function toggleTheme() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  applyTheme(isDark ? 'light' : 'dark');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  applyTheme(getTheme());
+});
+
 function getCurrentSession() {
   const data = localStorage.getItem('user');
   return data ? JSON.parse(data) : null;
