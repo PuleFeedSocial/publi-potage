@@ -195,12 +195,19 @@
                 </div>
 
                 <div class="card data-table-card">
-                    <div class="card-header-clean d-flex justify-content-between align-items-center flex-wrap gap-2">
+<div class="card-header-clean d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <div>
                             <h5 class="table-card-title">Listado de Sucursales</h5>
-                            <span class="text-muted small">Datos desde la hoja "Sucursales" · <span id="sucursales-count">0</span> sucursales</span>
+                            <span class="text-muted small">Datos desde la hoja "Sucursales" · <span id="sucursales-count">0</span> sucursales<span id="sucursales-radius-msg" class="d-none"></span></span>
                         </div>
                         <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <div class="suc-address-wrap" style="min-width:230px">
+                                <input type="text" id="sucursales-search-address" class="form-control form-control-sm custom-input"
+                                    placeholder="Buscar sucursal por direccion" autocomplete="off">
+                                <div class="suc-address-list" id="sucursales-list-address-sug"></div>
+                            </div>
+                            <input type="text" id="sucursales-search" class="form-control form-control-sm custom-input"
+                                placeholder="Buscar sucursal" style="width:auto;min-width:150px" oninput="renderSucursales()">
                             <select id="sucursales-filter-empresa" class="form-select form-select-sm custom-input"
                                 style="width:auto;min-width:150px" onchange="renderSucursales()">
                                 <option value="">Todas las empresas</option>
@@ -209,8 +216,6 @@
                                 style="width:auto;min-width:140px" onchange="renderSucursales()">
                                 <option value="">Todas las zonas</option>
                             </select>
-<input type="text" id="sucursales-search" class="form-control form-control-sm custom-input"
-                                placeholder="Buscar sucursal por direccion" style="width:auto;min-width:150px" oninput="renderSucursales()">
                         </div>
                     </div>
                     <div class="table-responsive">
@@ -223,7 +228,8 @@
                                     <th>Contacto</th>
                                     <th>Horario</th>
                                     <th class="text-center">Zona</th>
-                                    <th class="text-center">Activo</th>
+<th class="text-center">Activo</th>
+                                    <th class="text-center d-none" id="th-distancia">Distancia</th>
                                     <th class="text-center">Acciones</th>
                                 </tr>
                             </thead>
@@ -309,9 +315,11 @@
     <script src="app.js"></script>
     <script>
         const EMPRESAS = ['Pluma Blanca SRL', 'Potage SRL', 'El Triángulo S.A', 'La Sorpresa SRL'];
-        let sucursalesData = [];
+let sucursalesData = [];
         let sucursalesZonasData = [];
         const ZONA_OTRO = '__OTRO__';
+        const RADIUS_KM = 5;
+        let selectedAddress = null;
 
         function toggleSidebar() {
             const isOpen = document.querySelector('.sidebar').classList.toggle('open');
@@ -382,8 +390,8 @@ function fillZonaSelects() {
                     rZonas.json().then(b => ({ status: rZonas.status, body: b }))
                 ]))
                 .then(([sucRes, zonasRes]) => {
-                    if (sucRes.status !== 200) {
-                        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">' + (sucRes.body.error || 'Error') + '</td></tr>';
+if (sucRes.status !== 200) {
+                        tbody.innerHTML = '<tr><td colspan="' + (selectedAddress ? 9 : 8) + '" class="text-center text-danger">' + (sucRes.body.error || 'Error') + '</td></tr>';
                         return;
                     }
                     sucursalesData = sucRes.body.data || [];
@@ -393,16 +401,32 @@ function fillZonaSelects() {
                     renderSucursales();
                     document.getElementById('sucursales-count').innerText = sucursalesData.length;
                 })
-                .catch(() => {
-                    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Error de conexión</td></tr>';
+.catch(() => {
+                    tbody.innerHTML = '<tr><td colspan="' + (selectedAddress ? 9 : 8) + '" class="text-center text-muted">Error de conexión</td></tr>';
                 });
+        }
+
+function distanceKm(lat1, lng1, lat2, lng2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLng / 2) * Math.sin(dLng / 2);
+            return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         }
 
         function renderSucursales() {
             const tbody = document.getElementById('sucursales-table-body');
+            const thDist = document.getElementById('th-distancia');
+            const msgEl = document.getElementById('sucursales-radius-msg');
             const empresaFilter = document.getElementById('sucursales-filter-empresa').value;
             const zonaFilter = document.getElementById('sucursales-filter-zona').value;
             const search = (document.getElementById('sucursales-search').value || '').toLowerCase().trim();
+            const showDist = !!selectedAddress;
+            if (thDist) thDist.classList.toggle('d-none', !showDist);
+            if (msgEl) msgEl.className = 'd-none';
+
             let filtered = sucursalesData;
             if (empresaFilter) filtered = filtered.filter(s => s.empresa === empresaFilter);
             if (zonaFilter) {
@@ -410,11 +434,38 @@ function fillZonaSelects() {
                     ? filtered.filter(s => !s.zona)
                     : filtered.filter(s => s.zona === zonaFilter);
             }
-if (search) {
+            if (search) {
                 filtered = filtered.filter(s =>
-                    (s.direccion || '').toLowerCase().includes(search)
+                    (s.empresa || '').toLowerCase().includes(search) ||
+                    (s.ubicacion || '').toLowerCase().includes(search) ||
+                    (s.direccion || '').toLowerCase().includes(search) ||
+                    (s.contacto || '').toLowerCase().includes(search) ||
+                    (s.horario || '').toLowerCase().includes(search) ||
+                    (s.zona || '').toLowerCase().includes(search)
                 );
             }
+
+            let sinCoords = 0;
+            if (selectedAddress) {
+                const conDist = [];
+                filtered.forEach(s => {
+                    if (s.lat && s.lng) {
+                        const d = distanceKm(selectedAddress.lat, selectedAddress.lng, parseFloat(s.lat), parseFloat(s.lng));
+                        conDist.push(Object.assign({}, s, { distKm: d }));
+                    } else {
+                        sinCoords++;
+                    }
+                });
+                const enRadio = conDist.filter(o => o.distKm <= RADIUS_KM);
+                enRadio.sort((a, b) => a.distKm - b.distKm);
+                filtered = enRadio;
+                if (msgEl) {
+                    msgEl.className = 'text-muted small ms-2';
+                    msgEl.innerHTML = ' · <i class="bi bi-geo-alt-fill"></i> Resultados dentro de ' + RADIUS_KM + ' km de «' + selectedAddress.label + '»' +
+                        (sinCoords > 0 ? ' · <span class="text-warning">' + sinCoords + ' sucursal(es) sin coordenadas no pudieron ubicarse</span>' : '');
+                }
+            }
+
             tbody.innerHTML = '';
             filtered.forEach((s, i) => {
                 const tr = document.createElement('tr');
@@ -427,6 +478,9 @@ if (search) {
                     ? '<span class="badge-estatus est-publicada">Activo</span>'
                     : '<span class="badge-estatus est-eliminada">Inactivo</span>';
                 const nombreEsc = (s.ubicacion || '').replace(/'/g, "\\'");
+                const distCell = showDist
+                    ? '<td class="text-center small fw-semibold text-primary">' + (s.distKm !== undefined ? s.distKm.toFixed(2) + ' km' : '—') + '</td>'
+                    : '';
                 tr.innerHTML = `
                     <td class="small fw-medium">${s.empresa || '—'}</td>
                     <td class="fw-semibold">${s.ubicacion || '—'}</td>
@@ -435,6 +489,7 @@ if (search) {
                     <td class="small text-muted">${s.horario || '—'}</td>
                     <td class="text-center">${zonaDisplay}</td>
                     <td class="text-center">${activoBadge}</td>
+                    ${distCell}
                     <td class="text-center">
                         <button class="btn btn-link text-primary p-0 mx-1" onclick="editSucursal(${s.rowIndex})" title="Editar"><i class="bi bi-pencil-fill"></i></button>
                         <button class="btn btn-link text-danger p-0 mx-1" onclick="deleteSucursal(${s.rowIndex}, '${nombreEsc}')" title="Eliminar"><i class="bi bi-trash3-fill"></i></button>
@@ -443,7 +498,7 @@ if (search) {
                 tbody.appendChild(tr);
             });
             if (!filtered.length) {
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Sin resultados</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="' + (showDist ? 9 : 8) + '" class="text-center text-muted">Sin resultados' + (selectedAddress ? ' en un radio de ' + RADIUS_KM + ' km' : '') + '</td></tr>';
             }
         }
 
@@ -505,6 +560,85 @@ function hideAddressList() {
         let addressSearchTimer = null;
         let addressSearchController = null;
 
+        function hideTopAddressList() {
+            document.getElementById('sucursales-list-address-sug').style.display = 'none';
+        }
+
+        function setAddressSearch(address) {
+            selectedAddress = address;
+            renderSucursales();
+        }
+
+        function clearAddressSearch() {
+            selectedAddress = null;
+            const input = document.getElementById('sucursales-search-address');
+            if (input) input.value = '';
+            hideTopAddressList();
+            renderSucursales();
+        }
+
+        function selectTopAddress(r) {
+            const input = document.getElementById('sucursales-search-address');
+            input.value = r.display_name;
+            hideTopAddressList();
+            setAddressSearch({ lat: parseFloat(r.lat), lng: parseFloat(r.lon), label: r.display_name });
+        }
+
+        function searchTopAddresses(q) {
+            const list = document.getElementById('sucursales-list-address-sug');
+            if (topSearchController) topSearchController.abort();
+            const controller = new AbortController();
+            topSearchController = controller;
+            list.innerHTML = '<div class="suc-address-item disabled">Buscando...</div>';
+            list.style.display = 'block';
+            fetch('https://nominatim.openstreetmap.org/search?format=json&limit=7&accept-language=es&countrycodes=ar&q=' + encodeURIComponent(q), { signal: controller.signal })
+                .then(r => r.json())
+                .then(results => {
+                    if (controller.signal.aborted) return;
+                    if (!results || !results.length) {
+                        list.innerHTML = '<div class="suc-address-item disabled">Sin resultados para esa dirección</div>';
+                        return;
+                    }
+                    list.innerHTML = '';
+                    results.forEach(r => {
+                        const div = document.createElement('div');
+                        div.className = 'suc-address-item';
+                        div.textContent = r.display_name;
+                        div.title = r.display_name;
+                        div.onclick = () => selectTopAddress(r);
+                        list.appendChild(div);
+                    });
+                })
+                .catch(() => { });
+        }
+
+        let topSearchTimer = null;
+        let topSearchController = null;
+
+        function initTopAddressSearch() {
+            const input = document.getElementById('sucursales-search-address');
+            if (!input) return;
+            input.addEventListener('input', () => {
+                clearTimeout(topSearchTimer);
+                selectedAddress = null;
+                renderSucursales();
+                const q = input.value.trim();
+                if (q.length < 3) { hideTopAddressList(); return; }
+                topSearchTimer = setTimeout(() => searchTopAddresses(q), 700);
+            });
+            input.addEventListener('keydown', e => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    hideTopAddressList();
+                    return;
+                }
+                if (e.key === 'Escape') { hideTopAddressList(); input.value = ''; selectedAddress = null; renderSucursales(); }
+            });
+            input.addEventListener('focus', () => {
+                if (input.value.trim().length >= 3) searchTopAddresses(input.value.trim());
+            });
+        }
+
         function initAddressAutocomplete() {
             const input = document.getElementById('sucursal-direccion');
             input.addEventListener('input', () => {
@@ -520,7 +654,10 @@ function hideAddressList() {
             });
             document.addEventListener('click', e => {
                 const wrap = e.target && e.target.closest ? e.target.closest('.suc-address-wrap') : null;
-                if (!wrap) hideAddressList();
+                if (!wrap) {
+                    hideAddressList();
+                    hideTopAddressList();
+                }
             });
         }
 
@@ -625,6 +762,7 @@ function hideAddressList() {
             if (gestionLabel) gestionLabel.style.display = isAdmin ? '' : 'none';
 if (gestionItems) gestionItems.style.display = isAdmin ? '' : 'none';
             initAddressAutocomplete();
+            initTopAddressSearch();
             loadSucursales();
             setInterval(() => loadSucursales(), 60000);
         });

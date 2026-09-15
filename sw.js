@@ -1,4 +1,4 @@
-const CACHE = 'potage-v12';
+const CACHE = 'potage-v13';
 const STATIC = [
   '/dashboard.html', '/index.html', '/login.html', '/register.html',
   '/grupos.html', '/informes.html', '/logs.html', '/account-settings.html',
