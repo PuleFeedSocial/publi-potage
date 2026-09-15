@@ -289,13 +289,17 @@
             filterSel.value = curFilter;
         }
 
-        function fillZonaSelects() {
+function fillZonaSelects() {
+            const zonas = [...new Set([
+                ...sucursalesData.map(s => s.zona).filter(Boolean),
+                ...(sucursalesZonasData || []).map(z => z.nombre).filter(Boolean)
+            ])].sort();
             const formSel = document.getElementById('sucursal-zona');
             const current = formSel.value;
             formSel.innerHTML = '<option value="">Sin zona (OTRO)</option>';
-            sucursalesZonasData.forEach(z => {
+            zonas.forEach(z => {
                 const o = document.createElement('option');
-                o.value = z.nombre; o.textContent = z.nombre;
+                o.value = z; o.textContent = z;
                 formSel.appendChild(o);
             });
             formSel.value = current;
@@ -303,9 +307,9 @@
             const filterSel = document.getElementById('sucursales-filter-zona');
             const curFilter = filterSel.value;
             filterSel.innerHTML = '<option value="">Todas las zonas</option>';
-            sucursalesZonasData.forEach(z => {
+            zonas.forEach(z => {
                 const o = document.createElement('option');
-                o.value = z.nombre; o.textContent = z.nombre;
+                o.value = z; o.textContent = z;
                 filterSel.appendChild(o);
             });
             const otroOpt = document.createElement('option');
