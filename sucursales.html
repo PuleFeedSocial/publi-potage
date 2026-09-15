@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 
 <head>
@@ -258,7 +258,7 @@
     <script>
         const EMPRESAS = ['Potage SRL', 'El Triángulo S.A', 'La Sorpresa SRL'];
         let sucursalesData = [];
-        let zonasData = [];
+        let sucursalesZonasData = [];
         const ZONA_OTRO = '__OTRO__';
 
         function toggleSidebar() {
@@ -293,7 +293,7 @@
             const formSel = document.getElementById('sucursal-zona');
             const current = formSel.value;
             formSel.innerHTML = '<option value="">Sin zona (OTRO)</option>';
-            zonasData.forEach(z => {
+            sucursalesZonasData.forEach(z => {
                 const o = document.createElement('option');
                 o.value = z.nombre; o.textContent = z.nombre;
                 formSel.appendChild(o);
@@ -303,7 +303,7 @@
             const filterSel = document.getElementById('sucursales-filter-zona');
             const curFilter = filterSel.value;
             filterSel.innerHTML = '<option value="">Todas las zonas</option>';
-            zonasData.forEach(z => {
+            sucursalesZonasData.forEach(z => {
                 const o = document.createElement('option');
                 o.value = z.nombre; o.textContent = z.nombre;
                 filterSel.appendChild(o);
@@ -331,7 +331,7 @@
                         return;
                     }
                     sucursalesData = sucRes.body.data || [];
-                    if (zonasRes.status === 200) zonasData = zonasRes.body.data || [];
+                    if (zonasRes.status === 200) sucursalesZonasData = zonasRes.body.data || [];
                     fillEmpresaSelects();
                     fillZonaSelects();
                     renderSucursales();
