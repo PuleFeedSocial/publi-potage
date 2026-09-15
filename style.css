@@ -764,6 +764,12 @@ body.sidebar-open .main-content {
     color: #0369a1;
 }
 
+.zone-otro {
+    background: #f8fafc;
+    color: #94a3b8;
+    border: 1px dashed #cbd5e1;
+}
+
 /* ============================================================
    BUTTONS
    ============================================================ */
@@ -2251,6 +2257,12 @@ html[data-theme="dark"] .badge-zone {
 html[data-theme="dark"] .zone-todos {
     background: #263445;
     color: #cbd5e1;
+}
+
+html[data-theme="dark"] .zone-otro {
+    background: #1e293b;
+    color: #94a3b8;
+    border-color: #334155;
 }
 
 /* ---------- Componentes específicos ---------- */

@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sucursales — Potage</title>
+    <link rel="icon" type="image/png" href="img/icon-192.png">
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" sizes="180x180" href="img/icon-180.png">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="style.css">
+    <script>if(localStorage.getItem('potageTheme')==='dark')document.documentElement.setAttribute('data-theme','dark');</script>
+</head>
+
+<body>
+
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="logo-box">
+                        <img src="img/isotiposinfondo.png" alt="Potage" class="logo-img">
+                        <span class="logo-text">Potage</span>
+                    </div>
+                    <button class="sidebar-toggle" onclick="toggleSidebar()">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+            </div>
+
+            <nav class="sidebar-menu">
+                <div class="menu-section-label">Dashboard</div>
+                <a href="dashboard.html" class="menu-item submenu-item" id="btn-nav-dashboard">
+                    <i class="bi bi-grid-1x2-fill"></i>
+                    <span>Publicaciones</span>
+                </a>
+                <a href="informes.html" class="menu-item submenu-item" id="btn-nav-informes">
+                    <i class="bi bi-file-earmark-bar-graph-fill"></i>
+                    <span>Informes</span>
+                </a>
+                <a href="grupos.html" class="menu-item submenu-item" id="btn-nav-grupos">
+                    <i class="bi bi-diagram-3"></i>
+                    <span>Grupos</span>
+                </a>
+                <a href="dashboard.html" class="menu-item submenu-item" id="btn-nav-zonas"
+                    onclick="localStorage.setItem('navTarget','zonas')">
+                    <i class="bi bi-map-fill"></i>
+                    <span>Zonas</span>
+                </a>
+                <a href="sucursales.html" class="menu-item submenu-item active" id="btn-nav-sucursales">
+                    <i class="bi bi-buildings-fill"></i>
+                    <span>Sucursales</span>
+                </a>
+
+                <div class="menu-section-label" id="gestion-label">Gestión</div>
+                <div id="gestion-items">
+                    <a href="dashboard.html" class="menu-item submenu-item" id="btn-nav-users"
+                        onclick="localStorage.setItem('navTarget','users')">
+                        <i class="bi bi-people-fill"></i>
+                        <span>Usuarios</span>
+                    </a>
+                    <a href="logs.html" class="menu-item submenu-item" id="btn-nav-logs">
+                        <i class="bi bi-journal-text"></i>
+                        <span>Logs</span>
+                    </a>
+                </div>
+            </nav>
+
+            <div class="sidebar-footer">
+                <a href="ayuda.html" class="menu-item submenu-item" style="border-radius:8px;margin-bottom:8px">
+                    <i class="bi bi-question-circle-fill"></i>
+                    <span>Ayuda</span>
+                </a>
+                <button type="button" class="theme-toggle-row" onclick="toggleTheme()" title="Cambiar tema">
+                    <i class="bi bi-moon-stars-fill theme-toggle-icon"></i>
+                    <span class="theme-toggle-label">Modo oscuro</span>
+                    <span class="theme-switch"><span class="theme-switch-thumb"></span></span>
+                </button>
+                <div class="user-profile-summary">
+                    <div class="avatar" id="display-avatar">VA</div>
+                    <div class="user-info">
+                        <div class="user-name" id="display-user-name">Víctor Alejandro</div>
+                        <div class="user-role-badge badge-admin" id="display-user-role">Admin</div>
+                    </div>
+                </div>
+            </div>
+            <div class="sidebar-credit">
+                <a href="https://coretech-grd7.onrender.com/" target="_blank" rel="noopener" class="text-decoration-none small">
+                    <i class="bi bi-cpu me-1"></i>CoreTech System
+                </a>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-navbar">
+                <div class="d-flex align-items-center gap-3">
+                    <button class="sidebar-toggle" onclick="toggleSidebar()">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <div class="page-context">
+                        <h1 class="page-title">Gestión de Sucursales</h1>
+                        <p class="page-subtitle text-muted">Administrá las sucursales de Potage SRL, El Triángulo S.A y La Sorpresa SRL</p>
+                    </div>
+                </div>
+                <div class="top-navbar-actions">
+                    <div class="dropdown">
+                        <button class="btn profile-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="avatar-sm" id="nav-avatar">VA</span>
+                            <span class="fw-medium" id="nav-user-name">Víctor</span>
+                            <i class="bi bi-chevron-down ms-1"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 mt-2">
+                            <li><a class="dropdown-item" href="account-settings.html">
+                                    <i class="bi bi-gear me-2"></i>Ajustes de la cuenta
+                                </a></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li><a class="dropdown-item text-danger" href="#" onclick="logout()">
+                                    <i class="bi bi-box-arrow-right me-2"></i>Cerrar Sesión
+                                </a></li>
+                        </ul>
+                    </div>
+                </div>
+            </header>
+
+            <div class="view-section">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <span class="text-muted small" id="data-source-badge-sucursales">
+                            <i class="bi bi-database"></i> Google Sheets
+                        </span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="loadSucursales()" title="Recargar">
+                            <i class="bi bi-arrow-clockwise"></i> Recargar
+                        </button>
+                        <button class="btn btn-sm btn-action-primary" onclick="openAddSucursal()">
+                            <i class="bi bi-plus-circle-fill me-1"></i> Agregar sucursal
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card data-table-card">
+                    <div class="card-header-clean d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div>
+                            <h5 class="table-card-title">Listado de Sucursales</h5>
+                            <span class="text-muted small">Datos desde la hoja "Sucursales" · <span id="sucursales-count">0</span> sucursales</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <select id="sucursales-filter-empresa" class="form-select form-select-sm custom-input"
+                                style="width:auto;min-width:150px" onchange="renderSucursales()">
+                                <option value="">Todas las empresas</option>
+                            </select>
+                            <select id="sucursales-filter-zona" class="form-select form-select-sm custom-input"
+                                style="width:auto;min-width:140px" onchange="renderSucursales()">
+                                <option value="">Todas las zonas</option>
+                            </select>
+                            <input type="text" id="sucursales-search" class="form-control form-control-sm custom-input"
+                                placeholder="Buscar..." style="width:auto;min-width:150px" oninput="renderSucursales()">
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table custom-table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Empresa</th>
+                                    <th>Ubicación</th>
+                                    <th>Dirección</th>
+                                    <th>Contacto</th>
+                                    <th>Horario</th>
+                                    <th class="text-center">Zona</th>
+                                    <th class="text-center">Activo</th>
+                                    <th class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sucursales-table-body">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <div class="modal fade" id="sucursalModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content custom-modal">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-semibold text-dark" id="sucursal-modal-title">
+                        <i class="bi bi-plus-circle-fill me-2"></i>Agregar Sucursal
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="sucursal-form" onsubmit="saveSucursal(event)">
+                    <div class="modal-body pt-3">
+                        <input type="hidden" id="sucursal-row-index">
+                        <div class="mb-3">
+                            <label class="form-label small fw-medium text-secondary">Empresa</label>
+                            <select id="sucursal-empresa" class="form-select custom-input" required>
+                                <option value="">Seleccionar...</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-medium text-secondary">Ubicación</label>
+                            <input type="text" id="sucursal-ubicacion" class="form-control custom-input"
+                                placeholder="Ej. San Miguel, Centro" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-medium text-secondary">Dirección</label>
+                            <input type="text" id="sucursal-direccion" class="form-control custom-input"
+                                placeholder="Ej. Av. Mitre 1234">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-medium text-secondary">Contacto</label>
+                            <input type="text" id="sucursal-contacto" class="form-control custom-input"
+                                placeholder="Ej. Tel/WhatsApp o email o persona a cargo">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-medium text-secondary">Horario de atención</label>
+                            <input type="text" id="sucursal-horario" class="form-control custom-input"
+                                placeholder="Ej. Lun a Vie 9–18hs, Sáb 9–13hs">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-medium text-secondary">Zona</label>
+                            <select id="sucursal-zona" class="form-select custom-input">
+                                <option value="">Sin zona (OTRO)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-medium text-secondary">Estado</label>
+                            <select id="sucursal-activo" class="form-select custom-input">
+                                <option value="true">Activo</option>
+                                <option value="false">Inactivo</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 pt-0">
+                        <button type="button" class="btn btn-sm btn-light-muted"
+                            data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-sm btn-action-primary">Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="app.js"></script>
+    <script>
+        const EMPRESAS = ['Potage SRL', 'El Triángulo S.A', 'La Sorpresa SRL'];
+        let sucursalesData = [];
+        let zonasData = [];
+        const ZONA_OTRO = '__OTRO__';
+
+        function toggleSidebar() {
+            const isOpen = document.querySelector('.sidebar').classList.toggle('open');
+            document.body.classList.toggle('sidebar-open', isOpen);
+            localStorage.setItem('sidebarOpen', isOpen);
+        }
+
+        function fillEmpresaSelects() {
+            const formSel = document.getElementById('sucursal-empresa');
+            const current = formSel.value;
+            formSel.innerHTML = '<option value="">Seleccionar...</option>';
+            EMPRESAS.forEach(e => {
+                const o = document.createElement('option');
+                o.value = e; o.textContent = e;
+                formSel.appendChild(o);
+            });
+            formSel.value = current;
+
+            const filterSel = document.getElementById('sucursales-filter-empresa');
+            const curFilter = filterSel.value;
+            filterSel.innerHTML = '<option value="">Todas las empresas</option>';
+            EMPRESAS.forEach(e => {
+                const o = document.createElement('option');
+                o.value = e; o.textContent = e;
+                filterSel.appendChild(o);
+            });
+            filterSel.value = curFilter;
+        }
+
+        function fillZonaSelects() {
+            const formSel = document.getElementById('sucursal-zona');
+            const current = formSel.value;
+            formSel.innerHTML = '<option value="">Sin zona (OTRO)</option>';
+            zonasData.forEach(z => {
+                const o = document.createElement('option');
+                o.value = z.nombre; o.textContent = z.nombre;
+                formSel.appendChild(o);
+            });
+            formSel.value = current;
+
+            const filterSel = document.getElementById('sucursales-filter-zona');
+            const curFilter = filterSel.value;
+            filterSel.innerHTML = '<option value="">Todas las zonas</option>';
+            zonasData.forEach(z => {
+                const o = document.createElement('option');
+                o.value = z.nombre; o.textContent = z.nombre;
+                filterSel.appendChild(o);
+            });
+            const otroOpt = document.createElement('option');
+            otroOpt.value = ZONA_OTRO; otroOpt.textContent = 'OTRO';
+            filterSel.appendChild(otroOpt);
+            filterSel.value = curFilter;
+        }
+
+        function loadSucursales() {
+            const tbody = document.getElementById('sucursales-table-body');
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Cargando...</td></tr>';
+            Promise.all([
+                fetch(API_BASE + '/api/sucursales', { headers: { 'Authorization': 'Bearer ' + getToken() } }),
+                fetch(API_BASE + '/api/zonas', { headers: { 'Authorization': 'Bearer ' + getToken() } })
+            ])
+                .then(([rSuc, rZonas]) => Promise.all([
+                    rSuc.json().then(b => ({ status: rSuc.status, body: b })),
+                    rZonas.json().then(b => ({ status: rZonas.status, body: b }))
+                ]))
+                .then(([sucRes, zonasRes]) => {
+                    if (sucRes.status !== 200) {
+                        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">' + (sucRes.body.error || 'Error') + '</td></tr>';
+                        return;
+                    }
+                    sucursalesData = sucRes.body.data || [];
+                    if (zonasRes.status === 200) zonasData = zonasRes.body.data || [];
+                    fillEmpresaSelects();
+                    fillZonaSelects();
+                    renderSucursales();
+                    document.getElementById('sucursales-count').innerText = sucursalesData.length;
+                })
+                .catch(() => {
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Error de conexión</td></tr>';
+                });
+        }
+
+        function renderSucursales() {
+            const tbody = document.getElementById('sucursales-table-body');
+            const empresaFilter = document.getElementById('sucursales-filter-empresa').value;
+            const zonaFilter = document.getElementById('sucursales-filter-zona').value;
+            const search = (document.getElementById('sucursales-search').value || '').toLowerCase().trim();
+            let filtered = sucursalesData;
+            if (empresaFilter) filtered = filtered.filter(s => s.empresa === empresaFilter);
+            if (zonaFilter) {
+                filtered = zonaFilter === ZONA_OTRO
+                    ? filtered.filter(s => !s.zona)
+                    : filtered.filter(s => s.zona === zonaFilter);
+            }
+            if (search) {
+                filtered = filtered.filter(s =>
+                    (s.empresa || '').toLowerCase().includes(search) ||
+                    (s.ubicacion || '').toLowerCase().includes(search) ||
+                    (s.direccion || '').toLowerCase().includes(search) ||
+                    (s.contacto || '').toLowerCase().includes(search)
+                );
+            }
+            tbody.innerHTML = '';
+            filtered.forEach((s, i) => {
+                const tr = document.createElement('tr');
+                tr.style.animation = 'fadeSlideUp 0.3s ease-out forwards';
+                tr.style.animationDelay = (i * 0.03) + 's';
+                const zonaDisplay = s.zona
+                    ? '<span class="badge-zone zone-' + s.zona.toLowerCase().replace(/ /g, '-') + '">' + s.zona + '</span>'
+                    : '<span class="badge-zone zone-otro">OTRO</span>';
+                const activoBadge = s.activo !== false
+                    ? '<span class="badge-estatus est-publicada">Activo</span>'
+                    : '<span class="badge-estatus est-eliminada">Inactivo</span>';
+                const nombreEsc = (s.ubicacion || '').replace(/'/g, "\\'");
+                tr.innerHTML = `
+                    <td class="small fw-medium">${s.empresa || '—'}</td>
+                    <td class="fw-semibold">${s.ubicacion || '—'}</td>
+                    <td class="small">${s.direccion || '—'}</td>
+                    <td class="small">${s.contacto || '—'}</td>
+                    <td class="small text-muted">${s.horario || '—'}</td>
+                    <td class="text-center">${zonaDisplay}</td>
+                    <td class="text-center">${activoBadge}</td>
+                    <td class="text-center">
+                        <button class="btn btn-link text-primary p-0 mx-1" onclick="editSucursal(${s.rowIndex})" title="Editar"><i class="bi bi-pencil-fill"></i></button>
+                        <button class="btn btn-link text-danger p-0 mx-1" onclick="deleteSucursal(${s.rowIndex}, '${nombreEsc}')" title="Eliminar"><i class="bi bi-trash3-fill"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            if (!filtered.length) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Sin resultados</td></tr>';
+            }
+        }
+
+        function openAddSucursal() {
+            document.getElementById('sucursal-modal-title').innerHTML = '<i class="bi bi-plus-circle-fill me-2"></i>Agregar Sucursal';
+            document.getElementById('sucursal-row-index').value = '';
+            document.getElementById('sucursal-empresa').value = '';
+            document.getElementById('sucursal-ubicacion').value = '';
+            document.getElementById('sucursal-direccion').value = '';
+            document.getElementById('sucursal-contacto').value = '';
+            document.getElementById('sucursal-horario').value = '';
+            document.getElementById('sucursal-zona').value = '';
+            document.getElementById('sucursal-activo').value = 'true';
+            fillEmpresaSelects();
+            fillZonaSelects();
+            new bootstrap.Modal(document.getElementById('sucursalModal')).show();
+        }
+
+        function saveSucursal(e) {
+            e.preventDefault();
+            const empresa = document.getElementById('sucursal-empresa').value;
+            const ubicacion = document.getElementById('sucursal-ubicacion').value.trim();
+            const direccion = document.getElementById('sucursal-direccion').value.trim();
+            const contacto = document.getElementById('sucursal-contacto').value.trim();
+            const horario = document.getElementById('sucursal-horario').value.trim();
+            const zona = document.getElementById('sucursal-zona').value;
+            const activo = document.getElementById('sucursal-activo').value === 'true';
+            if (!empresa) return alert('Seleccioná la empresa.');
+            if (!ubicacion) return alert('La ubicación es obligatoria.');
+
+            const rowIndex = document.getElementById('sucursal-row-index').value;
+            const method = rowIndex ? 'PUT' : 'POST';
+            const url = rowIndex ? '/api/sucursales/' + rowIndex : '/api/sucursales';
+
+            fetch(API_BASE + url, {
+                method,
+                headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ empresa, ubicacion, direccion, contacto, horario, zona, activo })
+            })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.error) return alert(res.error);
+                    bootstrap.Modal.getInstance(document.getElementById('sucursalModal')).hide();
+                    loadSucursales();
+                    showToast(res.message || 'Sucursal guardada', 'success');
+                });
+        }
+
+        function editSucursal(rowIndex) {
+            const s = sucursalesData.find(x => x.rowIndex === rowIndex);
+            if (!s) return;
+            document.getElementById('sucursal-modal-title').innerHTML = '<i class="bi bi-pencil-fill me-2"></i>Editar Sucursal';
+            document.getElementById('sucursal-row-index').value = rowIndex;
+            fillEmpresaSelects();
+            document.getElementById('sucursal-empresa').value = s.empresa || '';
+            document.getElementById('sucursal-ubicacion').value = s.ubicacion || '';
+            document.getElementById('sucursal-direccion').value = s.direccion || '';
+            document.getElementById('sucursal-contacto').value = s.contacto || '';
+            document.getElementById('sucursal-horario').value = s.horario || '';
+            fillZonaSelects();
+            document.getElementById('sucursal-zona').value = s.zona || '';
+            document.getElementById('sucursal-activo').value = s.activo !== false ? 'true' : 'false';
+            new bootstrap.Modal(document.getElementById('sucursalModal')).show();
+        }
+
+        function deleteSucursal(rowIndex, ubicacion) {
+            if (!confirm('¿Eliminar esta sucursal permanentemente?\n\n' + (ubicacion || ''))) return;
+            fetch(API_BASE + '/api/sucursales/' + rowIndex, {
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bearer ' + getToken() }
+            })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.error) return alert(res.error);
+                    loadSucursales();
+                    showToast(res.message || 'Sucursal eliminada', 'success');
+                });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const session = getCurrentSession();
+            if (!session) {
+                window.location.href = 'index.html';
+                return;
+            }
+            const initials = session.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+            document.getElementById('display-avatar').innerText = initials;
+            document.getElementById('display-user-name').innerText = session.name;
+            document.getElementById('nav-avatar').innerText = initials;
+            document.getElementById('nav-user-name').innerText = session.name.split(' ')[0];
+            if (localStorage.getItem('sidebarOpen') === 'true') {
+                document.querySelector('.sidebar').classList.add('open');
+                document.body.classList.add('sidebar-open');
+            }
+            const sessionRole = (session.role || '').toLowerCase();
+            const isAdmin = sessionRole === 'admin';
+            const gestionLabel = document.getElementById('gestion-label');
+            const gestionItems = document.getElementById('gestion-items');
+            if (gestionLabel) gestionLabel.style.display = isAdmin ? '' : 'none';
+            if (gestionItems) gestionItems.style.display = isAdmin ? '' : 'none';
+            loadSucursales();
+            setInterval(() => loadSucursales(), 60000);
+        });
+    </script>
+</body>
+
+</html>
