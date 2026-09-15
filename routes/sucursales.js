@@ -81,6 +81,32 @@ function rowToSucursal(row, i) {
   };
 }
 
+router.get('/geocode', authenticate, async (req, res) => {
+  try {
+    const q = (req.query.q || '').trim();
+    if (!q) return res.status(400).json({ error: 'Falta el parámetro q.' });
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 6, 1), 10);
+    const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=' + limit +
+      '&accept-language=es&countrycodes=ar&q=' + encodeURIComponent(q);
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 15000);
+    let resp;
+    try {
+      resp = await fetch(url, {
+        headers: { 'User-Agent': 'publi-potage-app/1.0 (dashboard Potage; geocode interno)' },
+        signal: ctrl.signal
+      });
+    } finally {
+      clearTimeout(t);
+    }
+    if (!resp.ok) return res.status(resp.status).json({ error: 'Nominatim: HTTP ' + resp.status });
+    const data = await resp.json();
+    res.json({ data });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
 router.get('/', authenticate, async (req, res) => {
   try {
     if (cache && Date.now() - cacheTime < CACHE_TTL && req.query.refresh !== 'true') {

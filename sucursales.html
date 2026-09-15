@@ -536,9 +536,13 @@ function hideAddressList() {
             addressSearchController = controller;
             list.innerHTML = '<div class="suc-address-item disabled">Buscando...</div>';
             list.style.display = 'block';
-            fetch('https://nominatim.openstreetmap.org/search?format=json&limit=6&accept-language=es&countrycodes=ar&q=' + encodeURIComponent(q), { signal: controller.signal })
+            fetch(API_BASE + '/api/sucursales/geocode?limit=6&q=' + encodeURIComponent(q), {
+                signal: controller.signal,
+                headers: { 'Authorization': 'Bearer ' + getToken() }
+            })
                 .then(r => r.json())
-                .then(results => {
+                .then(res => {
+                    const results = res.data;
                     if (controller.signal.aborted) return;
                     if (!results || !results.length) {
                         list.innerHTML = '<div class="suc-address-item disabled">Sin resultados para esa dirección</div>';
@@ -601,8 +605,11 @@ function hideAddressList() {
                 const s = pending[i];
                 status.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Geocodificando ' + (i + 1) + '/' + pending.length + '…';
                 try {
-                    const resp = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=es&countrycodes=ar&q=' + encodeURIComponent(s.direccion));
-                    const results = await resp.json();
+                    const resp = await fetch(API_BASE + '/api/sucursales/geocode?limit=1&q=' + encodeURIComponent(s.direccion), {
+                        headers: { 'Authorization': 'Bearer ' + getToken() }
+                    });
+                    const body = await resp.json();
+                    const results = body.data;
                     if (results && results.length) {
                         await fetch(API_BASE + '/api/sucursales/' + s.rowIndex, {
                             method: 'PUT',
@@ -643,9 +650,13 @@ function hideAddressList() {
             topSearchController = controller;
             list.innerHTML = '<div class="suc-address-item disabled">Buscando...</div>';
             list.style.display = 'block';
-            fetch('https://nominatim.openstreetmap.org/search?format=json&limit=7&accept-language=es&countrycodes=ar&q=' + encodeURIComponent(q), { signal: controller.signal })
+            fetch(API_BASE + '/api/sucursales/geocode?limit=7&q=' + encodeURIComponent(q), {
+                signal: controller.signal,
+                headers: { 'Authorization': 'Bearer ' + getToken() }
+            })
                 .then(r => r.json())
-                .then(results => {
+                .then(res => {
+                    const results = res.data;
                     if (controller.signal.aborted) return;
                     if (!results || !results.length) {
                         list.innerHTML = '<div class="suc-address-item disabled">Sin resultados para esa dirección</div>';
