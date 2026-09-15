@@ -184,7 +184,11 @@
                             <i class="bi bi-database"></i> Google Sheets
                         </span>
                     </div>
-                    <div class="d-flex gap-2">
+<div class="d-flex gap-2 align-items-center">
+                        <span id="geocode-status" class="text-muted small d-none"></span>
+                        <button class="btn btn-sm btn-outline-primary d-none" id="btn-geocode" onclick="geocodePendientes()" title="Geocodificar direcciones pendientes">
+                            <i class="bi bi-geo-alt-fill me-1"></i> Geocodificar
+                        </button>
                         <button class="btn btn-sm btn-outline-secondary" onclick="loadSucursales()" title="Recargar">
                             <i class="bi bi-arrow-clockwise"></i> Recargar
                         </button>
@@ -398,8 +402,9 @@ if (sucRes.status !== 200) {
                     if (zonasRes.status === 200) sucursalesZonasData = zonasRes.body.data || [];
                     fillEmpresaSelects();
                     fillZonaSelects();
-                    renderSucursales();
+renderSucursales();
                     document.getElementById('sucursales-count').innerText = sucursalesData.length;
+                    updateGeocodeButtonVisibility();
                 })
 .catch(() => {
                     tbody.innerHTML = '<tr><td colspan="' + (selectedAddress ? 9 : 8) + '" class="text-center text-muted">Error de conexión</td></tr>';
@@ -575,6 +580,53 @@ function hideAddressList() {
             if (input) input.value = '';
             hideTopAddressList();
             renderSucursales();
+        }
+
+        function updateGeocodeButtonVisibility() {
+            const pending = sucursalesData.filter(s => !s.lat && !s.lng && s.direccion).length;
+            const btn = document.getElementById('btn-geocode');
+            if (btn) btn.classList.toggle('d-none', pending === 0);
+        }
+
+        async function geocodePendientes() {
+            const pending = sucursalesData.filter(s => !s.lat && !s.lng && s.direccion);
+            if (!pending.length) return;
+            if (!confirm('Se van a geocodificar ' + pending.length + ' sucursales sin coordenadas.\nEsto tardará ~' + pending.length + ' segundos.\n\n¿Continuar?')) return;
+            const btn = document.getElementById('btn-geocode');
+            const status = document.getElementById('geocode-status');
+            btn.disabled = true;
+            status.className = 'text-muted small';
+            let ok = 0, fail = 0;
+            for (let i = 0; i < pending.length; i++) {
+                const s = pending[i];
+                status.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Geocodificando ' + (i + 1) + '/' + pending.length + '…';
+                try {
+                    const resp = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=es&countrycodes=ar&q=' + encodeURIComponent(s.direccion));
+                    const results = await resp.json();
+                    if (results && results.length) {
+                        await fetch(API_BASE + '/api/sucursales/' + s.rowIndex, {
+                            method: 'PUT',
+                            headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                empresa: s.empresa, ubicacion: s.ubicacion, direccion: s.direccion,
+                                contacto: s.contacto, horario: s.horario, zona: s.zona, activo: s.activo,
+                                lat: results[0].lat, lng: results[0].lon
+                            })
+                        });
+                        ok++;
+                    } else {
+                        fail++;
+                    }
+                } catch {
+                    fail++;
+                }
+                if (i < pending.length - 1) await new Promise(r => setTimeout(r, 1100));
+            }
+            btn.disabled = false;
+            status.className = 'text-muted small';
+            status.innerHTML = '<i class="bi bi-check-circle-fill text-success me-1"></i> Geocodificación lista. ' + ok + ' ok' + (fail ? ', ' + fail + ' no encontradas.' : '.');
+            setTimeout(() => { status.className = 'd-none'; }, 8000);
+            loadSucursales();
         }
 
         function selectTopAddress(r) {
