@@ -8,7 +8,7 @@ const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SHEET_NAME = 'Sucursales';
 
 const EMPRESAS = ['Pluma Blanca SRL', 'Potage SRL', 'El Triángulo S.A', 'La Sorpresa SRL'];
-const HEADERS = ['Empresa', 'Ubicacion', 'Direccion', 'Contacto', 'Horario', 'Zona', 'Activo'];
+const HEADERS = ['Empresa', 'Ubicacion', 'Direccion', 'Contacto', 'Horario', 'Zona', 'Activo', 'Latitud', 'Longitud'];
 
 let _auth = null;
 function getAuth() {
@@ -48,9 +48,9 @@ async function ensureSheet() {
       spreadsheetId: SHEET_ID, range: SHEET_NAME + '!1:1'
     });
     const existingHeaders = (existing.data.values && existing.data.values[0]) || [];
-    if (existingHeaders[0] !== HEADERS[0] || !existingHeaders.length) {
+    if (existingHeaders[0] !== HEADERS[0] || existingHeaders.length < HEADERS.length) {
       await s.spreadsheets.values.update({
-        spreadsheetId: SHEET_ID, range: SHEET_NAME + '!A1:G1',
+        spreadsheetId: SHEET_ID, range: SHEET_NAME + '!A1:I1',
         valueInputOption: 'USER_ENTERED',
         resource: { values: [HEADERS] }
       });
@@ -75,7 +75,9 @@ function rowToSucursal(row, i) {
     contacto: (row[3] || '').trim(),
     horario: (row[4] || '').trim(),
     zona: (row[5] || '').trim(),
-    activo: activoRaw === 'FALSE' || activoRaw === '0' || activoRaw === 'INACTIVO' ? false : true
+    activo: activoRaw === 'FALSE' || activoRaw === '0' || activoRaw === 'INACTIVO' ? false : true,
+    lat: (row[7] || '').trim() || null,
+    lng: (row[8] || '').trim() || null
   };
 }
 
@@ -87,7 +89,7 @@ router.get('/', authenticate, async (req, res) => {
     const s = await ensureSheet();
 
     const result = await s.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID, range: SHEET_NAME + '!A:G', valueRenderOption: 'FORMATTED_VALUE'
+      spreadsheetId: SHEET_ID, range: SHEET_NAME + '!A:I', valueRenderOption: 'FORMATTED_VALUE'
     });
 
     const rows = result.data.values || [];
@@ -109,16 +111,18 @@ router.get('/', authenticate, async (req, res) => {
 router.post('/', authenticate, async (req, res) => {
   try {
     const s = await ensureSheet();
-    const { empresa, ubicacion, direccion, contacto, horario, zona, activo } = req.body;
+    const { empresa, ubicacion, direccion, contacto, horario, zona, activo, lat, lng } = req.body;
     if (!empresa) return res.status(400).json({ error: 'La empresa es obligatoria.' });
     if (!ubicacion) return res.status(400).json({ error: 'La ubicación es obligatoria.' });
 
     const activoValue = activo === false || activo === 'false' ? 'FALSE' : 'TRUE';
+    const latV = lat === undefined || lat === null || lat === '' ? '' : String(lat);
+    const lngV = lng === undefined || lng === null || lng === '' ? '' : String(lng);
 
     await s.spreadsheets.values.append({
-      spreadsheetId: SHEET_ID, range: SHEET_NAME + '!A:G',
+      spreadsheetId: SHEET_ID, range: SHEET_NAME + '!A:I',
       valueInputOption: 'USER_ENTERED', insertDataOption: 'INSERT_ROWS',
-      resource: { values: [[empresa, ubicacion, direccion || '', contacto || '', horario || '', zona || '', activoValue]] }
+      resource: { values: [[empresa, ubicacion, direccion || '', contacto || '', horario || '', zona || '', activoValue, latV, lngV]] }
     });
     invalidateCache();
 
@@ -135,16 +139,18 @@ router.put('/:rowIndex', authenticate, async (req, res) => {
     const s = await ensureSheet();
     const rowIndex = parseInt(req.params.rowIndex);
     if (isNaN(rowIndex) || rowIndex < 2) return res.status(400).json({ error: 'Índice inválido.' });
-    const { empresa, ubicacion, direccion, contacto, horario, zona, activo } = req.body;
+    const { empresa, ubicacion, direccion, contacto, horario, zona, activo, lat, lng } = req.body;
     if (!empresa) return res.status(400).json({ error: 'La empresa es obligatoria.' });
     if (!ubicacion) return res.status(400).json({ error: 'La ubicación es obligatoria.' });
 
     const activoValue = activo === false || activo === 'false' ? 'FALSE' : 'TRUE';
+    const latV = lat === undefined || lat === null || lat === '' ? '' : String(lat);
+    const lngV = lng === undefined || lng === null || lng === '' ? '' : String(lng);
 
     await s.spreadsheets.values.update({
-      spreadsheetId: SHEET_ID, range: SHEET_NAME + `!A${rowIndex}:G${rowIndex}`,
+      spreadsheetId: SHEET_ID, range: SHEET_NAME + `!A${rowIndex}:I${rowIndex}`,
       valueInputOption: 'USER_ENTERED',
-      resource: { values: [[empresa, ubicacion, direccion || '', contacto || '', horario || '', zona || '', activoValue]] }
+      resource: { values: [[empresa, ubicacion, direccion || '', contacto || '', horario || '', zona || '', activoValue, latV, lngV]] }
     });
     invalidateCache();
 

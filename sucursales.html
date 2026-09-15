@@ -15,7 +15,53 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css">
+    <style>
+        .suc-address-wrap {
+            position: relative;
+        }
+        .suc-address-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            z-index: 1080;
+            display: none;
+            max-height: 210px;
+            overflow-y: auto;
+            background: #fff;
+            border: 1px solid rgba(0, 0, 0, .12);
+            border-radius: 8px;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, .12);
+            margin-top: 4px;
+        }
+        .suc-address-item {
+            padding: 8px 12px;
+            font-size: .85rem;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(0, 0, 0, .05);
+        }
+        .suc-address-item:last-child {
+            border-bottom: 0;
+        }
+        .suc-address-item:hover {
+            background: rgba(13, 110, 253, .08);
+        }
+        .suc-address-item.disabled {
+            cursor: default;
+            color: var(--text-muted, #6c757d);
+        }
+        html[data-theme="dark"] .suc-address-list {
+            background: #1f2430;
+            border-color: rgba(255, 255, 255, .1);
+        }
+        html[data-theme="dark"] .suc-address-item {
+            border-bottom-color: rgba(255, 255, 255, .06);
+        }
+        html[data-theme="dark"] .suc-address-item:hover {
+            background: rgba(255, 255, 255, .06);
+        }
+    </style>
     <script>if(localStorage.getItem('potageTheme')==='dark')document.documentElement.setAttribute('data-theme','dark');</script>
 </head>
 
@@ -106,7 +152,7 @@
                     </button>
                     <div class="page-context">
                         <h1 class="page-title">Gestión de Sucursales</h1>
-                        <p class="page-subtitle text-muted">Administrá las sucursales de Potage SRL, El Triángulo S.A y La Sorpresa SRL</p>
+                        <p class="page-subtitle text-muted">Administrá las sucursales de Potage SRL, Pluma Blanca SRL, El Triángulo S.A y La Sorpresa SRL</p>
                     </div>
                 </div>
                 <div class="top-navbar-actions">
@@ -163,8 +209,8 @@
                                 style="width:auto;min-width:140px" onchange="renderSucursales()">
                                 <option value="">Todas las zonas</option>
                             </select>
-                            <input type="text" id="sucursales-search" class="form-control form-control-sm custom-input"
-                                placeholder="Buscar..." style="width:auto;min-width:150px" oninput="renderSucursales()">
+<input type="text" id="sucursales-search" class="form-control form-control-sm custom-input"
+                                placeholder="Buscar sucursal por direccion" style="width:auto;min-width:150px" oninput="renderSucursales()">
                         </div>
                     </div>
                     <div class="table-responsive">
@@ -214,10 +260,16 @@
                             <input type="text" id="sucursal-ubicacion" class="form-control custom-input"
                                 placeholder="Ej. San Miguel, Centro" required>
                         </div>
-                        <div class="mb-3">
+<div class="mb-3">
                             <label class="form-label small fw-medium text-secondary">Dirección</label>
-                            <input type="text" id="sucursal-direccion" class="form-control custom-input"
-                                placeholder="Ej. Av. Mitre 1234">
+                            <div class="suc-address-wrap">
+                                <input type="text" id="sucursal-direccion" class="form-control custom-input"
+                                    placeholder="Ej. Av. Mitre 1234" autocomplete="off">
+                                <input type="hidden" id="sucursal-lat">
+                                <input type="hidden" id="sucursal-lng">
+                                <div class="suc-address-list" id="sucursal-address-list"></div>
+                            </div>
+                            <div class="form-text">Escribí la dirección y elegí la opción correcta de la lista para guardarla con sus coordenadas.</div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label small fw-medium text-secondary">Contacto</label>
@@ -358,12 +410,9 @@ function fillZonaSelects() {
                     ? filtered.filter(s => !s.zona)
                     : filtered.filter(s => s.zona === zonaFilter);
             }
-            if (search) {
+if (search) {
                 filtered = filtered.filter(s =>
-                    (s.empresa || '').toLowerCase().includes(search) ||
-                    (s.ubicacion || '').toLowerCase().includes(search) ||
-                    (s.direccion || '').toLowerCase().includes(search) ||
-                    (s.contacto || '').toLowerCase().includes(search)
+                    (s.direccion || '').toLowerCase().includes(search)
                 );
             }
             tbody.innerHTML = '';
@@ -404,6 +453,9 @@ function fillZonaSelects() {
             document.getElementById('sucursal-empresa').value = '';
             document.getElementById('sucursal-ubicacion').value = '';
             document.getElementById('sucursal-direccion').value = '';
+            document.getElementById('sucursal-lat').value = '';
+            document.getElementById('sucursal-lng').value = '';
+            hideAddressList();
             document.getElementById('sucursal-contacto').value = '';
             document.getElementById('sucursal-horario').value = '';
             document.getElementById('sucursal-zona').value = '';
@@ -413,13 +465,74 @@ function fillZonaSelects() {
             new bootstrap.Modal(document.getElementById('sucursalModal')).show();
         }
 
-function saveSucursal(e) {
+function hideAddressList() {
+            document.getElementById('sucursal-address-list').style.display = 'none';
+        }
+
+        function searchAddresses(q) {
+            const list = document.getElementById('sucursal-address-list');
+            if (addressSearchController) addressSearchController.abort();
+            const controller = new AbortController();
+            addressSearchController = controller;
+            list.innerHTML = '<div class="suc-address-item disabled">Buscando...</div>';
+            list.style.display = 'block';
+            fetch('https://nominatim.openstreetmap.org/search?format=json&limit=6&accept-language=es&countrycodes=ar&q=' + encodeURIComponent(q), { signal: controller.signal })
+                .then(r => r.json())
+                .then(results => {
+                    if (controller.signal.aborted) return;
+                    if (!results || !results.length) {
+                        list.innerHTML = '<div class="suc-address-item disabled">Sin resultados para esa dirección</div>';
+                        return;
+                    }
+                    list.innerHTML = '';
+                    results.forEach(r => {
+                        const div = document.createElement('div');
+                        div.className = 'suc-address-item';
+                        div.textContent = r.display_name;
+                        div.title = r.display_name;
+                        div.onclick = () => {
+                            document.getElementById('sucursal-direccion').value = r.display_name;
+                            document.getElementById('sucursal-lat').value = r.lat;
+                            document.getElementById('sucursal-lng').value = r.lon;
+                            hideAddressList();
+                        };
+                        list.appendChild(div);
+                    });
+                })
+                .catch(() => { });
+        }
+
+        let addressSearchTimer = null;
+        let addressSearchController = null;
+
+        function initAddressAutocomplete() {
+            const input = document.getElementById('sucursal-direccion');
+            input.addEventListener('input', () => {
+                clearTimeout(addressSearchTimer);
+                document.getElementById('sucursal-lat').value = '';
+                document.getElementById('sucursal-lng').value = '';
+                const q = input.value.trim();
+                if (q.length < 3) { hideAddressList(); return; }
+                addressSearchTimer = setTimeout(() => searchAddresses(q), 600);
+            });
+            input.addEventListener('keydown', e => {
+                if (e.key === 'Escape') hideAddressList();
+            });
+            document.addEventListener('click', e => {
+                const wrap = e.target && e.target.closest ? e.target.closest('.suc-address-wrap') : null;
+                if (!wrap) hideAddressList();
+            });
+        }
+
+        function saveSucursal(e) {
             e.preventDefault();
             const btn = document.getElementById('sucursal-save-btn');
             if (btn.disabled) return;
             const empresa = document.getElementById('sucursal-empresa').value;
             const ubicacion = document.getElementById('sucursal-ubicacion').value.trim();
             const direccion = document.getElementById('sucursal-direccion').value.trim();
+            const lat = document.getElementById('sucursal-lat').value;
+            const lng = document.getElementById('sucursal-lng').value;
             const contacto = document.getElementById('sucursal-contacto').value.trim();
             const horario = document.getElementById('sucursal-horario').value.trim();
             const zona = document.getElementById('sucursal-zona').value;
@@ -438,7 +551,7 @@ function saveSucursal(e) {
             fetch(API_BASE + url, {
                 method,
                 headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
-                body: JSON.stringify({ empresa, ubicacion, direccion, contacto, horario, zona, activo })
+                body: JSON.stringify({ empresa, ubicacion, direccion, contacto, horario, zona, activo, lat, lng })
             })
                 .then(r => r.json())
                 .then(res => {
@@ -465,6 +578,9 @@ function saveSucursal(e) {
             document.getElementById('sucursal-empresa').value = s.empresa || '';
             document.getElementById('sucursal-ubicacion').value = s.ubicacion || '';
             document.getElementById('sucursal-direccion').value = s.direccion || '';
+            document.getElementById('sucursal-lat').value = s.lat || '';
+            document.getElementById('sucursal-lng').value = s.lng || '';
+            hideAddressList();
             document.getElementById('sucursal-contacto').value = s.contacto || '';
             document.getElementById('sucursal-horario').value = s.horario || '';
             fillZonaSelects();
@@ -507,7 +623,8 @@ function saveSucursal(e) {
             const gestionLabel = document.getElementById('gestion-label');
             const gestionItems = document.getElementById('gestion-items');
             if (gestionLabel) gestionLabel.style.display = isAdmin ? '' : 'none';
-            if (gestionItems) gestionItems.style.display = isAdmin ? '' : 'none';
+if (gestionItems) gestionItems.style.display = isAdmin ? '' : 'none';
+            initAddressAutocomplete();
             loadSucursales();
             setInterval(() => loadSucursales(), 60000);
         });
