@@ -7,7 +7,7 @@ const { logAction } = require('./logs');
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SHEET_NAME = 'Sucursales';
 
-const EMPRESAS = ['Potage SRL', 'El Triángulo S.A', 'La Sorpresa SRL'];
+const EMPRESAS = ['Pluma Blanca SRL', 'Potage SRL', 'El Triángulo S.A', 'La Sorpresa SRL'];
 const HEADERS = ['Empresa', 'Ubicacion', 'Direccion', 'Contacto', 'Horario', 'Zona', 'Activo'];
 
 let _auth = null;

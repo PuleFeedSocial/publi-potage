@@ -246,7 +246,7 @@
                     <div class="modal-footer border-0 pt-0">
                         <button type="button" class="btn btn-sm btn-light-muted"
                             data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-sm btn-action-primary">Guardar</button>
+                        <button type="submit" class="btn btn-sm btn-action-primary" id="sucursal-save-btn">Guardar</button>
                     </div>
                 </form>
             </div>
@@ -256,7 +256,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="app.js"></script>
     <script>
-        const EMPRESAS = ['Potage SRL', 'El Triángulo S.A', 'La Sorpresa SRL'];
+        const EMPRESAS = ['Pluma Blanca SRL', 'Potage SRL', 'El Triángulo S.A', 'La Sorpresa SRL'];
         let sucursalesData = [];
         let sucursalesZonasData = [];
         const ZONA_OTRO = '__OTRO__';
@@ -413,8 +413,10 @@ function fillZonaSelects() {
             new bootstrap.Modal(document.getElementById('sucursalModal')).show();
         }
 
-        function saveSucursal(e) {
+function saveSucursal(e) {
             e.preventDefault();
+            const btn = document.getElementById('sucursal-save-btn');
+            if (btn.disabled) return;
             const empresa = document.getElementById('sucursal-empresa').value;
             const ubicacion = document.getElementById('sucursal-ubicacion').value.trim();
             const direccion = document.getElementById('sucursal-direccion').value.trim();
@@ -429,6 +431,10 @@ function fillZonaSelects() {
             const method = rowIndex ? 'PUT' : 'POST';
             const url = rowIndex ? '/api/sucursales/' + rowIndex : '/api/sucursales';
 
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Guardando...';
+
             fetch(API_BASE + url, {
                 method,
                 headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
@@ -436,10 +442,17 @@ function fillZonaSelects() {
             })
                 .then(r => r.json())
                 .then(res => {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
                     if (res.error) return alert(res.error);
                     bootstrap.Modal.getInstance(document.getElementById('sucursalModal')).hide();
-                    loadSucursales();
                     showToast(res.message || 'Sucursal guardada', 'success');
+                    loadSucursales();
+                })
+                .catch(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                    alert('Error de conexión con el servidor. Intentalo de nuevo.');
                 });
         }
 
