@@ -569,7 +569,7 @@ function hideAddressList() {
             list.style.display = 'block';
             let results;
             try {
-                results = await geoSearch(q, 6, controller.signal);
+                results = await geoSearch(q, 10, controller.signal);
             } catch (err) {
                 if (controller.signal.aborted) return;
                 list.innerHTML = '<div class="suc-address-item disabled">Error al buscar la dirección</div>';
@@ -694,7 +694,7 @@ function hideAddressList() {
             list.style.display = 'block';
             let results;
             try {
-                results = await geoSearch(q, 7, controller.signal);
+                results = await geoSearch(q, 10, controller.signal);
             } catch (err) {
                 if (controller.signal.aborted) return;
                 list.innerHTML = '<div class="suc-address-item disabled">Error al buscar la dirección</div>';
