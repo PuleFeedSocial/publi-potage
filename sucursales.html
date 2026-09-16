@@ -529,41 +529,71 @@ function hideAddressList() {
             document.getElementById('sucursal-address-list').style.display = 'none';
         }
 
-        function searchAddresses(q) {
+        async function geoSearch(q, limit, outerSignal) {
+            const qs = encodeURIComponent(q);
+            const directUrl = 'https://nominatim.openstreetmap.org/search?format=json&limit=' + limit + '&accept-language=es&countrycodes=ar&q=' + qs;
+            const proxyUrl = API_BASE + '/api/sucursales/geocode?limit=' + limit + '&q=' + qs;
+
+            async function getJson(url, headers) {
+                const ctrl = new AbortController();
+                const onOuter = () => ctrl.abort();
+                const t = setTimeout(() => ctrl.abort(), 9000);
+                if (outerSignal) {
+                    if (outerSignal.aborted) throw new DOMException('abortado', 'AbortError');
+                    outerSignal.addEventListener('abort', onOuter, { once: true });
+                }
+                try {
+                    const resp = await fetch(url, { headers, signal: ctrl.signal });
+                    if (!resp.ok) return null;
+                    return await resp.json();
+                } finally {
+                    clearTimeout(t);
+                    if (outerSignal) outerSignal.removeEventListener('abort', onOuter);
+                }
+            }
+
+            let data = null;
+            try { data = await getJson(directUrl); } catch { data = null; }
+            if (data && data.length) return data;
+            const prox = await getJson(proxyUrl, { 'Authorization': 'Bearer ' + getToken() });
+            if (prox && prox.data && prox.data.length) return prox.data;
+            return [];
+        }
+
+        async function searchAddresses(q) {
             const list = document.getElementById('sucursal-address-list');
             if (addressSearchController) addressSearchController.abort();
             const controller = new AbortController();
             addressSearchController = controller;
             list.innerHTML = '<div class="suc-address-item disabled">Buscando...</div>';
             list.style.display = 'block';
-            fetch(API_BASE + '/api/sucursales/geocode?limit=6&q=' + encodeURIComponent(q), {
-                signal: controller.signal,
-                headers: { 'Authorization': 'Bearer ' + getToken() }
-            })
-                .then(r => r.json())
-                .then(res => {
-                    const results = res.data;
-                    if (controller.signal.aborted) return;
-                    if (!results || !results.length) {
-                        list.innerHTML = '<div class="suc-address-item disabled">Sin resultados para esa dirección</div>';
-                        return;
-                    }
-                    list.innerHTML = '';
-                    results.forEach(r => {
-                        const div = document.createElement('div');
-                        div.className = 'suc-address-item';
-                        div.textContent = r.display_name;
-                        div.title = r.display_name;
-                        div.onclick = () => {
-                            document.getElementById('sucursal-direccion').value = r.display_name;
-                            document.getElementById('sucursal-lat').value = r.lat;
-                            document.getElementById('sucursal-lng').value = r.lon;
-                            hideAddressList();
-                        };
-                        list.appendChild(div);
-                    });
-                })
-                .catch(() => { });
+            let results;
+            try {
+                results = await geoSearch(q, 6, controller.signal);
+            } catch (err) {
+                if (controller.signal.aborted) return;
+                list.innerHTML = '<div class="suc-address-item disabled">Error al buscar la dirección</div>';
+                return;
+            }
+            if (controller.signal.aborted) return;
+            if (!results.length) {
+                list.innerHTML = '<div class="suc-address-item disabled">Sin resultados para esa dirección</div>';
+                return;
+            }
+            list.innerHTML = '';
+            results.forEach(r => {
+                const div = document.createElement('div');
+                div.className = 'suc-address-item';
+                div.textContent = r.display_name;
+                div.title = r.display_name;
+                div.onclick = () => {
+                    document.getElementById('sucursal-direccion').value = r.display_name;
+                    document.getElementById('sucursal-lat').value = r.lat;
+                    document.getElementById('sucursal-lng').value = r.lon;
+                    hideAddressList();
+                };
+                list.appendChild(div);
+            });
         }
 
         let addressSearchTimer = null;
@@ -601,16 +631,18 @@ function hideAddressList() {
             btn.disabled = true;
             status.className = 'text-muted small';
             let ok = 0, fail = 0;
+            const failedList = [];
             for (let i = 0; i < pending.length; i++) {
                 const s = pending[i];
                 status.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Geocodificando ' + (i + 1) + '/' + pending.length + '…';
-                try {
-                    const resp = await fetch(API_BASE + '/api/sucursales/geocode?limit=1&q=' + encodeURIComponent(s.direccion), {
-                        headers: { 'Authorization': 'Bearer ' + getToken() }
-                    });
-                    const body = await resp.json();
-                    const results = body.data;
-                    if (results && results.length) {
+                let results = null;
+                for (let att = 0; att < 2; att++) {
+                    try { results = await geoSearch(s.direccion, 1); } catch { results = null; }
+                    if (results && results.length) break;
+                    if (att === 0 && i !== pending.length - 1) await new Promise(r => setTimeout(r, 3000));
+                }
+                if (results && results.length) {
+                    try {
                         await fetch(API_BASE + '/api/sucursales/' + s.rowIndex, {
                             method: 'PUT',
                             headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
@@ -621,18 +653,28 @@ function hideAddressList() {
                             })
                         });
                         ok++;
-                    } else {
+                    } catch {
                         fail++;
+                        failedList.push(s.ubicacion + ' — ' + s.direccion);
                     }
-                } catch {
+                } else {
                     fail++;
+                    failedList.push(s.ubicacion + ' — ' + s.direccion);
                 }
-                if (i < pending.length - 1) await new Promise(r => setTimeout(r, 1100));
+                if (i < pending.length - 1) await new Promise(r => setTimeout(r, 1400));
             }
             btn.disabled = false;
             status.className = 'text-muted small';
-            status.innerHTML = '<i class="bi bi-check-circle-fill text-success me-1"></i> Geocodificación lista. ' + ok + ' ok' + (fail ? ', ' + fail + ' no encontradas.' : '.');
-            setTimeout(() => { status.className = 'd-none'; }, 8000);
+            let msg = '<i class="bi bi-check-circle-fill text-success me-1"></i> Geocodificación lista. ' + ok + ' ok';
+            if (fail) {
+                msg += ', <span class="text-danger">' + fail + ' no encontradas</span>';
+                msg += '. Sin ubicar: ' + failedList.slice(0, 3).map(f => f.replace(/</g, '&lt;')).join(' | ');
+                if (failedList.length > 3) msg += ' (+' + (failedList.length - 3) + ' más)';
+            } else {
+                msg += '.';
+            }
+            status.innerHTML = msg;
+            setTimeout(() => { status.className = 'd-none'; }, 20000);
             loadSucursales();
         }
 
@@ -643,36 +685,35 @@ function hideAddressList() {
             setAddressSearch({ lat: parseFloat(r.lat), lng: parseFloat(r.lon), label: r.display_name });
         }
 
-        function searchTopAddresses(q) {
+        async function searchTopAddresses(q) {
             const list = document.getElementById('sucursales-list-address-sug');
             if (topSearchController) topSearchController.abort();
             const controller = new AbortController();
             topSearchController = controller;
             list.innerHTML = '<div class="suc-address-item disabled">Buscando...</div>';
             list.style.display = 'block';
-            fetch(API_BASE + '/api/sucursales/geocode?limit=7&q=' + encodeURIComponent(q), {
-                signal: controller.signal,
-                headers: { 'Authorization': 'Bearer ' + getToken() }
-            })
-                .then(r => r.json())
-                .then(res => {
-                    const results = res.data;
-                    if (controller.signal.aborted) return;
-                    if (!results || !results.length) {
-                        list.innerHTML = '<div class="suc-address-item disabled">Sin resultados para esa dirección</div>';
-                        return;
-                    }
-                    list.innerHTML = '';
-                    results.forEach(r => {
-                        const div = document.createElement('div');
-                        div.className = 'suc-address-item';
-                        div.textContent = r.display_name;
-                        div.title = r.display_name;
-                        div.onclick = () => selectTopAddress(r);
-                        list.appendChild(div);
-                    });
-                })
-                .catch(() => { });
+            let results;
+            try {
+                results = await geoSearch(q, 7, controller.signal);
+            } catch (err) {
+                if (controller.signal.aborted) return;
+                list.innerHTML = '<div class="suc-address-item disabled">Error al buscar la dirección</div>';
+                return;
+            }
+            if (controller.signal.aborted) return;
+            if (!results.length) {
+                list.innerHTML = '<div class="suc-address-item disabled">Sin resultados para esa dirección</div>';
+                return;
+            }
+            list.innerHTML = '';
+            results.forEach(r => {
+                const div = document.createElement('div');
+                div.className = 'suc-address-item';
+                div.textContent = r.display_name;
+                div.title = r.display_name;
+                div.onclick = () => selectTopAddress(r);
+                list.appendChild(div);
+            });
         }
 
         let topSearchTimer = null;
