@@ -1,7 +1,7 @@
 const express = require('express');
 const { google } = require('googleapis');
 const router = express.Router();
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requirePermission } = require('../middleware/auth');
 const { logAction } = require('./logs');
 
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
@@ -92,7 +92,7 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
-router.post('/import', authenticate, async (req, res) => {
+router.post('/import', authenticate, requirePermission('edit_informes'), async (req, res) => {
   try {
     const { data } = req.body;
     if (!data || !data.length) return res.status(400).json({ error: 'No hay datos para importar.' });
@@ -119,7 +119,7 @@ router.post('/import', authenticate, async (req, res) => {
   }
 });
 
-router.delete('/:rowIndex', authenticate, async (req, res) => {
+router.delete('/:rowIndex', authenticate, requirePermission('edit_informes'), async (req, res) => {
   try {
     const s = sheets();
     if (!s) return res.status(503).json({ error: 'Google Sheets no configurado.' });
@@ -147,7 +147,7 @@ router.delete('/:rowIndex', authenticate, async (req, res) => {
   }
 });
 
-router.post('/sync', authenticate, async (req, res) => {
+router.post('/sync', authenticate, requirePermission('sync_informes'), async (req, res) => {
   try {
     const { columnMapping } = req.body;
     if (!columnMapping || !columnMapping.grupo || !columnMapping.fecha) {

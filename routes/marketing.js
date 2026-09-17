@@ -1,7 +1,7 @@
 const express = require('express');
 const { google } = require('googleapis');
 const router = express.Router();
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requirePermission } = require('../middleware/auth');
 const { logAction } = require('./logs');
 
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
@@ -92,12 +92,12 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
-router.get('/refresh', authenticate, async (req, res) => {
+router.get('/refresh', authenticate, requirePermission('sync_marketing'), async (req, res) => {
   invalidateCache();
   res.json({ message: 'Caché de marketing limpiado.' });
 });
 
-router.post('/', authenticate, async (req, res) => {
+router.post('/', authenticate, requirePermission('edit_marketing'), async (req, res) => {
   try {
     const s = sheets();
     if (!s) return res.status(503).json({ error: 'Google Sheets no configurado.' });
@@ -131,7 +131,7 @@ router.post('/', authenticate, async (req, res) => {
   }
 });
 
-router.put('/:rowIndex', authenticate, async (req, res) => {
+router.put('/:rowIndex', authenticate, requirePermission('edit_marketing'), async (req, res) => {
   try {
     const s = sheets();
     if (!s) return res.status(503).json({ error: 'Google Sheets no configurado.' });
@@ -165,7 +165,7 @@ router.put('/:rowIndex', authenticate, async (req, res) => {
   }
 });
 
-router.delete('/:rowIndex', authenticate, async (req, res) => {
+router.delete('/:rowIndex', authenticate, requirePermission('edit_marketing'), async (req, res) => {
   try {
     const s = sheets();
     if (!s) return res.status(503).json({ error: 'Google Sheets no configurado.' });

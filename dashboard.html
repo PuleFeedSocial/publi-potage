@@ -323,6 +323,26 @@
                     </div>
                 </div>
 
+                <div class="card data-table-card mb-4">
+                    <div class="card-header-clean d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div>
+                            <h5 class="table-card-title"><i class="bi bi-shield-lock-fill me-1"></i> Panel de Administrador — Permisos del Colaborador</h5>
+                            <span class="text-muted small">Elegí qué puede hacer un usuario con rol <span class="fw-semibold">Colaborador</span></span>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="resetPermissions()">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i> Restaurar
+                            </button>
+                            <button class="btn btn-sm btn-action-primary" id="save-permissions-btn" onclick="savePermissions()">
+                                <i class="bi bi-check-lg me-1"></i> Guardar cambios
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-4">
+                        <div id="permissions-container"></div>
+                    </div>
+                </div>
+
                 <div class="card data-table-card">
                     <div class="card-header-clean d-flex justify-content-between align-items-center">
                         <div>

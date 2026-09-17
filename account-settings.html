@@ -262,21 +262,38 @@
                 return;
             }
 
+            if (newPw === current) {
+                showFeedback('La nueva contraseña debe ser distinta a la actual.', 'danger');
+                return;
+            }
+
             if (newPw !== confirm) {
                 showFeedback('Las contraseñas nuevas no coinciden.', 'danger');
                 return;
             }
 
+            const btn = e.target.querySelector('button[type="submit"]');
+            const original = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Actualizando...';
+
             apiFetch('/api/auth/change-password', {
                 method: 'POST',
                 body: JSON.stringify({ currentPassword: current, newPassword: newPw })
             }).then(({ status, body }) => {
+                btn.disabled = false;
+                btn.innerHTML = original;
                 if (status !== 200) {
                     showFeedback(body.error || 'Error al cambiar la contraseña.', 'danger');
                     return;
                 }
                 showFeedback('Contraseña actualizada correctamente.', 'success');
                 document.getElementById('change-password-form').reset();
+                if (typeof showToast === 'function') showToast('Contraseña actualizada.', 'success');
+            }).catch(() => {
+                btn.disabled = false;
+                btn.innerHTML = original;
+                showFeedback('Error de conexión con el servidor.', 'danger');
             });
         }
 

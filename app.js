@@ -60,6 +60,65 @@ function apiFetch(path, options = {}) {
     .then(res => res.json().then(data => ({ status: res.status, body: data })));
 }
 
+/* ---------- PERMISOS ---------- */
+let currentPermissions = null;
+
+function sessionRole() {
+  const s = getCurrentSession();
+  return s && s.role ? String(s.role).toLowerCase() : '';
+}
+
+function loadMyPermissions() {
+  if (!getToken()) return Promise.resolve(null);
+  return fetch(API_BASE + '/api/auth/permissions', {
+    headers: { 'Authorization': 'Bearer ' + getToken() }
+  })
+    .then(r => r.json())
+    .then(body => {
+      if (body && body.permissions) {
+        currentPermissions = body.permissions;
+        applyNavPermissions();
+      }
+      return currentPermissions;
+    })
+    .catch(() => currentPermissions);
+}
+
+function hasPermission(key) {
+  if (!key) return true;
+  if (sessionRole() === 'admin') return true;
+  if (!currentPermissions) return true;
+  return currentPermissions[key] !== false;
+}
+
+function applyNavPermissions() {
+  const map = {
+    view_dashboard: 'btn-nav-dashboard',
+    view_informes: 'btn-nav-informes',
+    view_grupos: 'btn-nav-grupos',
+    view_zonas: 'btn-nav-zonas',
+    view_sucursales: 'btn-nav-sucursales'
+  };
+  Object.keys(map).forEach(perm => {
+    const el = document.getElementById(map[perm]);
+    if (el) el.style.display = hasPermission(perm) ? '' : 'none';
+  });
+}
+
+function guardPage(perm) {
+  if (!getCurrentSession()) { window.location.href = 'index.html'; return; }
+  loadMyPermissions().then(() => {
+    if (!hasPermission(perm)) {
+      showToast('No tenés permiso para acceder a esa sección.', 'error');
+      window.location.href = 'dashboard.html';
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (getCurrentSession()) loadMyPermissions();
+});
+
 function showToast(mensaje, tipo) {
   tipo = tipo || 'info';
   let container = document.getElementById('toast-container');
@@ -191,6 +250,7 @@ function switchView(viewName) {
     loadUsers();
     loadCodes();
     loadZonas();
+    loadPermissionsPanel();
   }
 }
 
@@ -1656,7 +1716,8 @@ function renderUsers(users) {
   const session = getCurrentSession();
   users.forEach(u => {
     const isSelf = session && session.id === u.id;
-    const isAdmin = u.role === 'admin';
+    const roleNorm = (u.role || '').toLowerCase();
+    const isAdmin = roleNorm === 'admin';
     const canDelete = !isSelf && !isAdmin;
     tbody.innerHTML += `
       <tr>
@@ -1665,8 +1726,8 @@ function renderUsers(users) {
         <td>
           <select class="form-select form-select-sm role-select" data-user-id="${u.id}" ${isSelf || isAdmin ? 'disabled' : ''}
             onchange="updateUserRole(${u.id}, this.value)">
-            <option value="Colaborador" ${u.role === 'Colaborador' ? 'selected' : ''}>Colaborador</option>
-            <option value="Admin" ${u.role === 'Admin' ? 'selected' : ''}>Admin</option>
+            <option value="colaborador" ${!isAdmin ? 'selected' : ''}>Colaborador</option>
+            <option value="admin" ${isAdmin ? 'selected' : ''}>Admin</option>
           </select>
         </td>
         <td>${u.fecha ? u.fecha.substring(0, 10) : '-'}</td>
@@ -1679,8 +1740,78 @@ function renderUsers(users) {
   });
 }
 
+let permissionDefaults = {};
+
+function loadPermissionsPanel() {
+  if (sessionRole() !== 'admin') return;
+  const cont = document.getElementById('permissions-container');
+  if (!cont) return;
+  cont.innerHTML = '<div class="text-muted small py-3"><span class="spinner-border spinner-border-sm me-2"></span>Cargando permisos...</div>';
+  apiFetch('/api/auth/permissions/colaborador').then(({ status, body }) => {
+    if (status !== 200) {
+      cont.innerHTML = '<div class="text-danger small py-2">' + (body.error || 'Error al cargar permisos.') + '</div>';
+      return;
+    }
+    permissionDefaults = body.defaults || {};
+    renderPermissionsPanel(body.catalog || [], body.permissions || {});
+  });
+}
+
+function renderPermissionsPanel(catalog, perms) {
+  const cont = document.getElementById('permissions-container');
+  if (!cont) return;
+  const groups = {};
+  catalog.forEach(item => { (groups[item.group] = groups[item.group] || []).push(item); });
+  let html = '';
+  Object.keys(groups).forEach(g => {
+    html += '<div class="perm-group mb-3"><div class="perm-group-title">' + g + '</div>';
+    groups[g].forEach(item => {
+      const id = 'perm-' + item.key;
+      html += '<div class="form-check form-switch perm-row">' +
+        '<input class="form-check-input" type="checkbox" role="switch" id="' + id + '" data-perm="' + item.key + '"' + (perms[item.key] ? ' checked' : '') + '>' +
+        '<label class="form-check-label" for="' + id + '"><span class="perm-label">' + item.label + '</span>' +
+        (item.desc ? '<span class="perm-desc">' + item.desc + '</span>' : '') +
+        '</label></div>';
+    });
+    html += '</div>';
+  });
+  cont.innerHTML = html;
+}
+
+function savePermissions() {
+  const cont = document.getElementById('permissions-container');
+  if (!cont) return;
+  const permissions = {};
+  cont.querySelectorAll('input[data-perm]').forEach(i => { permissions[i.dataset.perm] = i.checked; });
+  const btn = document.getElementById('save-permissions-btn');
+  const original = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...'; }
+  apiFetch('/api/auth/permissions/colaborador', { method: 'PUT', body: JSON.stringify({ permissions }) })
+    .then(({ status, body }) => {
+      if (btn) { btn.disabled = false; btn.innerHTML = original; }
+      if (status !== 200) { showToast(body.error || 'Error al guardar permisos.', 'error'); return; }
+      showToast('Permisos del rol Colaborador actualizados.', 'success');
+    })
+    .catch(() => {
+      if (btn) { btn.disabled = false; btn.innerHTML = original; }
+      showToast('Error de conexión.', 'error');
+    });
+}
+
+function resetPermissions() {
+  const cont = document.getElementById('permissions-container');
+  if (!cont) return;
+  if (!Object.keys(permissionDefaults).length) return;
+  cont.querySelectorAll('input[data-perm]').forEach(i => {
+    const def = permissionDefaults[i.dataset.perm];
+    if (def !== undefined) i.checked = !!def;
+  });
+  showToast('Valores por defecto cargados. Presioná "Guardar cambios" para aplicarlos.');
+}
+
 function updateUserRole(userId, newRole) {
-  if (!confirm('¿Cambiar el rol de este usuario a ' + newRole + '?')) return;
+  const label = newRole.charAt(0).toUpperCase() + newRole.slice(1);
+  if (!confirm('¿Cambiar el rol de este usuario a ' + label + '?')) return;
   apiFetch('/api/auth/users/' + userId + '/role', {
     method: 'PUT',
     body: JSON.stringify({ role: newRole })

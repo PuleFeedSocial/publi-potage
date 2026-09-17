@@ -74,6 +74,16 @@ async function getDb() {
     )
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS role_permissions (
+      role TEXT NOT NULL,
+      permission TEXT NOT NULL,
+      enabled BOOLEAN NOT NULL DEFAULT TRUE,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (role, permission)
+    )
+  `);
+
   db = {
     run: async (sql, params) => {
       return await pool.query(toPg(sql), params);

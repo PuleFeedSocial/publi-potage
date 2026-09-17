@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const getDb = require('../database');
-const { authenticate, requireAdmin } = require('../middleware/auth');
+const { authenticate, requirePermission } = require('../middleware/auth');
 
 router.get('/', authenticate, async (req, res) => {
   try {
@@ -13,7 +13,7 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
-router.post('/', authenticate, requireAdmin, async (req, res) => {
+router.post('/', authenticate, requirePermission('edit_zonas'), async (req, res) => {
   try {
     const db = await getDb();
     const { nombre } = req.body;
@@ -26,7 +26,7 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
   }
 });
 
-router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
+router.delete('/:id', authenticate, requirePermission('edit_zonas'), async (req, res) => {
   try {
     const db = await getDb();
     const id = parseInt(req.params.id);

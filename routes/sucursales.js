@@ -1,7 +1,7 @@
 const express = require('express');
 const { google } = require('googleapis');
 const router = express.Router();
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requirePermission } = require('../middleware/auth');
 const { logAction } = require('./logs');
 
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
@@ -134,7 +134,7 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
-router.post('/', authenticate, async (req, res) => {
+router.post('/', authenticate, requirePermission('edit_sucursales'), async (req, res) => {
   try {
     const s = await ensureSheet();
     const { empresa, ubicacion, direccion, contacto, horario, zona, activo, lat, lng } = req.body;
@@ -160,7 +160,7 @@ router.post('/', authenticate, async (req, res) => {
   }
 });
 
-router.put('/:rowIndex', authenticate, async (req, res) => {
+router.put('/:rowIndex', authenticate, requirePermission('edit_sucursales'), async (req, res) => {
   try {
     const s = await ensureSheet();
     const rowIndex = parseInt(req.params.rowIndex);
@@ -188,7 +188,7 @@ router.put('/:rowIndex', authenticate, async (req, res) => {
   }
 });
 
-router.delete('/:rowIndex', authenticate, async (req, res) => {
+router.delete('/:rowIndex', authenticate, requirePermission('edit_sucursales'), async (req, res) => {
   try {
     const s = await ensureSheet();
     const rowIndex = parseInt(req.params.rowIndex);

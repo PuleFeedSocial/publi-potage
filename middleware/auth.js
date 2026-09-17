@@ -1,4 +1,6 @@
 const jwt = require('jsonwebtoken');
+const getDb = require('../database');
+const { hasPermission } = require('../permissions');
 
 const SECRET = process.env.JWT_SECRET || 'Potage_S3cr3t_K3y_2026';
 
@@ -23,4 +25,20 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-module.exports = { authenticate, requireAdmin };
+function requirePermission(permission) {
+  return async (req, res, next) => {
+    try {
+      const role = (req.user.role || '').toLowerCase();
+      if (role === 'admin') return next();
+      const db = await getDb();
+      const ok = await hasPermission(db, role, permission);
+      if (!ok) return res.status(403).json({ error: 'No tenés permiso para realizar esta acción.' });
+      next();
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'Error al verificar permisos.' });
+    }
+  };
+}
+
+module.exports = { authenticate, requireAdmin, requirePermission };

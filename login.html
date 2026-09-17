@@ -43,7 +43,10 @@
                         <input type="email" id="login-email" class="form-control custom-input" placeholder="tu@correo.com" required>
                     </div>
                     <div class="mb-4">
-                        <label class="form-label small fw-medium text-secondary">Contraseña</label>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="form-label small fw-medium text-secondary mb-0">Contraseña</label>
+                            <a href="#" class="small text-decoration-none" onclick="showForgot();return false;">¿Olvidaste tu contraseña?</a>
+                        </div>
                         <div class="input-group">
                             <input type="password" id="login-password" class="form-control custom-input" placeholder="••••••••" required minlength="6">
                             <button class="btn btn-outline-secondary password-toggle" type="button" onclick="togglePassword('login-password', this)">
@@ -53,6 +56,45 @@
                     </div>
                     <button type="submit" class="btn btn-action-primary w-100">Acceder al Dashboard</button>
                 </form>
+
+                <form id="forgot-form" class="d-none" onsubmit="handleForgot(event)">
+                    <div class="alert-custom p-3 mb-4 text-start bg-light border rounded-3">
+                        <span class="fw-semibold fs-7"><i class="bi bi-key-fill me-1"></i> Recuperar contraseña:</span>
+                        <span class="small text-muted"> Ingresá tu email y el mismo código de activación (6 dígitos) con el que te registraste.</span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-medium text-secondary">Correo Electrónico</label>
+                        <input type="email" id="forgot-email" class="form-control custom-input" placeholder="tu@correo.com" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-medium text-secondary">Código de Activación <span class="text-accent">(6 dígitos)</span></label>
+                        <input type="text" id="forgot-code" class="form-control custom-input text-center font-monospace"
+                            placeholder="· · · · · ·" maxlength="6" inputmode="numeric" pattern="[0-9]{6}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-medium text-secondary">Nueva Contraseña</label>
+                        <div class="input-group">
+                            <input type="password" id="forgot-password" class="form-control custom-input" placeholder="Mínimo 6 caracteres" required minlength="6">
+                            <button class="btn btn-outline-secondary password-toggle" type="button" onclick="togglePassword('forgot-password', this)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label small fw-medium text-secondary">Confirmar Nueva Contraseña</label>
+                        <div class="input-group">
+                            <input type="password" id="forgot-confirm" class="form-control custom-input" placeholder="Repetí la contraseña" required minlength="6">
+                            <button class="btn btn-outline-secondary password-toggle" type="button" onclick="togglePassword('forgot-confirm', this)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <button type="submit" id="forgot-submit" class="btn btn-action-primary w-100">Restablecer Contraseña</button>
+                    <button type="button" class="btn btn-link w-100 mt-1 text-secondary text-decoration-none" onclick="showLogin()">
+                        Volver a iniciar sesión
+                    </button>
+                </form>
+                <div id="forgot-feedback" class="mt-3 small d-none"></div>
                 <div class="auth-card-footer">
                     ¿No tenés cuenta? <a href="register.html">Registrate</a>
                 </div>
@@ -79,6 +121,70 @@
             input.type = isPassword ? 'text' : 'password';
             btn.innerHTML = isPassword ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
         }
+
+        function showForgot() {
+            document.getElementById('login-form').classList.add('d-none');
+            document.getElementById('forgot-form').classList.remove('d-none');
+            document.getElementById('forgot-feedback').classList.add('d-none');
+            document.querySelector('.auth-card-header h2').innerText = 'Recuperar Contraseña';
+            document.querySelector('.auth-card-header p').innerText = 'Restablecé tu clave con tu código de activación';
+        }
+
+        function showLogin() {
+            document.getElementById('forgot-form').classList.add('d-none');
+            document.getElementById('forgot-feedback').classList.add('d-none');
+            document.getElementById('login-form').classList.remove('d-none');
+            document.querySelector('.auth-card-header h2').innerText = 'Iniciar Sesión';
+            document.querySelector('.auth-card-header p').innerText = 'Ingresá tus credenciales para acceder al dashboard';
+        }
+
+        function forgotFeedback(msg, type) {
+            const el = document.getElementById('forgot-feedback');
+            el.className = 'mt-3 small alert alert-' + type + ' py-2 px-3 mb-0';
+            el.innerText = msg;
+            el.classList.remove('d-none');
+        }
+
+        function handleForgot(e) {
+            e.preventDefault();
+            const email = document.getElementById('forgot-email').value.trim();
+            const code = document.getElementById('forgot-code').value.trim();
+            const pw = document.getElementById('forgot-password').value;
+            const confirm = document.getElementById('forgot-confirm').value;
+
+            if (!/^[0-9]{6}$/.test(code)) { forgotFeedback('El código de activación debe tener 6 dígitos.', 'danger'); return; }
+            if (pw.length < 6) { forgotFeedback('La nueva contraseña debe tener al menos 6 caracteres.', 'danger'); return; }
+            if (pw !== confirm) { forgotFeedback('Las contraseñas no coinciden.', 'danger'); return; }
+
+            const btn = document.getElementById('forgot-submit');
+            const orig = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Procesando...';
+
+            fetch(API_BASE + '/api/auth/forgot-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, activationCode: code, newPassword: pw })
+            })
+                .then(r => r.json().then(b => ({ status: r.status, body: b })))
+                .then(({ status, body }) => {
+                    btn.disabled = false;
+                    btn.innerHTML = orig;
+                    if (status !== 200) { forgotFeedback(body.error || 'No se pudo restablecer la contraseña.', 'danger'); return; }
+                    forgotFeedback('Contraseña restablecida correctamente. Ya podés iniciar sesión.', 'success');
+                    document.getElementById('forgot-form').reset();
+                    setTimeout(showLogin, 1800);
+                })
+                .catch(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = orig;
+                    forgotFeedback('Error de conexión con el servidor.', 'danger');
+                });
+        }
+
+        document.getElementById('forgot-code').addEventListener('input', function () {
+            this.value = this.value.replace(/\D/g, '');
+        });
     </script>
 </body>
 

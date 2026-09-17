@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const getDb = require('../database');
 const { authenticate, requireAdmin } = require('../middleware/auth');
+const { CATALOG, getRolePermissions, setRolePermissions, DEFAULT_ROLE_PERMISSIONS, normalizeRole } = require('../permissions');
 
 const router = express.Router();
 const SECRET = process.env.JWT_SECRET || 'Potage_S3cr3t_K3y_2026';
@@ -93,6 +94,94 @@ router.post('/login', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error interno del servidor.' });
+  }
+});
+
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email, activationCode, newPassword } = req.body;
+
+    if (!email || !activationCode || !newPassword) {
+      return res.status(400).json({ error: 'Email, código de activación y nueva contraseña son obligatorios.' });
+    }
+
+    if (!/^[0-9]{6}$/.test(activationCode)) {
+      return res.status(400).json({ error: 'El código de activación debe tener 6 dígitos.' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 6 caracteres.' });
+    }
+
+    const db = await getDb();
+    const user = await db.get('SELECT id, email FROM users WHERE email = ?', [email]);
+    if (!user) {
+      return res.status(400).json({ error: 'El email o el código de activación no son correctos.' });
+    }
+
+    const code = await db.get('SELECT id FROM activation_codes WHERE code = ? AND used_by = ?', [activationCode, user.id]);
+    if (!code) {
+      return res.status(400).json({ error: 'El email o el código de activación no son correctos.' });
+    }
+
+    const hashed = bcrypt.hashSync(newPassword, 10);
+    await db.run('UPDATE users SET password = ? WHERE id = ?', [hashed, user.id]);
+
+    logAction(user.id, user.email, 'Recuperación de contraseña', 'Contraseña restablecida con código de activación', req.ip);
+
+    res.json({ message: 'Contraseña restablecida correctamente. Ya podés iniciar sesión.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al restablecer la contraseña.' });
+  }
+});
+
+router.get('/permissions', authenticate, async (req, res) => {
+  try {
+    const role = normalizeRole(req.user.role);
+    if (role === 'admin') {
+      const all = {};
+      CATALOG.forEach(i => { all[i.key] = true; });
+      return res.json({ role, permissions: all, catalog: CATALOG });
+    }
+    const db = await getDb();
+    const permissions = await getRolePermissions(db, role);
+    res.json({ role, permissions, catalog: CATALOG });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener permisos.' });
+  }
+});
+
+router.get('/permissions/:role', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const role = normalizeRole(req.params.role);
+    const db = await getDb();
+    const permissions = await getRolePermissions(db, role);
+    res.json({ role, permissions, catalog: CATALOG, defaults: DEFAULT_ROLE_PERMISSIONS[role] || {} });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener permisos.' });
+  }
+});
+
+router.put('/permissions/:role', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const role = normalizeRole(req.params.role);
+    const updates = req.body && req.body.permissions;
+    if (!updates || typeof updates !== 'object') {
+      return res.status(400).json({ error: 'Permisos inválidos.' });
+    }
+    const db = await getDb();
+    await setRolePermissions(db, role, updates);
+    const permissions = await getRolePermissions(db, role);
+
+    logAction(req.user.id, req.user.email, 'Cambio de permisos', `Permisos del rol ${role} actualizados`, req.ip);
+
+    res.json({ message: 'Permisos actualizados correctamente.', role, permissions, catalog: CATALOG });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al guardar permisos.' });
   }
 });
 

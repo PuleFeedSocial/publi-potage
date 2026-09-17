@@ -913,6 +913,7 @@ function hideAddressList() {
                 window.location.href = 'index.html';
                 return;
             }
+            guardPage('view_sucursales');
             const initials = session.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
             document.getElementById('display-avatar').innerText = initials;
             document.getElementById('display-user-name').innerText = session.name;
