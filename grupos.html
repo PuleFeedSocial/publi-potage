@@ -364,10 +364,11 @@
             if (chkSolo && savedSolo === '1') chkSolo.checked = true;
         }
 
-        function loadGruposPage() {
+        let _lastGruposSnapshot = '';
+        function loadGruposPage(silent) {
             restoreGruposFilters();
             const tbody = document.getElementById('grupos-page-table-body');
-            tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">Cargando...</td></tr>';
+            if (!silent) tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">Cargando...</td></tr>';
             Promise.all([
                 fetch(API_BASE + '/api/grupos', { headers: { 'Authorization': 'Bearer ' + getToken() } }),
                 fetch(API_BASE + '/api/marketing', { headers: { 'Authorization': 'Bearer ' + getToken() } }),
@@ -380,12 +381,18 @@
                 ]))
                 .then(([gruposRes, marketingRes, zonasRes]) => {
                     if (gruposRes.status !== 200) {
-                        tbody.innerHTML = '<tr><td colspan="11" class="text-center text-danger">' + (gruposRes.body.error || 'Error') + '</td></tr>';
+                        if (!silent) tbody.innerHTML = '<tr><td colspan="11" class="text-center text-danger">' + (gruposRes.body.error || 'Error') + '</td></tr>';
                         return;
                     }
-                    gruposPageData = gruposRes.body.data || [];
-                    if (zonasRes.status === 200) window.zonasData = zonasRes.body.data || [];
-                    const marketingData = (marketingRes.body.data || []);
+                    const newGrupos = gruposRes.body.data || [];
+                    const newZonas = zonasRes.status === 200 ? (zonasRes.body.data || []) : (window.zonasData || []);
+                    const newMarketing = marketingRes.body.data || [];
+                    const snap = JSON.stringify([newGrupos, newZonas, newMarketing]);
+                    if (silent && snap === _lastGruposSnapshot) return;
+                    _lastGruposSnapshot = snap;
+                    gruposPageData = newGrupos;
+                    if (zonasRes.status === 200) window.zonasData = newZonas;
+                    const marketingData = newMarketing;
                     // Compute pubs per group
                     window._gruposPubs = {};
                     window._gruposEstatus = {};
@@ -411,7 +418,7 @@
                     document.getElementById('grupos-count').innerText = gruposPageData.length;
                 })
                 .catch(() => {
-                    tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">Error de conexión</td></tr>';
+                    if (!silent) tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">Error de conexión</td></tr>';
                 });
         }
 
@@ -616,7 +623,7 @@
             if (gestionLabel) gestionLabel.style.display = isAdmin ? '' : 'none';
             if (gestionItems) gestionItems.style.display = isAdmin ? '' : 'none';
             loadGruposPage();
-            setInterval(() => loadGruposPage(), 60000);
+            setInterval(() => loadGruposPage(true), 60000);
         });
     </script>
 </body>

@@ -194,9 +194,10 @@ function switchView(viewName) {
   }
 }
 
-function loadMarketingData() {
+let _lastMarketingSnapshot = '';
+function loadMarketingData(silent) {
   const tbody = document.getElementById('marketing-table-body');
-  tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Cargando...</td></tr>';
+  if (!silent) tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Cargando...</td></tr>';
 
   fetch(API_BASE + '/api/marketing', {
     headers: { 'Authorization': 'Bearer ' + getToken() }
@@ -207,18 +208,23 @@ function loadMarketingData() {
       try { body = JSON.parse(text); } catch { body = { error: text.substring(0, 200) }; }
 
       if (status !== 200) {
+        if (silent) return;
         const msg = body.error || 'Error ' + status;
         document.getElementById('data-source-badge').innerHTML = '<i class="bi bi-exclamation-triangle text-danger"></i> ' + msg;
         tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">' + msg + '</td></tr>';
         return;
       }
-      marketingData = body.data || [];
+      const newData = body.data || [];
+      const snap = JSON.stringify(newData);
+      if (silent && snap === _lastMarketingSnapshot) return;
+      _lastMarketingSnapshot = snap;
+      marketingData = newData;
       document.getElementById('data-source-badge').innerHTML = '<i class="bi bi-database"></i> Google Sheets';
-      document.getElementById('filter-fecha').value = '';
+      if (!silent) document.getElementById('filter-fecha').value = '';
       populateFilterDropdowns();
     })
     .catch((err) => {
-      tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Error de red: ' + (err.message || 'desconocido') + '</td></tr>';
+      if (!silent) tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Error de red: ' + (err.message || 'desconocido') + '</td></tr>';
     });
 }
 
@@ -808,24 +814,34 @@ function saveBulkMarketing() {
   });
 }
 
-function loadGrupos() {
+let _lastGruposSnapshot = '';
+function loadGrupos(silent) {
   fetch(API_BASE + '/api/grupos', {
     headers: { 'Authorization': 'Bearer ' + getToken() }
   })
     .then(r => r.json().then(b => ({ status: r.status, body: b })))
     .then(({ status, body }) => {
       if (status === 200) {
-        gruposData = body.data || [];
+        const newData = body.data || [];
+        const snap = JSON.stringify(newData);
+        if (silent && snap === _lastGruposSnapshot) return;
+        _lastGruposSnapshot = snap;
+        gruposData = newData;
         refreshGruposByZona();
       }
     })
     .catch(() => {});
 }
 
-function loadZonas() {
+let _lastZonasSnapshot = '';
+function loadZonas(silent) {
   apiFetch('/api/zonas').then(({ status, body }) => {
     if (status === 200) {
-      zonasData = body.data || [];
+      const newData = body.data || [];
+      const snap = JSON.stringify(newData);
+      if (silent && snap === _lastZonasSnapshot) return;
+      _lastZonasSnapshot = snap;
+      zonasData = newData;
       renderZonas();
       // Poblar select de filtro en vista zonas
       const sel = document.getElementById('filter-zona-zonas');
@@ -843,14 +859,19 @@ function loadZonas() {
   });
 }
 
-function loadHistorial() {
+let _lastHistorialSnapshot = '';
+function loadHistorial(silent) {
   fetch(API_BASE + '/api/historial', {
     headers: { 'Authorization': 'Bearer ' + getToken() }
   })
     .then(r => r.json().then(b => ({ status: r.status, body: b })))
     .then(({ status, body }) => {
       if (status === 200) {
-        historialData = body.data || [];
+        const newData = body.data || [];
+        const snap = JSON.stringify(newData);
+        if (silent && snap === _lastHistorialSnapshot) return;
+        _lastHistorialSnapshot = snap;
+        historialData = newData;
       }
     })
     .catch(() => {});
@@ -1827,9 +1848,9 @@ function enterApp(user) {
   document.getElementById('current-page-subtitle').innerText = 'Rendimiento en tiempo real de cuentas de Facebook';
 
   setInterval(() => {
-    loadMarketingData();
-    loadGrupos();
-    loadHistorial();
+    loadMarketingData(true);
+    loadGrupos(true);
+    loadHistorial(true);
   }, 60000);
 }
 

@@ -381,9 +381,11 @@ function fillZonaSelects() {
             filterSel.value = curFilter;
         }
 
-        function loadSucursales() {
+let _lastSucursalesSnapshot = '';
+        function loadSucursales(silent) {
             const tbody = document.getElementById('sucursales-table-body');
-            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Cargando...</td></tr>';
+            const cols = (selectedAddress ? 9 : 8);
+            if (!silent) tbody.innerHTML = '<tr><td colspan="' + cols + '" class="text-center text-muted">Cargando...</td></tr>';
             Promise.all([
                 fetch(API_BASE + '/api/sucursales', { headers: { 'Authorization': 'Bearer ' + getToken() } }),
                 fetch(API_BASE + '/api/zonas', { headers: { 'Authorization': 'Bearer ' + getToken() } })
@@ -393,20 +395,25 @@ function fillZonaSelects() {
                     rZonas.json().then(b => ({ status: rZonas.status, body: b }))
                 ]))
                 .then(([sucRes, zonasRes]) => {
-if (sucRes.status !== 200) {
-                        tbody.innerHTML = '<tr><td colspan="' + (selectedAddress ? 9 : 8) + '" class="text-center text-danger">' + (sucRes.body.error || 'Error') + '</td></tr>';
+                    if (sucRes.status !== 200) {
+                        if (!silent) tbody.innerHTML = '<tr><td colspan="' + cols + '" class="text-center text-danger">' + (sucRes.body.error || 'Error') + '</td></tr>';
                         return;
                     }
-                    sucursalesData = sucRes.body.data || [];
-                    if (zonasRes.status === 200) sucursalesZonasData = zonasRes.body.data || [];
+                    const newData = sucRes.body.data || [];
+                    const newZonas = zonasRes.status === 200 ? (zonasRes.body.data || []) : sucursalesZonasData;
+                    const snap = JSON.stringify([newData, newZonas]);
+                    if (silent && snap === _lastSucursalesSnapshot) return;
+                    _lastSucursalesSnapshot = snap;
+                    sucursalesData = newData;
+                    sucursalesZonasData = newZonas;
                     fillEmpresaSelects();
                     fillZonaSelects();
-renderSucursales();
+                    renderSucursales();
                     document.getElementById('sucursales-count').innerText = sucursalesData.length;
                     updateGeocodeButtonVisibility();
                 })
-.catch(() => {
-                    tbody.innerHTML = '<tr><td colspan="' + (selectedAddress ? 9 : 8) + '" class="text-center text-muted">Error de conexión</td></tr>';
+                .catch(() => {
+                    if (!silent) tbody.innerHTML = '<tr><td colspan="' + cols + '" class="text-center text-muted">Error de conexión</td></tr>';
                 });
         }
 
@@ -924,7 +931,7 @@ if (gestionItems) gestionItems.style.display = isAdmin ? '' : 'none';
             initAddressAutocomplete();
             initTopAddressSearch();
             loadSucursales();
-            setInterval(() => loadSucursales(), 60000);
+            setInterval(() => loadSucursales(true), 60000);
         });
     </script>
 </body>

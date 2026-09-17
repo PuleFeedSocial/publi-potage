@@ -200,19 +200,23 @@
             return '';
         }
 
-        function loadLogs() {
+        let _lastLogsSnapshot = '';
+        function loadLogs(silent) {
             const tbody = document.getElementById('logs-tbody');
-            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Cargando...</td></tr>';
+            if (!silent) tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Cargando...</td></tr>';
             fetch(API_BASE + '/api/logs', {
                 headers: { 'Authorization': 'Bearer ' + getToken() }
             })
                 .then(r => r.json().then(b => ({ status: r.status, body: b })))
                 .then(({ status, body }) => {
                     if (status !== 200) {
-                        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">' + (body.error || 'Error') + '</td></tr>';
+                        if (!silent) tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">' + (body.error || 'Error') + '</td></tr>';
                         return;
                     }
                     const logs = body || [];
+                    const snap = JSON.stringify(logs);
+                    if (silent && snap === _lastLogsSnapshot) return;
+                    _lastLogsSnapshot = snap;
                     document.getElementById('logs-count').innerText = logs.length + ' registros';
                     document.getElementById('data-source-badge-logs').innerHTML = '<i class="bi bi-database"></i> Logs · ' + logs.length + ' registros';
 
@@ -241,7 +245,7 @@
                     });
                 })
                 .catch(() => {
-                    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Error de conexión</td></tr>';
+                    if (!silent) tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Error de conexión</td></tr>';
                 });
         }
 
@@ -266,7 +270,7 @@
                 document.body.classList.add('sidebar-open');
             }
             loadLogs();
-            setInterval(() => loadLogs(), 30000);
+            setInterval(() => loadLogs(true), 30000);
         });
     </script>
 </body>
