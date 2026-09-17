@@ -1757,25 +1757,57 @@ function loadPermissionsPanel() {
   });
 }
 
+const permGroupMeta = {
+  Secciones: { icon: 'bi-grid-1x2-fill', label: 'Acceso a Secciones' },
+  Publicaciones: { icon: 'bi-megaphone-fill', label: 'Publicaciones' },
+  'Grupos y Zonas': { icon: 'bi-diagram-3-fill', label: 'Grupos y Zonas' },
+  Sucursales: { icon: 'bi-buildings-fill', label: 'Sucursales' },
+  Informes: { icon: 'bi-file-earmark-bar-graph-fill', label: 'Informes' }
+};
+
+function escHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function permissionsStatusText(inner) {
+  const st = document.getElementById('permissions-status');
+  if (st) st.innerHTML = inner;
+}
+
+function markPermissionsDirty() {
+  permissionsStatusText('<i class="bi bi-exclamation-circle-fill me-1 text-warning"></i>Hay cambios sin guardar');
+}
+
 function renderPermissionsPanel(catalog, perms) {
   const cont = document.getElementById('permissions-container');
   if (!cont) return;
   const groups = {};
   catalog.forEach(item => { (groups[item.group] = groups[item.group] || []).push(item); });
+  const groupNames = Object.keys(groups);
   let html = '';
-  Object.keys(groups).forEach(g => {
-    html += '<div class="perm-group mb-3"><div class="perm-group-title">' + g + '</div>';
-    groups[g].forEach(item => {
-      const id = 'perm-' + item.key;
-      html += '<div class="form-check form-switch perm-row">' +
-        '<input class="form-check-input" type="checkbox" role="switch" id="' + id + '" data-perm="' + item.key + '"' + (perms[item.key] ? ' checked' : '') + '>' +
-        '<label class="form-check-label" for="' + id + '"><span class="perm-label">' + item.label + '</span>' +
-        (item.desc ? '<span class="perm-desc">' + item.desc + '</span>' : '') +
-        '</label></div>';
+  for (let i = 0; i < groupNames.length; i += 2) {
+    const slice = groupNames.slice(i, i + 2);
+    html += '<div class="row g-3 mb-2">';
+    slice.forEach(g => {
+      const meta = permGroupMeta[g] || { icon: 'bi-shield-fill', label: g };
+      html += '<div class="col-md-6"><div class="perm-group-card">' +
+        '<div class="perm-group-head"><i class="bi ' + meta.icon + ' me-2"></i>' + escHtml(meta.label) +
+        '<span class="perm-count">' + groups[g].length + '</span></div>' +
+        '<div class="perm-group-body">';
+      groups[g].forEach(item => {
+        html += '<label class="perm-item">' +
+          '<span class="perm-info"><span class="perm-label">' + escHtml(item.label) + '</span>' +
+          (item.desc ? '<span class="perm-desc">' + escHtml(item.desc) + '</span>' : '') +
+          '</span>' +
+          '<span class="tgl"><input type="checkbox" data-perm="' + item.key + '" onchange="markPermissionsDirty()"' + (perms[item.key] ? ' checked' : '') + '><span class="sl"></span></span>' +
+          '</label>';
+      });
+      html += '</div></div></div>';
     });
     html += '</div>';
-  });
+  }
   cont.innerHTML = html;
+  permissionsStatusText('Los cambios se aplican al guardar.');
 }
 
 function savePermissions() {
@@ -1790,6 +1822,7 @@ function savePermissions() {
     .then(({ status, body }) => {
       if (btn) { btn.disabled = false; btn.innerHTML = original; }
       if (status !== 200) { showToast(body.error || 'Error al guardar permisos.', 'error'); return; }
+      permissionsStatusText('Los cambios se aplican al guardar.');
       showToast('Permisos del rol Colaborador actualizados.', 'success');
     })
     .catch(() => {
@@ -1806,6 +1839,7 @@ function resetPermissions() {
     const def = permissionDefaults[i.dataset.perm];
     if (def !== undefined) i.checked = !!def;
   });
+  markPermissionsDirty();
   showToast('Valores por defecto cargados. Presioná "Guardar cambios" para aplicarlos.');
 }
 

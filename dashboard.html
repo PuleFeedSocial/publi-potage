@@ -324,22 +324,25 @@
                 </div>
 
                 <div class="card data-table-card mb-4">
-                    <div class="card-header-clean d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="card-header-clean">
                         <div>
-                            <h5 class="table-card-title"><i class="bi bi-shield-lock-fill me-1"></i> Panel de Administrador — Permisos del Colaborador</h5>
-                            <span class="text-muted small">Elegí qué puede hacer un usuario con rol <span class="fw-semibold">Colaborador</span></span>
-                        </div>
-                        <div class="d-flex gap-2">
-                            <button class="btn btn-sm btn-outline-secondary" onclick="resetPermissions()">
-                                <i class="bi bi-arrow-counterclockwise me-1"></i> Restaurar
-                            </button>
-                            <button class="btn btn-sm btn-action-primary" id="save-permissions-btn" onclick="savePermissions()">
-                                <i class="bi bi-check-lg me-1"></i> Guardar cambios
-                            </button>
+                            <h5 class="table-card-title"><i class="bi bi-shield-lock-fill me-1"></i> Permisos del Rol Colaborador</h5>
+                            <span class="text-muted small">Definí qué puede hacer un usuario con rol <span class="fw-semibold">Colaborador</span>. El administrador siempre tiene acceso total.</span>
                         </div>
                     </div>
                     <div class="card-body p-4">
                         <div id="permissions-container"></div>
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 border-top pt-3 mt-4">
+                            <span id="permissions-status" class="small text-muted">Los cambios se aplican al guardar.</span>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetPermissions()">
+                                    <i class="bi bi-arrow-counterclockwise me-1"></i> Restaurar
+                                </button>
+                                <button type="button" class="btn btn-sm btn-action-primary" id="save-permissions-btn" onclick="savePermissions()">
+                                    <i class="bi bi-check-lg me-1"></i> Guardar cambios
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
