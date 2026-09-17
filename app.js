@@ -70,18 +70,22 @@ function sessionRole() {
 
 function loadMyPermissions() {
   if (!getToken()) return Promise.resolve(null);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
   return fetch(API_BASE + '/api/auth/permissions', {
-    headers: { 'Authorization': 'Bearer ' + getToken() }
+    headers: { 'Authorization': 'Bearer ' + getToken() },
+    signal: ctrl.signal
   })
     .then(r => r.json())
     .then(body => {
+      clearTimeout(timer);
       if (body && body.permissions) {
         currentPermissions = body.permissions;
         applyNavPermissions();
       }
       return currentPermissions;
     })
-    .catch(() => currentPermissions);
+    .catch(() => { clearTimeout(timer); return currentPermissions; });
 }
 
 function hasPermission(key) {
