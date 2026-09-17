@@ -322,7 +322,6 @@
 let sucursalesData = [];
         let sucursalesZonasData = [];
         const ZONA_OTRO = '__OTRO__';
-        const RADIUS_KM = 5;
         let selectedAddress = null;
 
         function toggleSidebar() {
@@ -461,12 +460,11 @@ function distanceKm(lat1, lng1, lat2, lng2) {
                         sinCoords++;
                     }
                 });
-                const enRadio = conDist.filter(o => o.distKm <= RADIUS_KM);
-                enRadio.sort((a, b) => a.distKm - b.distKm);
-                filtered = enRadio;
+                conDist.sort((a, b) => a.distKm - b.distKm);
+                filtered = conDist;
                 if (msgEl) {
                     msgEl.className = 'text-muted small ms-2';
-                    msgEl.innerHTML = ' · <i class="bi bi-geo-alt-fill"></i> Resultados dentro de ' + RADIUS_KM + ' km de «' + selectedAddress.label + '»' +
+                    msgEl.innerHTML = ' · <i class="bi bi-geo-alt-fill"></i> Ordenadas por distancia desde «' + selectedAddress.label + '»' +
                         (sinCoords > 0 ? ' · <span class="text-warning">' + sinCoords + ' sucursal(es) sin coordenadas no pudieron ubicarse</span>' : '');
                 }
             }
@@ -503,7 +501,7 @@ function distanceKm(lat1, lng1, lat2, lng2) {
                 tbody.appendChild(tr);
             });
             if (!filtered.length) {
-                tbody.innerHTML = '<tr><td colspan="' + (showDist ? 9 : 8) + '" class="text-center text-muted">Sin resultados' + (selectedAddress ? ' en un radio de ' + RADIUS_KM + ' km' : '') + '</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="' + (showDist ? 9 : 8) + '" class="text-center text-muted">Sin resultados</td></tr>';
             }
         }
 
@@ -531,7 +529,7 @@ function hideAddressList() {
 
         async function geoSearch(q, limit, outerSignal) {
             const qs = encodeURIComponent(q);
-            const directUrl = 'https://nominatim.openstreetmap.org/search?format=json&limit=' + limit + '&accept-language=es&countrycodes=ar&q=' + qs;
+            const directUrl = 'https://nominatim.openstreetmap.org/search?format=json&limit=' + limit + '&addressdetails=1&accept-language=es&countrycodes=ar&q=' + qs;
             const proxyUrl = API_BASE + '/api/sucursales/geocode?limit=' + limit + '&q=' + qs;
 
             async function getJson(url, headers) {
@@ -560,6 +558,44 @@ function hideAddressList() {
             return [];
         }
 
+        function sugLabel(r) {
+            const a = r.address || {};
+            const num = a.house_number || '';
+            const road = a.road || a.pedestrian || a.footway || a.square || '';
+            const loc = a.city || a.town || a.municipality || a.village || a.county || a.state || '';
+            const partes = [];
+            if (road) partes.push(road + (num ? ' ' + num : ''));
+            else if (num) partes.push('N° ' + num);
+            if (loc) partes.push(loc);
+            if (partes.length) return partes.join(', ');
+            return r.display_name;
+        }
+
+        function dedupeResults(results) {
+            const seen = new Set();
+            const out = [];
+            results.forEach(r => {
+                const key = (r.lat + ',' + r.lon) || r.display_name;
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    out.push(r);
+                }
+            });
+            return out;
+        }
+
+        function bestAddressMatch(q, results) {
+            if (!results || !results.length) return null;
+            const num = (String(q).match(/\d+/g) || [])[0];
+            if (num) {
+                const exact = results.find(r => r.address && String(r.address.house_number) === num);
+                if (exact) return exact;
+                const conNum = results.find(r => r.address && r.address.house_number);
+                if (conNum) return conNum;
+            }
+            return results[0];
+        }
+
         async function searchAddresses(q) {
             const list = document.getElementById('sucursal-address-list');
             if (addressSearchController) addressSearchController.abort();
@@ -569,13 +605,14 @@ function hideAddressList() {
             list.style.display = 'block';
             let results;
             try {
-                results = await geoSearch(q, 10, controller.signal);
+                results = await geoSearch(q, 15, controller.signal);
             } catch (err) {
                 if (controller.signal.aborted) return;
                 list.innerHTML = '<div class="suc-address-item disabled">Error al buscar la dirección</div>';
                 return;
             }
             if (controller.signal.aborted) return;
+            results = dedupeResults(results);
             if (!results.length) {
                 list.innerHTML = '<div class="suc-address-item disabled">Sin resultados para esa dirección</div>';
                 return;
@@ -584,14 +621,23 @@ function hideAddressList() {
             results.forEach(r => {
                 const div = document.createElement('div');
                 div.className = 'suc-address-item';
-                div.textContent = r.display_name;
-                div.title = r.display_name;
                 div.onclick = () => {
                     document.getElementById('sucursal-direccion').value = r.display_name;
                     document.getElementById('sucursal-lat').value = r.lat;
                     document.getElementById('sucursal-lng').value = r.lon;
                     hideAddressList();
                 };
+                const label = document.createElement('div');
+                label.className = 'fw-medium';
+                label.textContent = sugLabel(r);
+                const sub = document.createElement('div');
+                sub.className = 'small text-muted';
+                sub.textContent = r.display_name;
+                if (label.textContent === sub.textContent) {
+                    label.textContent = r.display_name;
+                }
+                div.appendChild(label);
+                if (label.textContent !== sub.textContent) div.appendChild(sub);
                 list.appendChild(div);
             });
         }
@@ -635,13 +681,16 @@ function hideAddressList() {
             for (let i = 0; i < pending.length; i++) {
                 const s = pending[i];
                 status.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Geocodificando ' + (i + 1) + '/' + pending.length + '…';
+                const addrQuery = [s.direccion, s.ubicacion].filter(x => x && x.trim()).join(', ');
                 let results = null;
                 for (let att = 0; att < 2; att++) {
-                    try { results = await geoSearch(s.direccion, 1); } catch { results = null; }
+                    try { results = await geoSearch(addrQuery, 10); } catch { results = null; }
                     if (results && results.length) break;
                     if (att === 0 && i !== pending.length - 1) await new Promise(r => setTimeout(r, 3000));
                 }
-                if (results && results.length) {
+                results = dedupeResults(results || []);
+                const best = bestAddressMatch(addrQuery, results);
+                if (best) {
                     try {
                         await fetch(API_BASE + '/api/sucursales/' + s.rowIndex, {
                             method: 'PUT',
@@ -649,7 +698,7 @@ function hideAddressList() {
                             body: JSON.stringify({
                                 empresa: s.empresa, ubicacion: s.ubicacion, direccion: s.direccion,
                                 contacto: s.contacto, horario: s.horario, zona: s.zona, activo: s.activo,
-                                lat: results[0].lat, lng: results[0].lon
+                                lat: best.lat, lng: best.lon
                             })
                         });
                         ok++;
@@ -694,13 +743,14 @@ function hideAddressList() {
             list.style.display = 'block';
             let results;
             try {
-                results = await geoSearch(q, 10, controller.signal);
+                results = await geoSearch(q, 15, controller.signal);
             } catch (err) {
                 if (controller.signal.aborted) return;
                 list.innerHTML = '<div class="suc-address-item disabled">Error al buscar la dirección</div>';
                 return;
             }
             if (controller.signal.aborted) return;
+            results = dedupeResults(results);
             if (!results.length) {
                 list.innerHTML = '<div class="suc-address-item disabled">Sin resultados para esa dirección</div>';
                 return;
@@ -709,9 +759,15 @@ function hideAddressList() {
             results.forEach(r => {
                 const div = document.createElement('div');
                 div.className = 'suc-address-item';
-                div.textContent = r.display_name;
-                div.title = r.display_name;
                 div.onclick = () => selectTopAddress(r);
+                const label = document.createElement('div');
+                label.className = 'fw-medium';
+                label.textContent = sugLabel(r);
+                const sub = document.createElement('div');
+                sub.className = 'small text-muted';
+                sub.textContent = r.display_name;
+                div.appendChild(label);
+                if (label.textContent !== sub.textContent) div.appendChild(sub);
                 list.appendChild(div);
             });
         }

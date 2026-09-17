@@ -85,9 +85,9 @@ router.get('/geocode', authenticate, async (req, res) => {
   try {
     const q = (req.query.q || '').trim();
     if (!q) return res.status(400).json({ error: 'Falta el parámetro q.' });
-    const limit = Math.min(Math.max(parseInt(req.query.limit) || 6, 1), 10);
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 6, 1), 20);
     const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=' + limit +
-      '&accept-language=es&countrycodes=ar&q=' + encodeURIComponent(q);
+      '&addressdetails=1&accept-language=es&countrycodes=ar&q=' + encodeURIComponent(q);
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 15000);
     let resp;
