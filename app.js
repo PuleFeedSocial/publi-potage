@@ -2024,5 +2024,16 @@ function enterApp(user) {
 }
 
 if ('serviceWorker' in navigator) {
+  let swReloaded = false;
   navigator.serviceWorker.register('/sw.js').catch(() => {});
+  navigator.serviceWorker.ready.then(() => {
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!swReloaded) {
+          swReloaded = true;
+          window.location.reload();
+        }
+      });
+    }
+  });
 }
