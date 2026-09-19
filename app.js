@@ -258,7 +258,7 @@ function switchView(viewName) {
   }
 }
 
-let _lastMarketingSnapshot = '';
+let _appLastMarketingSnapshot = '';
 function loadMarketingData(silent) {
   const tbody = document.getElementById('marketing-table-body');
   if (!silent) tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Cargando...</td></tr>';
@@ -280,8 +280,8 @@ function loadMarketingData(silent) {
       }
       const newData = body.data || [];
       const snap = JSON.stringify(newData);
-      if (silent && snap === _lastMarketingSnapshot) return;
-      _lastMarketingSnapshot = snap;
+      if (silent && snap === _appLastMarketingSnapshot) return;
+      _appLastMarketingSnapshot = snap;
       marketingData = newData;
       document.getElementById('data-source-badge').innerHTML = '<i class="bi bi-database"></i> Google Sheets';
       if (!silent) document.getElementById('filter-fecha').value = '';
@@ -878,7 +878,7 @@ function saveBulkMarketing() {
   });
 }
 
-let _lastGruposSnapshot = '';
+let _appLastGruposSnapshot = '';
 function loadGrupos(silent) {
   fetch(API_BASE + '/api/grupos', {
     headers: { 'Authorization': 'Bearer ' + getToken() }
@@ -888,8 +888,8 @@ function loadGrupos(silent) {
       if (status === 200) {
         const newData = body.data || [];
         const snap = JSON.stringify(newData);
-        if (silent && snap === _lastGruposSnapshot) return;
-        _lastGruposSnapshot = snap;
+        if (silent && snap === _appLastGruposSnapshot) return;
+        _appLastGruposSnapshot = snap;
         gruposData = newData;
         refreshGruposByZona();
       }
@@ -897,14 +897,14 @@ function loadGrupos(silent) {
     .catch(() => {});
 }
 
-let _lastZonasSnapshot = '';
+let _appLastZonasSnapshot = '';
 function loadZonas(silent) {
   apiFetch('/api/zonas').then(({ status, body }) => {
     if (status === 200) {
       const newData = body.data || [];
       const snap = JSON.stringify(newData);
-      if (silent && snap === _lastZonasSnapshot) return;
-      _lastZonasSnapshot = snap;
+      if (silent && snap === _appLastZonasSnapshot) return;
+      _appLastZonasSnapshot = snap;
       zonasData = newData;
       renderZonas();
       // Poblar select de filtro en vista zonas
@@ -923,7 +923,7 @@ function loadZonas(silent) {
   });
 }
 
-let _lastHistorialSnapshot = '';
+let _appLastHistorialSnapshot = '';
 function loadHistorial(silent) {
   fetch(API_BASE + '/api/historial', {
     headers: { 'Authorization': 'Bearer ' + getToken() }
@@ -933,8 +933,8 @@ function loadHistorial(silent) {
       if (status === 200) {
         const newData = body.data || [];
         const snap = JSON.stringify(newData);
-        if (silent && snap === _lastHistorialSnapshot) return;
-        _lastHistorialSnapshot = snap;
+        if (silent && snap === _appLastHistorialSnapshot) return;
+        _appLastHistorialSnapshot = snap;
         historialData = newData;
       }
     })
