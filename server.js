@@ -21,7 +21,14 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use(express.static(__dirname));
+app.use(express.static(__dirname, {
+  maxAge: 0,
+  etag: true,
+  setHeaders(res, filePath) {
+    if (filePath.endsWith('sw.js')) res.setHeader('Cache-Control', 'no-store');
+    else res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+  }
+}));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/marketing', marketingRoutes);
