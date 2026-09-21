@@ -2596,3 +2596,266 @@ html[data-theme="dark"] .perm-count {
     background: #334155;
     color: #cbd5e1;
 }
+
+/* ============================================================
+   AUDITORÍA DE DISEÑO — MEJORAS MOBILE Y TABLET
+   ============================================================ */
+
+/* Gestos táctiles: sin doble-tap zoom en controles */
+@media (pointer: coarse) {
+    .btn,
+    .menu-item,
+    .sidebar-toggle,
+    .profile-btn,
+    .pagination-custom a,
+    .pag-btn,
+    .tgl .sl {
+        touch-action: manipulation;
+    }
+}
+
+/* ---------- Teléfonos y tablets (<=768px) ---------- */
+@media (max-width: 768px) {
+
+    /* iOS: inputs >=16px evitan el zoom automático al enfocar */
+    .form-control,
+    .form-select,
+    .custom-input,
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="date"],
+    input[type="number"],
+    input[type="search"],
+    select,
+    textarea {
+        font-size: 16px !important;
+    }
+
+    /* Barra superior: el título ocupa el espacio restante */
+    .page-context {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .page-subtitle {
+        font-size: 0.78rem;
+    }
+
+    /* Sidebar: overlay táctil para cerrar (inyectado por app.js) */
+    body.sidebar-open .sidebar-overlay {
+        cursor: pointer;
+    }
+
+    /* Tablas: última columna fija (acciones siempre visibles) y sin animación pesada */
+    .custom-table {
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .custom-table tbody tr {
+        animation: none !important;
+    }
+
+    .custom-table thead th:last-child,
+    .custom-table tbody td:last-child {
+        position: sticky;
+        right: 0;
+        background: var(--bg-card) !important;
+        box-shadow: -8px 0 12px -12px rgba(0, 0, 0, 0.25);
+    }
+
+    .custom-table thead th:last-child {
+        z-index: 3;
+    }
+
+    .custom-table tbody td:last-child {
+        z-index: 2;
+    }
+
+    /* Celdas de acciones con área táctil cómoda */
+    .custom-table .btn {
+        min-width: 36px;
+        min-height: 36px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .btn-sm {
+        padding: 8px 14px;
+    }
+
+    /* Vista Zonas: el campo "Nueva zona" a lo ancho */
+    #view-zonas > .d-flex.justify-content-between.align-items-center.mb-3 {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+    }
+
+    #view-zonas > .d-flex.justify-content-between.align-items-center.mb-3 > .d-flex {
+        width: 100% !important;
+        flex-wrap: wrap;
+    }
+
+    #view-zonas #zona-nombre-input {
+        max-width: none !important;
+        flex: 1 1 auto;
+    }
+
+    /* Filtros de Logs: cuadrícula cómoda */
+    .logs-filter-bar {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+
+    .logs-filter-bar select,
+    .logs-filter-bar input[type="date"],
+    .logs-filter-bar input[type="text"] {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .logs-filter-bar #logs-buscar,
+    .logs-filter-bar .btn {
+        grid-column: 1 / -1;
+        width: 100% !important;
+    }
+
+    /* Filtros de Sucursales: cuadrícula cómoda */
+    .sucursales-filter-bar {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        width: 100% !important;
+    }
+
+    .sucursales-filter-bar .suc-address-wrap {
+        min-width: 0 !important;
+        grid-column: 1 / -1;
+    }
+
+    .sucursales-filter-bar #sucursales-search {
+        grid-column: 1 / -1;
+    }
+
+    .sucursales-filter-bar input,
+    .sucursales-filter-bar select {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    /* Informes: celdas truncadas legibles sin hover (estás en el celular) */
+    .text-truncate-cell {
+        max-width: none !important;
+        white-space: normal !important;
+    }
+
+    /* Permisos: menor padding del panel */
+    #view-users .card-body.p-4 {
+        padding: 16px !important;
+    }
+
+    /* Toggle de tema flotante: fuera del área de navegación */
+    .theme-toggle-btn-floating {
+        top: auto;
+        bottom: 16px;
+        right: 16px;
+    }
+
+    .landing-footer {
+        padding-right: 64px;
+    }
+}
+
+/* ---------- Teléfonos (<576px): modales a pantalla completa ---------- */
+@media (max-width: 575px) {
+    .modal-dialog {
+        margin: 0 !important;
+        width: 100vw !important;
+        max-width: 100vw !important;
+        min-height: 100vh;
+        min-height: 100dvh;
+    }
+
+    .modal-dialog-centered {
+        align-items: stretch !important;
+        min-height: 100vh;
+        min-height: 100dvh;
+        margin: 0 !important;
+    }
+
+    .modal-content {
+        width: 100% !important;
+        height: 100vh;
+        height: 100dvh;
+        max-height: 100dvh !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .modal-body {
+        flex: 1 1 auto;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .modal-header,
+    .modal-footer {
+        flex-shrink: 0;
+    }
+
+    .modal-header .btn-close {
+        min-width: 36px;
+        min-height: 36px;
+    }
+
+    .modal-footer {
+        padding: 10px 16px max(10px, env(safe-area-inset-bottom)) !important;
+    }
+
+    /* Formulario del modal "Actualizar métricas": campos a lo ancho */
+    #updateModal .row.g-3 > [class*="col-"] {
+        flex: 0 0 100% !important;
+        max-width: 100% !important;
+    }
+}
+
+/* ---------- Teléfonos (<480px): compacto final ---------- */
+@media (max-width: 480px) {
+    .logs-filter-bar,
+    .sucursales-filter-bar {
+        grid-template-columns: 1fr;
+    }
+
+    .page-subtitle {
+        display: none;
+    }
+
+    /* Landing: CTAs apilados a lo ancho */
+    .landing-cta {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .landing-cta .btn {
+        width: 100%;
+    }
+
+    /* Carga múltiple: campos a lo ancho */
+    #bulkModal .col-6.col-md-3 {
+        flex: 0 0 100% !important;
+        max-width: 100% !important;
+    }
+
+    .theme-toggle-btn-floating {
+        width: 38px;
+        height: 38px;
+        bottom: 14px;
+        right: 14px;
+    }
+}

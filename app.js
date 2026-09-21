@@ -2037,3 +2037,36 @@ if ('serviceWorker' in navigator) {
     }
   });
 }
+
+/* Mobile: overlay táctil para cerrar la sidebar + cierre al elegir opción o con Esc */
+(function () {
+  function closeSidebarMobile() {
+    const sb = document.querySelector('.sidebar');
+    if (!sb) return;
+    if (sb.classList.contains('open') && window.matchMedia('(max-width: 1024px)').matches) {
+      sb.classList.remove('open');
+      document.body.classList.remove('sidebar-open');
+      localStorage.setItem('sidebarOpen', 'false');
+    }
+  }
+
+  function ensureOverlay() {
+    if (!document.querySelector('.sidebar') || document.querySelector('.sidebar-overlay')) return;
+    const ov = document.createElement('div');
+    ov.className = 'sidebar-overlay';
+    ov.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(ov);
+  }
+
+  ensureOverlay();
+
+  document.addEventListener('click', function (ev) {
+    const t = ev.target;
+    if (!t || !t.closest) return;
+    if (t.closest('.sidebar-overlay') || t.closest('.menu-item')) closeSidebarMobile();
+  });
+
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape') closeSidebarMobile();
+  });
+})();
