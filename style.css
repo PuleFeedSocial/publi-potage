@@ -2861,19 +2861,10 @@ html[data-theme="dark"] .perm-count {
 }
 
 /* ---------- Marca de agua Altas Engineering ---------- */
-.atlas-credit-logo {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-family: 'Inter', sans-serif;
-    font-weight: 800;
-    font-size: 0.95rem;
+.atlas-credit-icon {
+    font-size: 0.9rem;
     line-height: 1;
-    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: transparent;
-    margin-right: 5px;
+    vertical-align: -1px;
+    margin-right: 6px;
     flex-shrink: 0;
 }
