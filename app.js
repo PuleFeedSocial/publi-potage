@@ -616,10 +616,11 @@ function restoreZonasPeriod() {
 }
 
 function buildPeriodLimit() {
-  if (!filterPeriod || filterPeriod === 'all') return null;
+  const DEFAULT_PERIOD_DAYS = 60;
+  const days = (!filterPeriod || filterPeriod === 'all') ? DEFAULT_PERIOD_DAYS : parseInt(filterPeriod);
   const now = new Date();
   const limit = new Date(now);
-  limit.setDate(limit.getDate() - parseInt(filterPeriod));
+  limit.setDate(limit.getDate() - days);
   limit.setHours(0, 0, 0, 0);
   return limit;
 }
@@ -1473,10 +1474,11 @@ function renderZonasDashboard() {
 
   const zonaFilter = document.getElementById('filter-zona-zonas')?.value || '';
   const periodLimit = (() => {
-    if (!filterPeriodZonas || filterPeriodZonas === 'all') return null;
+    const DEFAULT_PERIOD_DAYS = 60;
+    const days = (!filterPeriodZonas || filterPeriodZonas === 'all') ? DEFAULT_PERIOD_DAYS : parseInt(filterPeriodZonas);
     const now = new Date();
     const limit = new Date(now);
-    limit.setDate(limit.getDate() - parseInt(filterPeriodZonas));
+    limit.setDate(limit.getDate() - days);
     limit.setHours(0, 0, 0, 0);
     return limit;
   })();
