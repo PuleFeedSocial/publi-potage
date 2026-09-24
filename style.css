@@ -2859,3 +2859,22 @@ html[data-theme="dark"] .perm-count {
         right: 14px;
     }
 }
+
+/* ---------- Marca de agua ATLAS ---------- */
+.atlas-credit-logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 800;
+    line-height: 1;
+    margin-right: 6px;
+    vertical-align: -4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    flex-shrink: 0;
+}
