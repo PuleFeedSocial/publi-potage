@@ -650,10 +650,10 @@ function applyFilters(resetPage) {
   const zonaNorm = normFilterVal(zona);
   const hasSpecificFilter = grupoNorm || zonaNorm || fecha || searchText;
 
-  // El cap de 2 meses aplica solo a la vista general "Todo"; al buscar
-  // algo específico se muestran todos los resultados que matcheen.
+  // El cap de tiempo aplica solo a la vista general; al buscar algo
+  // específico se muestran todos los resultados que matcheen.
   let periodLimit = buildPeriodLimit();
-  if (hasSpecificFilter && (!filterPeriod || filterPeriod === 'all')) periodLimit = null;
+  if (hasSpecificFilter) periodLimit = null;
 
   let filtered = marketingData;
   if (grupoNorm) filtered = filtered.filter(r => normFilterVal(r.grupo) === grupoNorm);
@@ -1587,9 +1587,9 @@ function renderZonasDashboard() {
   const zonaFilter = document.getElementById('filter-zona-zonas')?.value || '';
   const periodoZonas = filterPeriodZonas;
   const periodLimit = (() => {
-    // El cap de 2 meses aplica solo a la vista general "Todas"; al elegir
+    // El cap de tiempo aplica solo a la vista general "Todas"; al elegir
     // una zona específica se muestran todas sus publicaciones.
-    if (zonaFilter && (!periodoZonas || periodoZonas === 'all')) return null;
+    if (zonaFilter) return null;
     const DEFAULT_PERIOD_DAYS = 60;
     const days = (!periodoZonas || periodoZonas === 'all') ? DEFAULT_PERIOD_DAYS : parseInt(periodoZonas);
     const now = new Date();
