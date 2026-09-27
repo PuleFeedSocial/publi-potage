@@ -714,12 +714,10 @@ function fmtNum(n) {
 }
 
 function buildInformeTexto() {
-  const DAYS = 28;
-  const today = new Date();
-  const limit = new Date(today);
+  const DAYS = 30;
+  const limit = new Date();
   limit.setDate(limit.getDate() - DAYS);
   limit.setHours(0, 0, 0, 0);
-  const fD = d => String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
 
   const rows = (marketingData || []).filter(r => {
     const d = parseDate(r.fecha);
@@ -728,7 +726,6 @@ function buildInformeTexto() {
   if (!rows.length) return '';
 
   const activas = rows.filter(r => isEstatusActivo(r.estatus));
-  const eliminadas = rows.filter(r => ['ELIMINADA', 'SUPRIMIDA', 'EN REVISION'].includes(r.estatus)).length;
   const sum = (arr, k) => arr.reduce((s, r) => s + (Number(r[k]) || 0), 0);
 
   const totalPubs = sum(activas, 'publicaciones');
@@ -738,7 +735,6 @@ function buildInformeTexto() {
   const totalMsj = sum(activas, 'mensajes');
   const gruposCount = new Set(activas.map(r => normFilterVal(r.grupo)).filter(Boolean)).size;
 
-  const mkt = activas.filter(r => normFilterVal(r.grupo) === 'marketplace');
   const groupRows = activas.filter(r => normFilterVal(r.grupo) !== 'marketplace' && r.zona && normFilterVal(r.zona) !== 'todos');
   const zonas = [...new Set(groupRows.map(r => r.zona))];
   const zonaStats = zonas.map(z => {
@@ -755,28 +751,11 @@ function buildInformeTexto() {
   }).sort((a, b) => b.pubs - a.pubs);
 
   let msg = '';
-  msg += 'Buenass Nabil, ¿cómo estás?\n\n';
-  msg += 'Con motivo de la actualización periódica, te comparto el informe de rendimiento correspondiente a los últimos 28 días (del ' + fD(limit) + ' al ' + fD(today) + ').\n\n';
   msg += 'En este período se gestionaron ' + fmtNum(totalPubs) + ' publicaciones a través de ' + fmtNum(gruposCount) + ' grupos activos, alcanzando un total de ' + fmtNum(totalVis) + ' visualizaciones, ' + fmtNum(totalInt) + ' interacciones, ' + fmtNum(totalCom) + ' comentarios y ' + fmtNum(totalMsj) + ' mensajes directos de potenciales clientes.\n\n';
-
-  if (mkt.length) {
-    msg += 'Facebook Marketplace (canal propio): ' + fmtNum(sum(mkt, 'publicaciones')) + ' publicaciones → ' + fmtNum(sum(mkt, 'visualizaciones')) + ' visualizaciones, ' + fmtNum(sum(mkt, 'interacciones')) + ' interacciones y ' + fmtNum(sum(mkt, 'mensajes')) + ' mensajes de potenciales clientes.\n\n';
-  }
-
-  if (zonaStats.length) {
-    msg += 'Las publicaciones en los grupos, distribuidas por localidad, registraron el siguiente rendimiento:\n';
-    zonaStats.forEach(z => {
-      msg += '• ' + z.zona + ': ' + fmtNum(z.pubs) + ' publicaciones → ' + fmtNum(z.vis) + ' visualizaciones, ' + fmtNum(z.int) + ' interacciones, ' + fmtNum(z.com) + ' comentarios y ' + fmtNum(z.msj) + ' mensajes (distribuidas en ' + fmtNum(z.grupos) + ' grupos).\n';
-    });
-    msg += '\n';
-  }
-
-  if (eliminadas > 0) {
-    msg += 'Debo señalar que ' + fmtNum(eliminadas) + ' publicaciones fueron eliminadas o suprimidas por la moderación de las comunidades durante el período. Me encuentro auditando el estado de las publicaciones para ajustar la estrategia y minimizar este impacto.\n\n';
-  }
-
-  msg += 'Quedo a tu total disposición ante cualquier sugerencia, ajuste o comentario que consideres oportuno.\n';
-  msg += '¡Excelente jornada!';
+  msg += 'Las publicaciones en los grupos, distribuidas por localidad, registraron el siguiente rendimiento:\n';
+  zonaStats.forEach(z => {
+    msg += '• ' + z.zona + ': ' + fmtNum(z.pubs) + ' publicaciones → ' + fmtNum(z.vis) + ' visualizaciones, ' + fmtNum(z.int) + ' interacciones, ' + fmtNum(z.com) + ' comentarios y ' + fmtNum(z.msj) + ' mensajes (distribuidas en ' + fmtNum(z.grupos) + ' grupos).\n';
+  });
   return msg;
 }
 
