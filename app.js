@@ -637,6 +637,17 @@ function buildPeriodLimit() {
   return limit;
 }
 
+function historialSetPeriodo(periodLimit) {
+  const set = new Set();
+  (historialData || []).forEach(h => {
+    if (h && h.filaOrigen !== undefined && h.filaOrigen !== null) {
+      const d = parseDate(h.fechaActualizacion);
+      if (d && d >= periodLimit) set.add(String(h.filaOrigen));
+    }
+  });
+  return set;
+}
+
 function applyFilters(resetPage) {
   if (resetPage !== false) pageActual = 1;
   const grupo = document.getElementById('filter-grupo').value;
@@ -667,9 +678,11 @@ function applyFilters(resetPage) {
     });
   }
   if (periodLimit) {
+    const actualizados = historialSetPeriodo(periodLimit);
     filtered = filtered.filter(r => {
       const d = parseDate(r.fecha);
-      return d && d >= periodLimit;
+      if (d && d >= periodLimit) return true;
+      return actualizados.has(String(r.rowIndex));
     });
   }
 
@@ -1618,7 +1631,14 @@ function renderZonasDashboardInner(grupos, zonaFilter, periodLimit) {
   let data = marketingData.filter(r => r.grupo !== 'Perfil Estandar' && isEstatusActivo(r.estatus));
   const zonaNorm = normFilterVal(zonaFilter);
   if (zonaNorm) data = data.filter(r => normFilterVal(r.zona) === zonaNorm);
-  if (periodLimit) data = data.filter(r => { const d = parseDate(r.fecha); return d && d >= periodLimit; });
+  if (periodLimit) {
+    const actualizados = historialSetPeriodo(periodLimit);
+    data = data.filter(r => {
+      const d = parseDate(r.fecha);
+      if (d && d >= periodLimit) return true;
+      return actualizados.has(String(r.rowIndex));
+    });
+  }
 
   // Agrupar por zona desde marketingData
   const zones = {};
