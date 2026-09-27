@@ -510,21 +510,33 @@ function populateFilterDropdowns() {
   if (filterFecha) filterFecha.value = localStorage.getItem('dashFecha') || '';
 }
 
+function normFilterVal(v) { return String(v || '').trim().toLowerCase(); }
+
 function refreshGruposByZona() {
   const zona = document.getElementById('filter-zona').value;
+  const zonaNorm = normFilterVal(zona);
   const sel = document.getElementById('filter-grupo');
   if (!sel) return;
   let current = sel.value;
   if (!current) current = localStorage.getItem('dashGrupo') || '';
 
   let grupos;
-  if (zona) {
-    grupos = [...new Set(gruposData.filter(g => g.zona === zona).map(g => g.nombre).filter(Boolean))];
-    grupos = [...new Set([...grupos, ...marketingData.filter(r => r.zona === zona && r.grupo !== 'Perfil Estandar').map(r => r.grupo).filter(Boolean)])];
+  if (zonaNorm) {
+    grupos = [...new Set(gruposData.filter(g => normFilterVal(g.zona) === zonaNorm).map(g => g.nombre).filter(Boolean))];
+    grupos = [...new Set([...grupos, ...marketingData.filter(r => normFilterVal(r.zona) === zonaNorm && r.grupo !== 'Perfil Estandar').map(r => r.grupo).filter(Boolean)])];
   } else {
     grupos = [...new Set(gruposData.map(r => r.nombre).filter(Boolean))];
     grupos = [...new Set([...grupos, ...marketingData.filter(r => r.grupo !== 'Perfil Estandar').map(r => r.grupo).filter(Boolean)])];
   }
+
+  // Eliminar duplicados que solo difieren en mayúsculas/espacios
+  const seen = new Set();
+  grupos = grupos.filter(v => {
+    const k = normFilterVal(v);
+    if (!k || seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
 
   sel.innerHTML = '<option value="">Todos</option>';
   grupos.sort().forEach(v => {
@@ -631,14 +643,22 @@ function applyFilters(resetPage) {
   const zona = document.getElementById('filter-zona').value;
   const rawFecha = document.getElementById('filter-fecha').value;
   const fecha = rawFecha ? isoToDate(rawFecha) : '';
-  const periodLimit = buildPeriodLimit();
-
-  let filtered = marketingData;
-  if (grupo) filtered = filtered.filter(r => r.grupo === grupo);
-  if (zona) filtered = filtered.filter(r => r.zona === zona);
-  if (fecha) filtered = filtered.filter(r => r.fecha === fecha);
   const searchEl = document.getElementById('filter-search');
   const searchText = searchEl ? (searchEl.value || '').trim().toLowerCase() : '';
+
+  const grupoNorm = normFilterVal(grupo);
+  const zonaNorm = normFilterVal(zona);
+  const hasSpecificFilter = grupoNorm || zonaNorm || fecha || searchText;
+
+  // El cap de 2 meses aplica solo a la vista general "Todo"; al buscar
+  // algo específico se muestran todos los resultados que matcheen.
+  let periodLimit = buildPeriodLimit();
+  if (hasSpecificFilter && (!filterPeriod || filterPeriod === 'all')) periodLimit = null;
+
+  let filtered = marketingData;
+  if (grupoNorm) filtered = filtered.filter(r => normFilterVal(r.grupo) === grupoNorm);
+  if (zonaNorm) filtered = filtered.filter(r => normFilterVal(r.zona) === zonaNorm);
+  if (fecha) filtered = filtered.filter(r => r.fecha === fecha);
   if (searchText) {
     filtered = filtered.filter(r => {
       return (r.grupo || '').toLowerCase().includes(searchText) ||
@@ -656,8 +676,8 @@ function applyFilters(resetPage) {
   // chartData = todas las filas (sin filtro de periodo) para que initCharts
   // pueda matchear historial por fechaActualizacion
   let chartBase = marketingData.filter(r => r.grupo !== 'Perfil Estandar' && isEstatusActivo(r.estatus));
-  if (grupo) chartBase = chartBase.filter(r => r.grupo === grupo);
-  if (zona) chartBase = chartBase.filter(r => r.zona === zona);
+  if (grupoNorm) chartBase = chartBase.filter(r => normFilterVal(r.grupo) === grupoNorm);
+  if (zonaNorm) chartBase = chartBase.filter(r => normFilterVal(r.zona) === zonaNorm);
   if (fecha) chartBase = chartBase.filter(r => r.fecha === fecha);
 
   renderDashboard(filtered, chartBase, periodLimit);
@@ -1473,9 +1493,13 @@ function renderZonasDashboard() {
   });
 
   const zonaFilter = document.getElementById('filter-zona-zonas')?.value || '';
+  const periodoZonas = filterPeriodZonas;
   const periodLimit = (() => {
+    // El cap de 2 meses aplica solo a la vista general "Todas"; al elegir
+    // una zona específica se muestran todas sus publicaciones.
+    if (zonaFilter && (!periodoZonas || periodoZonas === 'all')) return null;
     const DEFAULT_PERIOD_DAYS = 60;
-    const days = (!filterPeriodZonas || filterPeriodZonas === 'all') ? DEFAULT_PERIOD_DAYS : parseInt(filterPeriodZonas);
+    const days = (!periodoZonas || periodoZonas === 'all') ? DEFAULT_PERIOD_DAYS : parseInt(periodoZonas);
     const now = new Date();
     const limit = new Date(now);
     limit.setDate(limit.getDate() - days);
@@ -1500,7 +1524,8 @@ function renderZonasDashboard() {
 
 function renderZonasDashboardInner(grupos, zonaFilter, periodLimit) {
   let data = marketingData.filter(r => r.grupo !== 'Perfil Estandar' && isEstatusActivo(r.estatus));
-  if (zonaFilter) data = data.filter(r => r.zona === zonaFilter);
+  const zonaNorm = normFilterVal(zonaFilter);
+  if (zonaNorm) data = data.filter(r => normFilterVal(r.zona) === zonaNorm);
   if (periodLimit) data = data.filter(r => { const d = parseDate(r.fecha); return d && d >= periodLimit; });
 
   // Agrupar por zona desde marketingData
