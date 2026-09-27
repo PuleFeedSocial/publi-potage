@@ -265,6 +265,9 @@
                             <button class="btn btn-sm btn-outline-secondary" onclick="openBulkModal()">
                                 <i class="bi bi-layers-fill me-1"></i> Carga múltiple
                             </button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="realizarInforme()">
+                                <i class="bi bi-clipboard-data me-1"></i> Realizar Informe
+                            </button>
                         </div>
                     </div>
                     <div class="table-responsive">
@@ -768,6 +771,27 @@
             }
         });
     </script>
+
+    <div class="modal fade" id="informeModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content custom-modal">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-semibold text-dark">Informe de rendimiento (últimos 28 días)</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body pt-3">
+                    <p class="small text-muted">Mensaje redactado con los datos reales del período. Revisalo, ajustá si necesario y copialo para enviarlo.</p>
+                    <textarea id="informe-texto" class="form-control" rows="16" readonly style="font-size:0.85rem;"></textarea>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="button" class="btn btn-sm btn-action-primary" onclick="copiarInforme()">
+                        <i class="bi bi-clipboard me-1"></i> Copiar mensaje
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

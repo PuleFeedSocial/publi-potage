@@ -708,6 +708,118 @@ function clearFilters() {
   refreshGruposByZona();
 }
 
+function fmtNum(n) {
+  n = Number(n) || 0;
+  return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+function buildInformeTexto() {
+  const DAYS = 28;
+  const today = new Date();
+  const limit = new Date(today);
+  limit.setDate(limit.getDate() - DAYS);
+  limit.setHours(0, 0, 0, 0);
+  const fD = d => String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
+
+  const rows = (marketingData || []).filter(r => {
+    const d = parseDate(r.fecha);
+    return d && d >= limit;
+  });
+  if (!rows.length) return '';
+
+  const activas = rows.filter(r => isEstatusActivo(r.estatus));
+  const eliminadas = rows.filter(r => ['ELIMINADA', 'SUPRIMIDA', 'EN REVISION'].includes(r.estatus)).length;
+  const sum = (arr, k) => arr.reduce((s, r) => s + (Number(r[k]) || 0), 0);
+
+  const totalPubs = sum(activas, 'publicaciones');
+  const totalVis = sum(activas, 'visualizaciones');
+  const totalInt = sum(activas, 'interacciones');
+  const totalCom = sum(activas, 'comentarios');
+  const totalMsj = sum(activas, 'mensajes');
+  const gruposCount = new Set(activas.map(r => normFilterVal(r.grupo)).filter(Boolean)).size;
+
+  const mkt = activas.filter(r => normFilterVal(r.grupo) === 'marketplace');
+  const groupRows = activas.filter(r => normFilterVal(r.grupo) !== 'marketplace' && r.zona && normFilterVal(r.zona) !== 'todos');
+  const zonas = [...new Set(groupRows.map(r => r.zona))];
+  const zonaStats = zonas.map(z => {
+    const rz = groupRows.filter(r => r.zona === z);
+    return {
+      zona: z,
+      pubs: sum(rz, 'publicaciones'),
+      vis: sum(rz, 'visualizaciones'),
+      int: sum(rz, 'interacciones'),
+      com: sum(rz, 'comentarios'),
+      msj: sum(rz, 'mensajes'),
+      grupos: new Set(rz.map(r => normFilterVal(r.grupo)).filter(Boolean)).size
+    };
+  }).sort((a, b) => b.pubs - a.pubs);
+
+  let msg = '';
+  msg += 'Buenass Nabil, ¿cómo estás?\n\n';
+  msg += 'Con motivo de la actualización periódica, te comparto el informe de rendimiento correspondiente a los últimos 28 días (del ' + fD(limit) + ' al ' + fD(today) + ').\n\n';
+  msg += 'En este período se gestionaron ' + fmtNum(totalPubs) + ' publicaciones a través de ' + fmtNum(gruposCount) + ' grupos activos, alcanzando un total de ' + fmtNum(totalVis) + ' visualizaciones, ' + fmtNum(totalInt) + ' interacciones, ' + fmtNum(totalCom) + ' comentarios y ' + fmtNum(totalMsj) + ' mensajes directos de potenciales clientes.\n\n';
+
+  if (mkt.length) {
+    msg += 'Facebook Marketplace (canal propio): ' + fmtNum(sum(mkt, 'publicaciones')) + ' publicaciones → ' + fmtNum(sum(mkt, 'visualizaciones')) + ' visualizaciones, ' + fmtNum(sum(mkt, 'interacciones')) + ' interacciones y ' + fmtNum(sum(mkt, 'mensajes')) + ' mensajes de potenciales clientes.\n\n';
+  }
+
+  if (zonaStats.length) {
+    msg += 'Las publicaciones en los grupos, distribuidas por localidad, registraron el siguiente rendimiento:\n';
+    zonaStats.forEach(z => {
+      msg += '• ' + z.zona + ': ' + fmtNum(z.pubs) + ' publicaciones → ' + fmtNum(z.vis) + ' visualizaciones, ' + fmtNum(z.int) + ' interacciones, ' + fmtNum(z.com) + ' comentarios y ' + fmtNum(z.msj) + ' mensajes (distribuidas en ' + fmtNum(z.grupos) + ' grupos).\n';
+    });
+    msg += '\n';
+  }
+
+  if (eliminadas > 0) {
+    msg += 'Debo señalar que ' + fmtNum(eliminadas) + ' publicaciones fueron eliminadas o suprimidas por la moderación de las comunidades durante el período. Me encuentro auditando el estado de las publicaciones para ajustar la estrategia y minimizar este impacto.\n\n';
+  }
+
+  msg += 'Quedo a tu total disposición ante cualquier sugerencia, ajuste o comentario que consideres oportuno.\n';
+  msg += '¡Excelente jornada!';
+  return msg;
+}
+
+function copiarInforme() {
+  const ta = document.getElementById('informe-texto');
+  if (!ta || !ta.value) return;
+  const done = () => {
+    const btn = document.querySelector('#informeModal .btn-action-primary');
+    if (btn) {
+      const original = btn.innerHTML;
+      btn.innerHTML = '<i class="bi bi-check2 me-1"></i> ¡Copiado!';
+      setTimeout(() => { btn.innerHTML = original; }, 1600);
+    }
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(ta.value).then(done).catch(() => {
+      ta.select();
+      document.execCommand('copy');
+      done();
+    });
+  } else {
+    ta.select();
+    document.execCommand('copy');
+    done();
+  }
+}
+
+function realizarInforme() {
+  if (!marketingData || !marketingData.length) {
+    alert('Todavía no hay datos de publicaciones para generar el informe.');
+    return;
+  }
+  const texto = buildInformeTexto();
+  const ta = document.getElementById('informe-texto');
+  if (!texto || !ta) return;
+  ta.value = texto;
+  const modalEl = document.getElementById('informeModal');
+  if (modalEl && window.bootstrap) {
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+  }
+}
+
 function marketingFetch(method, body) {
   return fetch(API_BASE + '/api/marketing', {
     method, headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
