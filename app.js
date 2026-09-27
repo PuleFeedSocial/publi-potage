@@ -784,6 +784,7 @@ function copiarInforme() {
 }
 
 function realizarInforme() {
+  if (sessionRole() !== 'admin') return;
   if (!marketingData || !marketingData.length) {
     alert('Todavía no hay datos de publicaciones para generar el informe.');
     return;

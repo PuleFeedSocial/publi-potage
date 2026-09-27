@@ -265,7 +265,7 @@
                             <button class="btn btn-sm btn-outline-secondary" onclick="openBulkModal()">
                                 <i class="bi bi-layers-fill me-1"></i> Carga múltiple
                             </button>
-                            <button class="btn btn-sm btn-outline-secondary" onclick="realizarInforme()">
+                            <button id="btn-informe" class="btn btn-sm btn-outline-secondary" onclick="realizarInforme()">
                                 <i class="bi bi-clipboard-data me-1"></i> Realizar Informe
                             </button>
                         </div>
@@ -761,6 +761,8 @@
             const gestionItems = document.getElementById('gestion-items');
             if (gestionLabel) gestionLabel.style.display = isAdmin ? '' : 'none';
             if (gestionItems) gestionItems.style.display = isAdmin ? '' : 'none';
+            const informeBtn = document.getElementById('btn-informe');
+            if (informeBtn) informeBtn.style.display = isAdmin ? '' : 'none';
             const navTarget = localStorage.getItem('navTarget');
             if (navTarget === 'users') {
                 localStorage.removeItem('navTarget');
