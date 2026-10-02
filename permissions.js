@@ -9,7 +9,7 @@ const CATALOG = [
   { key: 'sync_marketing', label: 'Sincronizar publicaciones desde Google Sheets', group: 'Publicaciones', desc: 'Traer los últimos datos de la planilla.' },
 
   { key: 'edit_grupos', label: 'Crear / editar / eliminar grupos', group: 'Grupos y Zonas', desc: 'Alta, edición y borrado de grupos.' },
-  { key: 'edit_zonas', label: 'Crear / eliminar zonas', group: 'Grupos y Zonas', desc: 'Alta y borrado de zonas.' },
+  { key: 'edit_zonas', label: 'Crear / editar / eliminar zonas', group: 'Grupos y Zonas', desc: 'Alta, edición, borrado y cambio de estado (Activo/Inactivo) de zonas.' },
 
   { key: 'edit_sucursales', label: 'Crear / editar / eliminar sucursales', group: 'Sucursales', desc: 'Alta, edición y borrado de sucursales.' },
 

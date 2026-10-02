@@ -82,6 +82,7 @@ function loadMyPermissions() {
       if (body && body.permissions) {
         currentPermissions = body.permissions;
         applyNavPermissions();
+        refreshZonasEditControls();
       }
       return currentPermissions;
     })
@@ -227,6 +228,20 @@ function isEstatusActivo(estatus) {
   return estatus === 'PUBLICADA' || estatus === 'SIN DEFINIR' || !estatus;
 }
 
+// Una zona es activa por defecto; solo se la considera inactiva si figura
+// explícitamente en la lista de zonas con activo=false.
+function zonaActiva(nombre) {
+  if (!nombre) return true;
+  const n = normFilterVal(nombre);
+  const z = (zonasData || []).find(x => normFilterVal(x.nombre) === n);
+  if (!z) return true;
+  return z.activo !== false;
+}
+
+function canEditZonas() {
+  return hasPermission('edit_zonas');
+}
+
 function switchView(viewName) {
   if (viewName === 'users' && currentRole !== 'admin') {
     alert('Acceso denegado: Solo los administradores pueden gestionar usuarios.');
@@ -355,7 +370,7 @@ function renderDashboard(data, chartData, periodLimit) {
     return db - da;
   });
 
-  const kpiData = data.filter(r => r.grupo !== 'Perfil Estandar' && isEstatusActivo(r.estatus));
+  const kpiData = data.filter(r => r.grupo !== 'Perfil Estandar' && isEstatusActivo(r.estatus) && zonaActiva(r.zona));
   const grupos = [...new Set(kpiData.map(r => r.grupo).filter(Boolean))];
   const totalPubs = kpiData.reduce((s, r) => s + r.publicaciones, 0);
   const totalVis = kpiData.reduce((s, r) => s + r.visualizaciones, 0);
@@ -688,7 +703,7 @@ function applyFilters(resetPage) {
 
   // chartData = todas las filas (sin filtro de periodo) para que initCharts
   // pueda matchear historial por fechaActualizacion
-  let chartBase = marketingData.filter(r => r.grupo !== 'Perfil Estandar' && isEstatusActivo(r.estatus));
+  let chartBase = marketingData.filter(r => r.grupo !== 'Perfil Estandar' && isEstatusActivo(r.estatus) && zonaActiva(r.zona));
   if (grupoNorm) chartBase = chartBase.filter(r => normFilterVal(r.grupo) === grupoNorm);
   if (zonaNorm) chartBase = chartBase.filter(r => normFilterVal(r.zona) === zonaNorm);
   if (fecha) chartBase = chartBase.filter(r => r.fecha === fecha);
@@ -738,7 +753,7 @@ function buildInformeTexto() {
   });
   if (!rows.length) return '';
 
-  const activas = rows.filter(r => isEstatusActivo(r.estatus));
+  const activas = rows.filter(r => isEstatusActivo(r.estatus) && zonaActiva(r.zona));
   const sum = (arr, k) => arr.reduce((s, r) => s + (Number(r[k]) || 0), 0);
 
   const totalPubs = sum(activas, 'publicaciones');
@@ -1334,7 +1349,7 @@ function openDetailModal(rowData) {
 
   let zonaChartHtml = '';
   if (row.zona) {
-    const zoneRows = marketingData.filter(r => r.zona === row.zona && r.grupo !== 'Perfil Estandar' && isEstatusActivo(r.estatus));
+    const zoneRows = marketingData.filter(r => r.zona === row.zona && r.grupo !== 'Perfil Estandar' && isEstatusActivo(r.estatus) && zonaActiva(r.zona));
     if (zoneRows.length) {
       zonaChartHtml = `
       <hr class="my-3">
@@ -1476,7 +1491,7 @@ function renderGrupoChart(grupo, metric) {
   const field = METRIC_FIELD[metric] || 'publicaciones';
 
   // Usar historial: filtrar por rowIndex del grupo (mas robusto que campo grupo)
-  const groupRows = new Set(marketingData.filter(r => r.grupo === grupo && isEstatusActivo(r.estatus)).map(r => r.rowIndex));
+  const groupRows = new Set(marketingData.filter(r => r.grupo === grupo && isEstatusActivo(r.estatus) && zonaActiva(r.zona)).map(r => r.rowIndex));
   const hEntries = historialData.filter(r => groupRows.has(r.filaOrigen));
 
   // Solo la ultima entrada por fecha (no sumar)
@@ -1538,7 +1553,7 @@ function renderZonaChart(zona, metric) {
   const field = METRIC_FIELD[metric] || 'publicaciones';
 
   // Todos los rowIndex de la zona
-  const zoneRowIndexes = new Set(marketingData.filter(r => r.zona === zona && r.grupo !== 'Perfil Estandar' && isEstatusActivo(r.estatus)).map(r => r.rowIndex));
+  const zoneRowIndexes = new Set(marketingData.filter(r => r.zona === zona && r.grupo !== 'Perfil Estandar' && isEstatusActivo(r.estatus) && zonaActiva(r.zona)).map(r => r.rowIndex));
   const hEntries = historialData.filter(r => zoneRowIndexes.has(r.filaOrigen));
 
   // Sumar por fecha (todos los grupos de la zona)
@@ -1628,7 +1643,7 @@ function renderZonasDashboard() {
 }
 
 function renderZonasDashboardInner(grupos, zonaFilter, periodLimit) {
-  let data = marketingData.filter(r => r.grupo !== 'Perfil Estandar' && isEstatusActivo(r.estatus));
+  let data = marketingData.filter(r => r.grupo !== 'Perfil Estandar' && isEstatusActivo(r.estatus) && zonaActiva(r.zona));
   const zonaNorm = normFilterVal(zonaFilter);
   if (zonaNorm) data = data.filter(r => normFilterVal(r.zona) === zonaNorm);
   if (periodLimit) {
@@ -1652,16 +1667,16 @@ function renderZonasDashboardInner(grupos, zonaFilter, periodLimit) {
     zones[z].mensajes += r.mensajes || 0;
   });
 
-  // Agregar grupos desde la lista fresca (fuente canónica)
+  // Agregar grupos desde la lista fresca (fuente canónica), solo de zonas activas
   grupos.forEach(g => {
-    if (!g.zona) return;
+    if (!g.zona || !zonaActiva(g.zona)) return;
     const z = g.zona;
     if (!zones[z]) zones[z] = { zona: z, publicaciones: 0, visualizaciones: 0, interacciones: 0, comentarios: 0, mensajes: 0, grupos: new Set() };
     zones[z].grupos.add(g.nombre);
   });
 
   const sortedZones = Object.values(zones).sort((a, b) => b.publicaciones - a.publicaciones);
-  const totalGruposUnicos = new Set(grupos.filter(g => g.zona).map(g => g.nombre)).size;
+  const totalGruposUnicos = new Set(grupos.filter(g => g.zona && zonaActiva(g.zona)).map(g => g.nombre)).size;
 
   // KPIs por zona
   const kpiContainer = document.getElementById('zonas-kpi-container');
@@ -2083,6 +2098,16 @@ function deleteCode(id) {
     });
 }
 
+function refreshZonasEditControls() {
+  const can = canEditZonas();
+  const addBox = document.getElementById('zona-add-box');
+  if (addBox) addBox.style.display = can ? '' : 'none';
+  const container = document.getElementById('zonas-list');
+  if (container) container.querySelectorAll('[data-zona-control]').forEach(el => {
+    el.style.display = can ? '' : 'none';
+  });
+}
+
 function renderZonas() {
   const container = document.getElementById('zonas-list');
   if (!container) return;
@@ -2090,14 +2115,58 @@ function renderZonas() {
     container.innerHTML = '<div class="text-muted small py-2">No hay zonas configuradas.</div>';
     return;
   }
-  container.innerHTML = zonasData.map(z => `
+  const can = canEditZonas();
+  container.innerHTML = zonasData.map(z => {
+    const activo = z.activo !== false;
+    const badge = activo
+      ? '<span class="badge-estatus est-publicada">Activo</span>'
+      : '<span class="badge-estatus est-eliminada">Inactivo</span>';
+    return `
     <div class="d-flex justify-content-between align-items-center py-1 border-bottom border-light">
-      <span class="small">${z.nombre}</span>
-      <button class="btn btn-sm btn-link text-danger p-0" onclick="deleteZona(${z.id})">
-        <i class="bi bi-x-circle"></i>
-      </button>
+      <span class="small" ${activo ? '' : 'style="opacity:.55;text-decoration:line-through;"'}>${escHtml(z.nombre)}</span>
+      <div class="d-flex gap-2 align-items-center">
+        ${badge}
+        <button class="btn btn-sm btn-link text-primary p-0" data-zona-control onclick="openZonaModal(${z.id})" style="${can ? '' : 'display:none'}" title="Cambiar estado de la zona">
+          <i class="bi bi-pencil-fill"></i>
+        </button>
+        <button class="btn btn-sm btn-link text-danger p-0" data-zona-control onclick="deleteZona(${z.id})" style="${can ? '' : 'display:none'}" title="Eliminar zona">
+          <i class="bi bi-x-circle"></i>
+        </button>
+      </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
+}
+
+let zonaEditId = null;
+
+function openZonaModal(id) {
+  const z = (zonasData || []).find(x => Number(x.id) === Number(id));
+  if (!z) return;
+  zonaEditId = Number(id);
+  document.getElementById('zona-modal-nombre').innerText = z.nombre;
+  document.getElementById('zona-estado').value = (z.activo === false) ? 'inactivo' : 'activo';
+  const modalEl = document.getElementById('zonaModal');
+  if (!modalEl) return;
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  modal.show();
+}
+
+function saveZona() {
+  if (zonaEditId === null) return;
+  const activo = document.getElementById('zona-estado').value === 'activo';
+  const zona = (zonasData || []).find(x => Number(x.id) === Number(zonaEditId));
+  apiFetch('/api/zonas/' + zonaEditId, {
+    method: 'PUT',
+    body: JSON.stringify({ nombre: (zona && zona.nombre) || '', activo })
+  }).then(({ status, body }) => {
+    if (status !== 200) { showToast(body.error || 'Error al guardar la zona.', 'error'); return; }
+    const modalEl = document.getElementById('zonaModal');
+    const modal = bootstrap.Modal.getInstance(modalEl);
+    if (modal) modal.hide();
+    loadZonas();
+    showToast('Zona actualizada correctamente.', 'success');
+  });
 }
 
 function addZona() {

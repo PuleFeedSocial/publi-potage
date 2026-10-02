@@ -70,9 +70,13 @@ async function getDb() {
     CREATE TABLE IF NOT EXISTS zonas (
       id SERIAL PRIMARY KEY,
       nombre TEXT UNIQUE NOT NULL,
+      activo BOOLEAN NOT NULL DEFAULT TRUE,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // Migración: zonas preexistentes sin estado
+  await pool.query(`ALTER TABLE zonas ADD COLUMN IF NOT EXISTS activo BOOLEAN NOT NULL DEFAULT TRUE`);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS role_permissions (
