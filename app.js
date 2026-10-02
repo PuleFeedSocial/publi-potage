@@ -2194,6 +2194,47 @@ function deleteZona(id) {
     });
 }
 
+// Agrega a la lista de zonas configuradas las zonas que aparecen en los datos
+// (publicaciones y grupos) y todavía no figuran en la tabla.
+function syncZonas() {
+  if (!canEditZonas()) return;
+  const names = new Map();
+  const add = (n) => {
+    const s = String(n || '').trim();
+    if (!s) return;
+    const k = normFilterVal(s);
+    if (k === 'todos') return;
+    if (!names.has(k)) names.set(k, s);
+  };
+  marketingData.forEach(r => add(r.zona));
+  gruposData.forEach(g => add(g.zona));
+
+  const existing = new Set((zonasData || []).map(z => normFilterVal(z.nombre)));
+  const missing = [...names.values()].filter(n => !existing.has(normFilterVal(n)));
+  if (!missing.length) {
+    showToast('Todas las zonas ya están sincronizadas.', 'success');
+    return;
+  }
+
+  const btn = document.getElementById('btn-sync-zonas');
+  const original = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Sincronizando...'; }
+
+  let added = 0;
+  let chain = Promise.resolve();
+  missing.forEach(n => {
+    chain = chain.then(() => apiFetch('/api/zonas', {
+      method: 'POST',
+      body: JSON.stringify({ nombre: n })
+    }).then(({ status }) => { if (status === 201) added++; }));
+  });
+  chain.finally(() => {
+    if (btn) { btn.disabled = false; btn.innerHTML = original; }
+    loadZonas();
+    showToast(added + ' zona(s) sincronizada(s).', added > 0 ? 'success' : 'error');
+  });
+}
+
 function logVisit() {
   apiFetch('/api/logs/visit', { method: 'POST' }).catch(() => {});
 }
