@@ -23,10 +23,11 @@ async function getDb() {
   let connStr = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/publi_potage';
   // Limpiar parametros que el driver pg no soporta
   connStr = connStr.replace(/&channel_binding=[^&]*/g, '').replace(/\?channel_binding=[^&]*&?/g, '?');
+  const sslDisabled = /(\?|&)sslmode=disable/.test(connStr);
 
   const pool = new Pool({
     connectionString: connStr,
-    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+    ssl: sslDisabled ? false : (process.env.DATABASE_URL ? { rejectUnauthorized: false } : false),
   });
 
   pool.on('error', (err) => {
@@ -77,6 +78,22 @@ async function getDb() {
 
   // Migración: zonas preexistentes sin estado
   await pool.query(`ALTER TABLE zonas ADD COLUMN IF NOT EXISTS activo BOOLEAN NOT NULL DEFAULT TRUE`);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS calendario (
+      id SERIAL PRIMARY KEY,
+      titulo TEXT NOT NULL,
+      descripcion TEXT DEFAULT '',
+      fecha DATE NOT NULL,
+      hora TEXT DEFAULT '',
+      tipo TEXT NOT NULL DEFAULT 'tarea',
+      estado TEXT NOT NULL DEFAULT 'pendiente',
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_calendario_fecha ON calendario (fecha)`);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS role_permissions (

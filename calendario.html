@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendario — Potage</title>
+    <link rel="icon" type="image/png" href="img/icon-192.png">
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" sizes="180x180" href="img/icon-180.png">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="style.css">
+    <script>if(localStorage.getItem('potageTheme')==='dark')document.documentElement.setAttribute('data-theme','dark');</script>
+</head>
+
+<body>
+
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="logo-box">
+                        <img src="img/isotiposinfondo.png" alt="Potage" class="logo-img">
+                        <span class="logo-text">Potage</span>
+                    </div>
+                    <button class="sidebar-toggle" onclick="toggleSidebar()">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+            </div>
+
+            <nav class="sidebar-menu">
+                <div class="menu-section-label">Dashboard</div>
+                <a href="dashboard.html" class="menu-item submenu-item" id="btn-nav-dashboard">
+                    <i class="bi bi-grid-1x2-fill"></i>
+                    <span>Publicaciones</span>
+                </a>
+                <a href="informes.html" class="menu-item submenu-item" id="btn-nav-informes">
+                    <i class="bi bi-file-earmark-bar-graph-fill"></i>
+                    <span>Informes</span>
+                </a>
+                <a href="grupos.html" class="menu-item submenu-item" id="btn-nav-grupos">
+                    <i class="bi bi-diagram-3"></i>
+                    <span>Grupos</span>
+                </a>
+                <a href="dashboard.html" class="menu-item submenu-item" id="btn-nav-zonas"
+                    onclick="localStorage.setItem('navTarget','zonas')">
+                    <i class="bi bi-map-fill"></i>
+                    <span>Zonas</span>
+                </a>
+                <a href="sucursales.html" class="menu-item submenu-item" id="btn-nav-sucursales">
+                    <i class="bi bi-buildings-fill"></i>
+                    <span>Sucursales</span>
+                </a>
+                <a href="calendario.html" class="menu-item submenu-item active" id="btn-nav-calendario">
+                    <i class="bi bi-calendar3-fill"></i>
+                    <span>Calendario</span>
+                </a>
+
+                <div class="menu-section-label" id="gestion-label">Gestión</div>
+                <div id="gestion-items">
+                    <a href="dashboard.html" class="menu-item submenu-item" id="btn-nav-users"
+                        onclick="localStorage.setItem('navTarget','users')">
+                        <i class="bi bi-people-fill"></i>
+                        <span>Usuarios</span>
+                    </a>
+                    <a href="logs.html" class="menu-item submenu-item" id="btn-nav-logs">
+                        <i class="bi bi-journal-text"></i>
+                        <span>Logs</span>
+                    </a>
+                </div>
+            </nav>
+
+            <div class="sidebar-footer">
+                <a href="ayuda.html" class="menu-item submenu-item" style="border-radius:8px;margin-bottom:8px">
+                    <i class="bi bi-question-circle-fill"></i>
+                    <span>Ayuda</span>
+                </a>
+                <button type="button" class="theme-toggle-row" onclick="toggleTheme()" title="Cambiar tema">
+                    <i class="bi bi-moon-stars-fill theme-toggle-icon"></i>
+                    <span class="theme-toggle-label">Modo oscuro</span>
+                    <span class="theme-switch"><span class="theme-switch-thumb"></span></span>
+                </button>
+                <div class="user-profile-summary">
+                    <div class="avatar" id="display-avatar">VA</div>
+                    <div class="user-info">
+                        <div class="user-name" id="display-user-name">Víctor Alejandro</div>
+                        <div class="user-role-badge badge-admin" id="display-user-role">Admin</div>
+                    </div>
+                </div>
+            </div>
+            <div class="sidebar-credit">
+                <span class="text-decoration-none small">
+                    <i class="bi bi-cpu atlas-credit-icon"></i>Altas Engineering
+                </span>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-navbar">
+                <div class="d-flex align-items-center gap-3">
+                    <button class="sidebar-toggle" onclick="toggleSidebar()">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <div class="page-context">
+                        <h1 class="page-title">Calendario</h1>
+                        <p class="page-subtitle text-muted">Eventos y tareas del equipo</p>
+                    </div>
+                </div>
+                <div class="top-navbar-actions">
+                    <div class="dropdown">
+                        <button class="btn profile-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="avatar-sm" id="nav-avatar">VA</span>
+                            <span class="fw-medium" id="nav-user-name">Víctor</span>
+                            <i class="bi bi-chevron-down ms-1"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 mt-2">
+                            <li><a class="dropdown-item" href="account-settings.html">
+                                    <i class="bi bi-gear me-2"></i>Ajustes de la cuenta
+                                </a></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li><a class="dropdown-item text-danger" href="#" onclick="logout()">
+                                    <i class="bi bi-box-arrow-right me-2"></i>Cerrar Sesión
+                                </a></li>
+                        </ul>
+                    </div>
+                </div>
+            </header>
+
+            <div class="view-section">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <span class="text-muted small">
+                            <i class="bi bi-database"></i> PostgreSQL
+                        </span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="loadCalendario()" title="Recargar">
+                            <i class="bi bi-arrow-clockwise"></i> Recargar
+                        </button>
+                        <button class="btn btn-sm btn-action-primary d-none" id="cal-btn-nuevo" onclick="openCalModal()">
+                            <i class="bi bi-plus-circle-fill me-1"></i> Nuevo evento o tarea
+                        </button>
+                    </div>
+                </div>
+
+                <div class="row g-4">
+                    <div class="col-12 col-lg-7">
+                        <div class="card data-table-card cal-card">
+                            <div class="card-header-clean cal-cal-header">
+                                <div class="cal-nav-group">
+                                    <button class="cal-nav-btn" onclick="calNav(-1)" title="Mes anterior">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </button>
+                                    <h5 class="cal-month-label" id="cal-month-label">—</h5>
+                                    <button class="cal-nav-btn" onclick="calNav(1)" title="Mes siguiente">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </button>
+                                </div>
+                                <div class="cal-header-right">
+                                    <div class="cal-legend">
+                                        <span class="cal-legend-item"><span
+                                                class="cal-legend-dot dot-evento"></span>Evento</span>
+                                        <span class="cal-legend-item"><span class="cal-legend-dot dot-tarea"></span>Tarea</span>
+                                        <span class="cal-legend-item"><span
+                                                class="cal-legend-dot dot-done"></span>Completada</span>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-secondary"
+                                        onclick="calGoToday()">Hoy</button>
+                                </div>
+                            </div>
+                            <div class="cal-body">
+                                <div class="cal-grid cal-dow">
+                                    <span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span>
+                                </div>
+                                <div class="cal-grid" id="cal-grid"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-lg-5">
+                        <div class="card data-table-card cal-card">
+                            <div class="card-header-clean">
+                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                    <div>
+                                        <h5 class="table-card-title">Eventos y tareas</h5>
+                                        <span class="text-muted small"><span id="cal-list-count">0</span>
+                                            elementos</span>
+                                    </div>
+                                </div>
+                                <div class="cal-list-filters mt-2">
+                                    <select id="cal-filter-tipo" class="form-select form-select-sm custom-input"
+                                        onchange="saveCalFilters();renderCalendar();renderCalList()">
+                                        <option value="">Todos los tipos</option>
+                                        <option value="evento">Eventos</option>
+                                        <option value="tarea">Tareas</option>
+                                    </select>
+                                    <select id="cal-filter-estado" class="form-select form-select-sm custom-input"
+                                        onchange="saveCalFilters();renderCalendar();renderCalList()">
+                                        <option value="">Todos los estados</option>
+                                        <option value="pendiente">Pendientes</option>
+                                        <option value="completada">Completadas</option>
+                                    </select>
+                                    <input type="text" id="cal-search"
+                                        class="form-control form-control-sm custom-input" placeholder="Buscar..."
+                                        oninput="saveCalFilters();renderCalendar();renderCalList()">
+                                </div>
+                            </div>
+                            <div class="cal-list-body">
+                                <div class="cal-list-section" id="cal-day-title">—</div>
+                                <div id="cal-day-list">
+                                    <div class="cal-empty">Cargando...</div>
+                                </div>
+                                <div class="cal-list-section">Próximos</div>
+                                <div id="cal-next-list">
+                                    <div class="cal-empty">Cargando...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <div class="modal fade" id="calModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content custom-modal">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-semibold text-dark" id="cal-modal-title">
+                        <i class="bi bi-calendar3-fill me-2"></i>Nuevo evento o tarea
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="cal-form" onsubmit="saveCalEvent(event)">
+                    <div class="modal-body pt-3">
+                        <input type="hidden" id="cal-id">
+                        <div class="mb-3">
+                            <label class="form-label small fw-medium text-secondary">Título *</label>
+                            <input type="text" id="cal-titulo" class="form-control custom-input" maxlength="120" required>
+                        </div>
+                        <div class="row g-3 mb-3">
+                            <div class="col-6">
+                                <label class="form-label small fw-medium text-secondary">Fecha *</label>
+                                <input type="date" id="cal-fecha" class="form-control custom-input" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-medium text-secondary">Hora</label>
+                                <input type="time" id="cal-hora" class="form-control custom-input">
+                            </div>
+                        </div>
+                        <div class="row g-3 mb-3">
+                            <div class="col-6">
+                                <label class="form-label small fw-medium text-secondary">Tipo</label>
+                                <select id="cal-tipo" class="form-select custom-input">
+                                    <option value="evento">Evento</option>
+                                    <option value="tarea">Tarea</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-medium text-secondary">Estado</label>
+                                <select id="cal-estado" class="form-select custom-input">
+                                    <option value="pendiente">Pendiente</option>
+                                    <option value="completada">Completada</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small fw-medium text-secondary">Descripción</label>
+                            <textarea id="cal-descripcion" class="form-control custom-input" rows="3" maxlength="500"
+                                placeholder="Detalles adicionales (opcional)"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 pt-0">
+                        <button type="button" class="btn btn-sm btn-light-muted"
+                            data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-sm btn-action-primary">Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="app.js"></script>
+    <script>
+        function toggleSidebar() {
+            const isOpen = document.querySelector('.sidebar').classList.toggle('open');
+            document.body.classList.toggle('sidebar-open', isOpen);
+            localStorage.setItem('sidebarOpen', isOpen);
+        }
+
+        const CAL_MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        const CAL_MESES_LOWER = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+        const CAL_DOW_FULL = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+
+        let calEvents = [];
+        let calYear = 0;
+        let calMonth = 0;
+        let calSelected = '';
+        let _lastCalSnapshot = '';
+
+        function pad2(n) { return String(n).padStart(2, '0'); }
+        function calIso(y, m, d) { return y + '-' + pad2(m + 1) + '-' + pad2(d); }
+        function calTodayIso() { const d = new Date(); return calIso(d.getFullYear(), d.getMonth(), d.getDate()); }
+        function calParse(iso) { const p = String(iso || '').split('-'); return { y: parseInt(p[0]), m: parseInt(p[1]) - 1, d: parseInt(p[2]) }; }
+        function calFechaLarga(iso) {
+            const p = calParse(iso);
+            if (isNaN(p.y)) return '—';
+            const dt = new Date(p.y, p.m, p.d);
+            return CAL_DOW_FULL[(dt.getDay() + 6) % 7] + ', ' + p.d + ' de ' + CAL_MESES_LOWER[p.m] + ' de ' + p.y;
+        }
+
+        function calIsAdmin() { return sessionRole() === 'admin'; }
+
+        function calFilters() {
+            return {
+                q: (document.getElementById('cal-search').value || '').toLowerCase().trim(),
+                tipo: document.getElementById('cal-filter-tipo').value,
+                estado: document.getElementById('cal-filter-estado').value
+            };
+        }
+
+        function calMatch(ev, f) {
+            if (f.tipo && ev.tipo !== f.tipo) return false;
+            if (f.estado && ev.estado !== f.estado) return false;
+            if (f.q) {
+                const s = ((ev.titulo || '') + ' ' + (ev.descripcion || '')).toLowerCase();
+                if (s.indexOf(f.q) === -1) return false;
+            }
+            return true;
+        }
+
+        function saveCalFilters() {
+            localStorage.setItem('calFilterTipo', document.getElementById('cal-filter-tipo').value);
+            localStorage.setItem('calFilterEstado', document.getElementById('cal-filter-estado').value);
+            localStorage.setItem('calFilterSearch', document.getElementById('cal-search').value);
+        }
+
+        function restoreCalFilters() {
+            const t = localStorage.getItem('calFilterTipo');
+            const e = localStorage.getItem('calFilterEstado');
+            const s = localStorage.getItem('calFilterSearch');
+            if (t) document.getElementById('cal-filter-tipo').value = t;
+            if (e) document.getElementById('cal-filter-estado').value = e;
+            if (s) document.getElementById('cal-search').value = s;
+        }
+
+        function loadCalendario(silent) {
+            if (!silent) {
+                document.getElementById('cal-day-list').innerHTML = '<div class="cal-empty">Cargando...</div>';
+                document.getElementById('cal-next-list').innerHTML = '<div class="cal-empty">Cargando...</div>';
+            }
+            fetch(API_BASE + '/api/calendario', { headers: { 'Authorization': 'Bearer ' + getToken() } })
+                .then(r => r.json().then(b => ({ status: r.status, body: b })))
+                .then(({ status, body }) => {
+                    if (status !== 200) {
+                        if (!silent) showToast(body.error || 'Error al cargar el calendario.', 'error');
+                        return;
+                    }
+                    const data = body.data || [];
+                    const snap = JSON.stringify(data);
+                    if (silent && snap === _lastCalSnapshot) return;
+                    _lastCalSnapshot = snap;
+                    calEvents = data;
+                    renderCalendar();
+                    renderCalList();
+                })
+                .catch(() => {
+                    if (!silent) showToast('Error de conexión con el servidor.', 'error');
+                });
+        }
+
+        function calNav(delta) {
+            calMonth += delta;
+            if (calMonth < 0) { calMonth = 11; calYear--; }
+            if (calMonth > 11) { calMonth = 0; calYear++; }
+            renderCalendar();
+        }
+
+        function calGoToday() {
+            const t = calParse(calTodayIso());
+            calYear = t.y;
+            calMonth = t.m;
+            calSelected = calTodayIso();
+            renderCalendar();
+            renderCalList();
+        }
+
+        function renderCalendar() {
+            const grid = document.getElementById('cal-grid');
+            document.getElementById('cal-month-label').innerText = CAL_MESES[calMonth] + ' ' + calYear;
+
+            const first = new Date(calYear, calMonth, 1);
+            const offset = (first.getDay() + 6) % 7;
+            const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+            const totalCells = Math.ceil((offset + daysInMonth) / 7) * 7;
+            const today = calTodayIso();
+            const f = calFilters();
+
+            const byDate = {};
+            calEvents.forEach(ev => {
+                if (!calMatch(ev, f)) return;
+                if (!byDate[ev.fecha]) byDate[ev.fecha] = [];
+                byDate[ev.fecha].push(ev);
+            });
+
+            grid.innerHTML = '';
+            for (let i = 0; i < totalCells; i++) {
+                const dayNum = i - offset + 1;
+                const dt = new Date(calYear, calMonth, dayNum);
+                const ds = calIso(dt.getFullYear(), dt.getMonth(), dt.getDate());
+                const inMonth = dt.getMonth() === calMonth;
+                const items = byDate[ds] || [];
+
+                const cell = document.createElement('div');
+                cell.className = 'cal-day'
+                    + (inMonth ? '' : ' other-month')
+                    + (ds === today ? ' today' : '')
+                    + (ds === calSelected ? ' selected' : '');
+
+                let chips = '';
+                const maxChips = 3;
+                items.slice(0, maxChips).forEach(ev => {
+                    chips += '<span class="cal-chip ' + (ev.tipo === 'evento' ? 'chip-evento' : 'chip-tarea')
+                        + (ev.estado === 'completada' ? ' is-done' : '') + '">' + escHtml(ev.titulo) + '</span>';
+                });
+                if (items.length > maxChips) {
+                    chips += '<span class="cal-more">+' + (items.length - maxChips) + ' más</span>';
+                }
+
+                cell.innerHTML = '<span class="cal-day-num">' + dt.getDate() + '</span>'
+                    + (items.length ? '<div class="cal-chips">' + chips + '</div>' : '');
+
+                cell.addEventListener('click', () => {
+                    calSelected = ds;
+                    if (!inMonth) { calYear = dt.getFullYear(); calMonth = dt.getMonth(); }
+                    renderCalendar();
+                    renderCalList();
+                });
+
+                grid.appendChild(cell);
+            }
+        }
+
+        function calItemHtml(ev, showDate) {
+            const isDone = ev.estado === 'completada';
+            const iconCls = isDone ? 'icon-done' : (ev.tipo === 'evento' ? 'icon-evento' : 'icon-tarea');
+            const icon = isDone ? 'bi-check2-circle' : (ev.tipo === 'evento' ? 'bi-calendar-event-fill' : 'bi-clipboard2-check-fill');
+            const tipoBadge = ev.tipo === 'evento'
+                ? '<span class="cal-badge badge-evento">Evento</span>'
+                : '<span class="cal-badge badge-tarea">Tarea</span>';
+            const estadoBadge = ev.tipo === 'tarea'
+                ? (isDone ? '<span class="cal-badge badge-done">Completada</span>' : '<span class="cal-badge badge-pend">Pendiente</span>')
+                : '';
+            const hora = ev.hora ? '<span class="cal-meta"><i class="bi bi-clock"></i> ' + escHtml(ev.hora) + '</span>' : '';
+            const fecha = showDate ? '<span class="cal-meta"><i class="bi bi-calendar3"></i> ' + isoToDate(ev.fecha) + '</span>' : '';
+            const desc = ev.descripcion ? '<div class="cal-item-desc">' + escHtml(ev.descripcion) + '</div>' : '';
+
+            let actions = '';
+            if (calIsAdmin()) {
+                const toggleBtn = ev.tipo === 'tarea'
+                    ? '<button class="cal-act' + (isDone ? ' is-done' : '') + '" title="' + (isDone ? 'Marcar como pendiente' : 'Marcar como completada') + '" onclick="toggleCalEstado(' + ev.id + ')"><i class="bi ' + (isDone ? 'bi-arrow-counterclockwise' : 'bi-check2-circle') + '"></i></button>'
+                    : '';
+                actions = '<div class="cal-item-actions">' + toggleBtn
+                    + '<button class="cal-act" title="Editar" onclick="openCalModal(' + ev.id + ')"><i class="bi bi-pencil-fill"></i></button>'
+                    + '<button class="cal-act act-danger" title="Eliminar" onclick="deleteCalEvent(' + ev.id + ')"><i class="bi bi-trash3-fill"></i></button>'
+                    + '</div>';
+            }
+
+            return '<div class="cal-item' + (isDone ? ' is-done' : '') + '">'
+                + '<div class="cal-item-icon ' + iconCls + '"><i class="bi ' + icon + '"></i></div>'
+                + '<div class="cal-item-main">'
+                + '<div class="cal-item-title">' + escHtml(ev.titulo) + '</div>'
+                + '<div class="cal-item-meta">' + tipoBadge + estadoBadge + fecha + hora + '</div>'
+                + desc
+                + '</div>'
+                + actions
+                + '</div>';
+        }
+
+        function renderCalList() {
+            const f = calFilters();
+            const filtered = calEvents.filter(ev => calMatch(ev, f));
+            document.getElementById('cal-list-count').innerText = filtered.length;
+            document.getElementById('cal-day-title').innerText = calFechaLarga(calSelected);
+
+            const dayItems = filtered
+                .filter(ev => ev.fecha === calSelected)
+                .sort((a, b) => (a.hora || '99:99').localeCompare(b.hora || '99:99'));
+
+            const nextItems = filtered
+                .filter(ev => ev.fecha > calSelected)
+                .sort((a, b) => (a.fecha + (a.hora || '')).localeCompare(b.fecha + (b.hora || '')))
+                .slice(0, 8);
+
+            const dayEl = document.getElementById('cal-day-list');
+            const nextEl = document.getElementById('cal-next-list');
+
+            dayEl.innerHTML = dayItems.length
+                ? dayItems.map(ev => calItemHtml(ev, false)).join('')
+                : '<div class="cal-empty">Sin elementos para este día</div>';
+
+            nextEl.innerHTML = nextItems.length
+                ? nextItems.map(ev => calItemHtml(ev, true)).join('')
+                : '<div class="cal-empty">Sin elementos próximos</div>';
+        }
+
+        function openCalModal(id) {
+            if (!calIsAdmin()) {
+                showToast('Solo los administradores pueden gestionar el calendario.', 'error');
+                return;
+            }
+            const ev = id ? calEvents.find(x => x.id === id) : null;
+            document.getElementById('cal-modal-title').innerHTML = ev
+                ? '<i class="bi bi-pencil-fill me-2"></i>Editar elemento'
+                : '<i class="bi bi-calendar3-fill me-2"></i>Nuevo evento o tarea';
+            document.getElementById('cal-id').value = ev ? ev.id : '';
+            document.getElementById('cal-titulo').value = ev ? ev.titulo : '';
+            document.getElementById('cal-fecha').value = ev ? ev.fecha : (calSelected || calTodayIso());
+            document.getElementById('cal-hora').value = ev ? (ev.hora || '') : '';
+            document.getElementById('cal-tipo').value = ev ? ev.tipo : 'evento';
+            document.getElementById('cal-estado').value = ev ? ev.estado : 'pendiente';
+            document.getElementById('cal-descripcion').value = ev ? (ev.descripcion || '') : '';
+            new bootstrap.Modal(document.getElementById('calModal')).show();
+        }
+
+        function saveCalEvent(e) {
+            e.preventDefault();
+            const id = document.getElementById('cal-id').value;
+            const titulo = document.getElementById('cal-titulo').value.trim();
+            const fecha = document.getElementById('cal-fecha').value;
+            const hora = document.getElementById('cal-hora').value;
+            const tipo = document.getElementById('cal-tipo').value;
+            const estado = document.getElementById('cal-estado').value;
+            const descripcion = document.getElementById('cal-descripcion').value.trim();
+
+            if (!titulo) return alert('El título es obligatorio.');
+            if (!fecha) return alert('La fecha es obligatoria.');
+
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? '/api/calendario/' + id : '/api/calendario';
+
+            fetch(API_BASE + url, {
+                method,
+                headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ titulo, fecha, hora, tipo, estado, descripcion })
+            })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.error) return alert(res.error);
+                    bootstrap.Modal.getInstance(document.getElementById('calModal')).hide();
+                    loadCalendario();
+                    showToast(res.message || 'Elemento guardado', 'success');
+                })
+                .catch(() => alert('Error de conexión con el servidor.'));
+        }
+
+        function toggleCalEstado(id) {
+            const ev = calEvents.find(x => x.id === id);
+            if (!ev) return;
+            fetch(API_BASE + '/api/calendario/' + id, {
+                method: 'PUT',
+                headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    titulo: ev.titulo,
+                    fecha: ev.fecha,
+                    hora: ev.hora || '',
+                    tipo: ev.tipo,
+                    descripcion: ev.descripcion || '',
+                    estado: ev.estado === 'completada' ? 'pendiente' : 'completada'
+                })
+            })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.error) return showToast(res.error, 'error');
+                    loadCalendario();
+                    showToast(res.message || 'Estado actualizado', 'success');
+                })
+                .catch(() => showToast('Error de conexión con el servidor.', 'error'));
+        }
+
+        function deleteCalEvent(id) {
+            if (!confirm('¿Eliminar este elemento del calendario?')) return;
+            fetch(API_BASE + '/api/calendario/' + id, {
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bearer ' + getToken() }
+            })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.error) return showToast(res.error, 'error');
+                    loadCalendario();
+                    showToast(res.message || 'Elemento eliminado', 'success');
+                })
+                .catch(() => showToast('Error de conexión con el servidor.', 'error'));
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const session = getCurrentSession();
+            if (!session) {
+                window.location.href = 'index.html';
+                return;
+            }
+            guardPage();
+            const initials = session.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+            document.getElementById('display-avatar').innerText = initials;
+            document.getElementById('display-user-name').innerText = session.name;
+            document.getElementById('nav-avatar').innerText = initials;
+            document.getElementById('nav-user-name').innerText = session.name.split(' ')[0];
+            if (localStorage.getItem('sidebarOpen') === 'true') {
+                document.querySelector('.sidebar').classList.add('open');
+                document.body.classList.add('sidebar-open');
+            }
+            const isAdmin = (session.role || '').toLowerCase() === 'admin';
+            const gestionLabel = document.getElementById('gestion-label');
+            const gestionItems = document.getElementById('gestion-items');
+            if (gestionLabel) gestionLabel.style.display = isAdmin ? '' : 'none';
+            if (gestionItems) gestionItems.style.display = isAdmin ? '' : 'none';
+            if (isAdmin) document.getElementById('cal-btn-nuevo').classList.remove('d-none');
+
+            restoreCalFilters();
+            const t = calParse(calTodayIso());
+            calYear = t.y;
+            calMonth = t.m;
+            calSelected = calTodayIso();
+            renderCalendar();
+            loadCalendario();
+            setInterval(() => loadCalendario(true), 60000);
+        });
+    </script>
+</body>
+
+</html>

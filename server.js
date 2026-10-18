@@ -11,6 +11,7 @@ const historialRoutes = require('./routes/historial');
 const informesRoutes = require('./routes/informes');
 const zonasRoutes = require('./routes/zonas');
 const sucursalesRoutes = require('./routes/sucursales');
+const calendarioRoutes = require('./routes/calendario');
 const { router: logsRoutes } = require('./routes/logs');
 
 const app = express();
@@ -37,6 +38,7 @@ app.use('/api/historial', historialRoutes);
 app.use('/api/informes', informesRoutes);
 app.use('/api/zonas', zonasRoutes);
 app.use('/api/sucursales', sucursalesRoutes);
+app.use('/api/calendario', calendarioRoutes);
 app.use('/api/logs', logsRoutes);
 
 async function runSeed() {
