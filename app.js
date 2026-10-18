@@ -1920,7 +1920,8 @@ const permGroupMeta = {
   Publicaciones: { icon: 'bi-megaphone-fill', label: 'Publicaciones' },
   'Grupos y Zonas': { icon: 'bi-diagram-3-fill', label: 'Grupos y Zonas' },
   Sucursales: { icon: 'bi-buildings-fill', label: 'Sucursales' },
-  Informes: { icon: 'bi-file-earmark-bar-graph-fill', label: 'Informes' }
+  Informes: { icon: 'bi-file-earmark-bar-graph-fill', label: 'Informes' },
+  Calendario: { icon: 'bi-calendar3-fill', label: 'Calendario' }
 };
 
 function escHtml(s) {

@@ -93,7 +93,19 @@ async function getDb() {
     )
   `);
 
+  // Migración: mejora integral del calendario (horas fin, multi-día, autoría de realización, series)
+  await pool.query(`ALTER TABLE calendario ADD COLUMN IF NOT EXISTS hora_fin TEXT NOT NULL DEFAULT ''`);
+  await pool.query(`ALTER TABLE calendario ADD COLUMN IF NOT EXISTS fecha_fin DATE`);
+  await pool.query(`ALTER TABLE calendario ADD COLUMN IF NOT EXISTS responsable_id INTEGER REFERENCES users(id) ON DELETE SET NULL`);
+  await pool.query(`ALTER TABLE calendario ADD COLUMN IF NOT EXISTS realizado_por INTEGER REFERENCES users(id) ON DELETE SET NULL`);
+  await pool.query(`ALTER TABLE calendario ADD COLUMN IF NOT EXISTS realizado_en TIMESTAMP`);
+  await pool.query(`ALTER TABLE calendario ADD COLUMN IF NOT EXISTS serie_id INTEGER`);
+  await pool.query(`ALTER TABLE calendario ADD COLUMN IF NOT EXISTS serie_pos INTEGER NOT NULL DEFAULT 0`);
+  await pool.query(`ALTER TABLE calendario ADD COLUMN IF NOT EXISTS recurrencia TEXT NOT NULL DEFAULT 'none'`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_calendario_fecha ON calendario (fecha)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_calendario_serie ON calendario (serie_id)`);
+  // Migración de estado: término consistente "realizada" (acepta ambos en la API)
+  await pool.query(`UPDATE calendario SET estado = 'realizada' WHERE estado = 'completada'`);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS role_permissions (

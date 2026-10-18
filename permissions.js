@@ -13,6 +13,8 @@ const CATALOG = [
 
   { key: 'edit_sucursales', label: 'Crear / editar / eliminar sucursales', group: 'Sucursales', desc: 'Alta, edición y borrado de sucursales.' },
 
+  { key: 'complete_calendario', label: 'Marcar elementos como realizados', group: 'Calendario', desc: 'Marcar eventos o tareas como realizados o pendientes desde el calendario.' },
+
   { key: 'edit_informes', label: 'Importar / eliminar informes', group: 'Informes', desc: 'Carga y borrado de informes.' },
   { key: 'sync_informes', label: 'Sincronizar informes desde Google Sheets', group: 'Informes', desc: 'Sincronizar los informes con la planilla.' }
 ];
@@ -30,7 +32,8 @@ const DEFAULT_ROLE_PERMISSIONS = {
     edit_zonas: false,
     edit_sucursales: true,
     edit_informes: true,
-    sync_informes: true
+    sync_informes: true,
+    complete_calendario: true
   }
 };
 
