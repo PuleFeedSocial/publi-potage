@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Calendario — Potage</title>
     <link rel="icon" type="image/png" href="img/icon-192.png">
     <link rel="manifest" href="manifest.json">
@@ -576,9 +576,7 @@
             const r = calRangeFor();
             calLoading = true;
             if (!silent) { calLoadError = false; renderAll(); }
-            fetch(API_BASE + '/api/calendario?desde=' + r.desde + '&hasta=' + r.hasta, {
-                headers: { 'Authorization': 'Bearer ' + getToken() }
-            })
+            authFetch(API_BASE + '/api/calendario?desde=' + r.desde + '&hasta=' + r.hasta)
                 .then(res => res.json().then(b => ({ status: res.status, body: b })))
                 .then(({ status, body }) => {
                     calLoading = false;
@@ -1288,11 +1286,11 @@
             }
             const opts = {
                 method: id ? 'PUT' : 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             };
 
-            fetch(url, opts)
+            authFetch(url, opts)
                 .then(res => res.json().then(b => ({ status: res.status, body: b })))
                 .then(({ status, body }) => {
                     calBusy = false;
@@ -1326,7 +1324,7 @@
         }
 
         function loadCalUsers() {
-            fetch(API_BASE + '/api/auth/users', { headers: { 'Authorization': 'Bearer ' + getToken() } })
+            authFetch(API_BASE + '/api/auth/users')
                 .then(res => res.ok ? res.json() : [])
                 .then(b => {
                     calUsers = Array.isArray(b) ? b : (b.data || []);
@@ -1353,9 +1351,9 @@
             const nuevo = ev.estado === 'realizada' ? 'pendiente' : 'realizada';
             const snapshot = { estado: ev.estado, realizado_en: ev.realizado_en, realizado_por_nombre: ev.realizado_por_nombre };
             calBusy = true;
-            fetch(API_BASE + '/api/calendario/' + id + '/estado', {
+            authFetch(API_BASE + '/api/calendario/' + id + '/estado', {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ estado: nuevo })
             })
                 .then(res => res.json().then(b => ({ status: res.status, body: b })))
@@ -1371,9 +1369,9 @@
                     calToast(nuevo === 'realizada' ? 'Marcada como realizada.' : 'Marcada como pendiente.', 'success', () => {
                         Object.assign(ev, snapshot);
                         calBusy = true;
-                        fetch(API_BASE + '/api/calendario/' + id + '/estado', {
+                        authFetch(API_BASE + '/api/calendario/' + id + '/estado', {
                             method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() },
+                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ estado: snapshot.estado })
                         })
                             .then(res => res.json()).then(b => {
@@ -1402,7 +1400,7 @@
             calBusy = true;
             let url = API_BASE + '/api/calendario/' + id;
             if (scope === 'serie') url += '?scope=serie';
-            fetch(url, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + getToken() } })
+            authFetch(url, { method: 'DELETE' })
                 .then(res => res.json().then(b => ({ status: res.status, body: b })))
                 .then(({ status, body }) => {
                     calBusy = false;
@@ -1495,9 +1493,9 @@
             const snapshot = { fecha: ev.fecha, fecha_fin: ev.fecha_fin };
 
             calBusy = true;
-            fetch(API_BASE + '/api/calendario/' + ev.id, {
+            authFetch(API_BASE + '/api/calendario/' + ev.id, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             })
                 .then(res => res.json().then(b => ({ status: res.status, body: b })))
@@ -1512,9 +1510,9 @@
                     renderAll();
                     calToast('Reprogramado para el ' + isoToDate(drag.dropTarget) + '.', 'success', () => {
                         calBusy = true;
-                        fetch(API_BASE + '/api/calendario/' + ev.id, {
+                        authFetch(API_BASE + '/api/calendario/' + ev.id, {
                             method: 'PUT',
-                            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() },
+                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ fecha: fechaAnterior, fecha_fin: fechaAnteriorFin })
                         })
                             .then(res => res.json()).then(b => {

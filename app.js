@@ -35,29 +35,150 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function getCurrentSession() {
-  const data = localStorage.getItem('user');
-  return data ? JSON.parse(data) : null;
+  try {
+    const data = localStorage.getItem('user');
+    return data ? JSON.parse(data) : null;
+  } catch {
+    return null;
+  }
 }
 
 function getToken() {
   return localStorage.getItem('token') || '';
 }
 
-function setSession(token, user) {
+function getRefreshToken() {
+  return localStorage.getItem('refreshToken') || '';
+}
+
+function setSession(token, user, refreshToken) {
   localStorage.setItem('token', token);
+  if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
   localStorage.setItem('user', JSON.stringify({ id: user.id, name: user.name, email: user.email, role: user.role }));
 }
 
 function clearSession() {
   localStorage.removeItem('token');
+  localStorage.removeItem('refreshToken');
   localStorage.removeItem('user');
 }
 
-function apiFetch(path, options = {}) {
-  const headers = { 'Content-Type': 'application/json', ...options.headers };
+/* ---------- RENOVACIÓN DE SESIÓN (evita cerrar sesión al vencer el token) ---------- */
+function tokenExpMs(token) {
+  try {
+    const b64 = String(token).split('.')[1] || '';
+    const payload = JSON.parse(BufferFromBase64Url(b64));
+    return payload && payload.exp ? payload.exp * 1000 : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function BufferFromBase64Url(b64) {
+  // atob no acepta base64url; normalizamos y usamos decodeURIComponent(escape(...))
+  // como fallback universal (funciona sin Buffer en el navegador).
+  const normalized = b64.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = normalized + '='.repeat((4 - normalized.length % 4) % 4);
+  try {
+    const bin = atob(padded);
+    let out = '';
+    for (let i = 0; i < bin.length; i++) out += '%' + ('00' + bin.charCodeAt(i).toString(16)).slice(-2);
+    return decodeURIComponent(out);
+  } catch {
+    return '{}';
+  }
+}
+
+function isTokenExpiringSoon(token, marginMs) {
+  const exp = tokenExpMs(token);
+  if (!exp) return true;
+  return (exp - Date.now()) < (marginMs == null ? 10 * 60 * 1000 : marginMs);
+}
+
+let _refreshPromise = null;
+function refreshSession() {
+  const rt = getRefreshToken();
+  const at = getToken();
+  if (!rt && !at) return Promise.resolve(false);
+  if (!_refreshPromise) {
+    _refreshPromise = fetch(API_BASE + '/api/auth/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken: rt || '', token: at || '' })
+    })
+      .then(r => r.json().then(b => ({ status: r.status, body: b })))
+      .then(({ status, body }) => {
+        if (status === 200 && body && body.token) {
+          setSession(body.token, body.user, body.refreshToken);
+          return true;
+        }
+        return false;
+      })
+      .catch(() => false)
+      .finally(() => { _refreshPromise = null; });
+  }
+  return _refreshPromise;
+}
+
+function ensureFreshToken() {
+  const t = getToken();
+  if (!t) return Promise.resolve(false);
+  if (!isTokenExpiringSoon(t)) return Promise.resolve(true);
+  return refreshSession();
+}
+
+let _sessionExpiredHandled = false;
+function onSessionExpired() {
+  if (_sessionExpiredHandled) return;
+  _sessionExpiredHandled = true;
+  clearSession();
+  const page = (window.location.pathname.split('/').pop() || '').toLowerCase();
+  const isAuthPage = page === '' || page === 'index.html' || page === 'login.html' || page === 'register.html';
+  if (isAuthPage) return;
+  showToast('Tu sesión expiró. Volvé a iniciar sesión.', 'error');
+  setTimeout(() => { window.location.href = 'index.html'; }, 1400);
+}
+
+async function authFetch(url, options = {}) {
+  await ensureFreshToken();
+  const opts = { ...options };
+  const headers = { ...(opts.headers || {}) };
   headers['Authorization'] = 'Bearer ' + getToken();
-  return fetch(API_BASE + path, { ...options, headers })
-    .then(res => res.json().then(data => ({ status: res.status, body: data })));
+  opts.headers = headers;
+  let res = await fetch(url, opts);
+  if (res.status === 401 && getToken()) {
+    const renewed = await refreshSession();
+    if (renewed) {
+      headers['Authorization'] = 'Bearer ' + getToken();
+      res = await fetch(url, opts);
+    } else {
+      onSessionExpired();
+    }
+  }
+  return res;
+}
+
+let _tokenRefreshTimer = null;
+function scheduleTokenRefresh() {
+  if (_tokenRefreshTimer) { clearInterval(_tokenRefreshTimer); _tokenRefreshTimer = null; }
+  if (!getToken()) return;
+  _tokenRefreshTimer = setInterval(() => {
+    if (document.hidden) return;
+    ensureFreshToken();
+  }, 30 * 60 * 1000);
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && getToken()) ensureFreshToken();
+});
+
+function apiFetch(path, options = {}) {
+  return authFetch(API_BASE + path, options)
+    .then(res => res.text().then(text => {
+      let data = {};
+      try { data = text ? JSON.parse(text) : {}; } catch { data = { error: String(text).substring(0, 200) }; }
+      return { status: res.status, body: data };
+    }));
 }
 
 /* ---------- PERMISOS ---------- */
@@ -72,10 +193,7 @@ function loadMyPermissions() {
   if (!getToken()) return Promise.resolve(null);
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 8000);
-  return fetch(API_BASE + '/api/auth/permissions', {
-    headers: { 'Authorization': 'Bearer ' + getToken() },
-    signal: ctrl.signal
-  })
+  return authFetch(API_BASE + '/api/auth/permissions', { signal: ctrl.signal })
     .then(r => r.json())
     .then(body => {
       clearTimeout(timer);
@@ -112,16 +230,25 @@ function applyNavPermissions() {
 
 function guardPage(perm) {
   if (!getCurrentSession()) { window.location.href = 'index.html'; return; }
-  loadMyPermissions().then(() => {
-    if (!hasPermission(perm)) {
-      showToast('No tenés permiso para acceder a esa sección.', 'error');
-      window.location.href = 'dashboard.html';
-    }
+  ensureFreshToken().then(ok => {
+    if (!ok) { onSessionExpired(); return; }
+    loadMyPermissions().then(() => {
+      if (!hasPermission(perm)) {
+        showToast('No tenés permiso para acceder a esa sección.', 'error');
+        window.location.href = 'dashboard.html';
+      }
+    });
   });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  if (getCurrentSession()) loadMyPermissions();
+  if (getCurrentSession()) {
+    ensureFreshToken().then(ok => {
+      if (ok) loadMyPermissions();
+      else onSessionExpired();
+    });
+    scheduleTokenRefresh();
+  }
 });
 
 function showToast(mensaje, tipo) {
@@ -166,7 +293,7 @@ function handleLogin(e) {
         alert(body.error || 'Error al iniciar sesión.');
         return;
       }
-      setSession(body.token, body.user);
+      setSession(body.token, body.user, body.refreshToken);
       window.location.href = 'dashboard.html';
     })
     .catch(() => alert('Error de conexión con el servidor.'));
@@ -200,7 +327,7 @@ function handleRegister(e) {
         alert(body.error || 'Error al registrarse.');
         return;
       }
-      setSession(body.token, body.user);
+      setSession(body.token, body.user, body.refreshToken);
       alert('Cuenta creada exitosamente.');
       window.location.href = 'dashboard.html';
     })
@@ -278,9 +405,7 @@ function loadMarketingData(silent) {
   const tbody = document.getElementById('marketing-table-body');
   if (!silent) tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Cargando...</td></tr>';
 
-  fetch(API_BASE + '/api/marketing', {
-    headers: { 'Authorization': 'Bearer ' + getToken() }
-  })
+  authFetch(API_BASE + '/api/marketing')
     .then(r => r.text().then(text => ({ status: r.status, text })))
     .then(({ status, text }) => {
       let body;
@@ -308,9 +433,8 @@ function loadMarketingData(silent) {
 }
 
 function refreshMarketingData() {
-  fetch(API_BASE + '/api/marketing/refresh', {
-    headers: { 'Authorization': 'Bearer ' + getToken() }
-  }).then(() => loadMarketingData()).catch(() => loadMarketingData());
+  authFetch(API_BASE + '/api/marketing/refresh')
+    .then(() => loadMarketingData()).catch(() => loadMarketingData());
 }
 
 function saludDiv(rows) {
@@ -406,7 +530,7 @@ function renderDashboard(data, chartData, periodLimit) {
         const zm = rows.reduce((s, r) => s + r.mensajes, 0);
         return `<div class="col-6 col-md-4 col-lg">
           <div class="zone-kpi-card zone-health-${saludZonaClass(rows).split('-')[2]}">
-            <div class="zone-kpi-name">${saludDiv(rows)}${z}</div>
+            <div class="zone-kpi-name">${saludDiv(rows)}${escHtml(z)}</div>
             <div class="zone-kpi-stats">
               <span title="Pubs"><i class="bi bi-file-text"></i> ${zp}</span>
               <span title="Vis"><i class="bi bi-eye"></i> ${zv}</span>
@@ -438,15 +562,15 @@ function renderDashboard(data, chartData, periodLimit) {
       openDetailModal(JSON.parse(this.dataset.row));
     });
     tr.innerHTML = `
-        <td class="fw-medium text-dark">${row.fecha || ''}</td>
-        <td>${row.grupo || ''}</td>
+        <td class="fw-medium text-dark">${escHtml(row.fecha || '')}</td>
+        <td>${escHtml(row.grupo || '')}</td>
         <td class="text-center">${row.publicaciones}</td>
         <td class="text-center fw-medium">${row.visualizaciones}</td>
         <td class="text-center text-success fw-medium">${row.interacciones}</td>
         <td class="text-center">${row.comentarios}</td>
         <td class="text-center text-indigo fw-medium">${row.mensajes}</td>
-        <td><span class="badge-zone zone-${zClass}">${row.zona || ''}</span></td>
-        <td class="text-center"><span class="badge-estatus est-${(row.estatus||'SIN DEFINIR').toLowerCase().replace(/ /g,'-')}">${row.estatus || 'SIN DEFINIR'}</span></td>`;
+        <td><span class="badge-zone zone-${zClass}">${escHtml(row.zona || '')}</span></td>
+        <td class="text-center"><span class="badge-estatus est-${(row.estatus||'SIN DEFINIR').toLowerCase().replace(/ /g,'-')}">${escHtml(row.estatus || 'SIN DEFINIR')}</span></td>`;
     tbody.appendChild(tr);
   });
 
@@ -829,8 +953,9 @@ function realizarInforme() {
 }
 
 function marketingFetch(method, body) {
-  return fetch(API_BASE + '/api/marketing', {
-    method, headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+  return authFetch(API_BASE + '/api/marketing', {
+    method,
+    headers: { 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined
   }).then(r => r.json());
 }
@@ -847,9 +972,9 @@ function addMarketingRow(data, snapshot) {
 }
 
 function updateMarketingRow(rowIndex, data) {
-  fetch(API_BASE + '/api/marketing/' + rowIndex, {
+  authFetch(API_BASE + '/api/marketing/' + rowIndex, {
     method: 'PUT',
-    headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   }).then(r => r.json()).then(res => {
     if (res.error) return alert(res.error);
@@ -859,9 +984,9 @@ function updateMarketingRow(rowIndex, data) {
 }
 
 function postHistorial(snapshot) {
-  fetch(API_BASE + '/api/historial', {
+  authFetch(API_BASE + '/api/historial', {
     method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(snapshot)
   }).then(r => r.json()).then(res => {
     if (res.error) return;
@@ -871,9 +996,8 @@ function postHistorial(snapshot) {
 
 function deleteMarketingRow(rowIndex) {
   if (!confirm('¿Eliminar esta fila permanentemente?')) return;
-  fetch(API_BASE + '/api/marketing/' + rowIndex, {
-    method: 'DELETE',
-    headers: { 'Authorization': 'Bearer ' + getToken() }
+  authFetch(API_BASE + '/api/marketing/' + rowIndex, {
+    method: 'DELETE'
   }).then(r => r.json()).then(res => {
     if (res.error) return alert(res.error);
     loadMarketingData();
@@ -1021,9 +1145,7 @@ function saveBulkMarketing() {
 
 let _appLastGruposSnapshot = '';
 function loadGrupos(silent) {
-  fetch(API_BASE + '/api/grupos', {
-    headers: { 'Authorization': 'Bearer ' + getToken() }
-  })
+  authFetch(API_BASE + '/api/grupos')
     .then(r => r.json().then(b => ({ status: r.status, body: b })))
     .then(({ status, body }) => {
       if (status === 200) {
@@ -1066,9 +1188,7 @@ function loadZonas(silent) {
 
 let _appLastHistorialSnapshot = '';
 function loadHistorial(silent) {
-  fetch(API_BASE + '/api/historial', {
-    headers: { 'Authorization': 'Bearer ' + getToken() }
-  })
+  authFetch(API_BASE + '/api/historial')
     .then(r => r.json().then(b => ({ status: r.status, body: b })))
     .then(({ status, body }) => {
       if (status === 200) {
@@ -1285,13 +1405,13 @@ function saveMarketingRow() {
 
   let chain = Promise.resolve();
   if (isNewGrupo) {
-    chain = chain.then(() =>
-      fetch(API_BASE + '/api/grupos', {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre: data.grupo, enlace: '', zona: data.zona })
-      }).then(() => loadGrupos())
-    );
+      chain = chain.then(() =>
+        authFetch(API_BASE + '/api/grupos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nombre: data.grupo, enlace: '', zona: data.zona })
+        }).then(() => loadGrupos())
+      );
   }
   chain.then(save);
 }
@@ -1333,14 +1453,15 @@ function openDetailModal(rowData) {
 
   let chartHtml = '';
   if (row.grupo && row.grupo !== 'Perfil Estandar') {
+    const gArg = encArg(row.grupo);
     chartHtml = `
       <hr class="my-3">
-      <h6 class="fw-semibold text-muted mb-2"><i class="bi bi-bar-chart-line me-1"></i>Métricas del grupo: ${row.grupo}</h6>
+      <h6 class="fw-semibold text-muted mb-2"><i class="bi bi-bar-chart-line me-1"></i>Métricas del grupo: ${escHtml(row.grupo)}</h6>
       <div class="btn-group btn-group-sm mb-2 w-100" role="group">
-        <button type="button" class="btn btn-outline-secondary chart-grupo-metric active" data-metric="pubs" onclick="renderGrupoChart('${row.grupo}','pubs')">Publicaciones</button>
-        <button type="button" class="btn btn-outline-secondary chart-grupo-metric" data-metric="vis" onclick="renderGrupoChart('${row.grupo}','vis')">Visualizaciones</button>
-        <button type="button" class="btn btn-outline-secondary chart-grupo-metric" data-metric="ints" onclick="renderGrupoChart('${row.grupo}','ints')">Interacciones</button>
-        <button type="button" class="btn btn-outline-secondary chart-grupo-metric" data-metric="msjs" onclick="renderGrupoChart('${row.grupo}','msjs')">Mensajes</button>
+        <button type="button" class="btn btn-outline-secondary chart-grupo-metric active" data-metric="pubs" onclick="renderGrupoChart('${gArg}','pubs')">Publicaciones</button>
+        <button type="button" class="btn btn-outline-secondary chart-grupo-metric" data-metric="vis" onclick="renderGrupoChart('${gArg}','vis')">Visualizaciones</button>
+        <button type="button" class="btn btn-outline-secondary chart-grupo-metric" data-metric="ints" onclick="renderGrupoChart('${gArg}','ints')">Interacciones</button>
+        <button type="button" class="btn btn-outline-secondary chart-grupo-metric" data-metric="msjs" onclick="renderGrupoChart('${gArg}','msjs')">Mensajes</button>
       </div>
       <div style="height:200px;">
         <canvas id="chartGrupo"></canvas>
@@ -1351,14 +1472,15 @@ function openDetailModal(rowData) {
   if (row.zona) {
     const zoneRows = marketingData.filter(r => r.zona === row.zona && r.grupo !== 'Perfil Estandar' && isEstatusActivo(r.estatus) && zonaActiva(r.zona));
     if (zoneRows.length) {
+      const zArg = encArg(row.zona);
       zonaChartHtml = `
       <hr class="my-3">
-      <h6 class="fw-semibold text-muted mb-2"><i class="bi bi-geo-alt me-1"></i>Métricas de zona: ${row.zona}</h6>
+      <h6 class="fw-semibold text-muted mb-2"><i class="bi bi-geo-alt me-1"></i>Métricas de zona: ${escHtml(row.zona)}</h6>
       <div class="btn-group btn-group-sm mb-2 w-100" role="group">
-        <button type="button" class="btn btn-outline-secondary chart-zona-metric active" data-metric="pubs" onclick="renderZonaChart('${row.zona}','pubs')">Publicaciones</button>
-        <button type="button" class="btn btn-outline-secondary chart-zona-metric" data-metric="vis" onclick="renderZonaChart('${row.zona}','vis')">Visualizaciones</button>
-        <button type="button" class="btn btn-outline-secondary chart-zona-metric" data-metric="ints" onclick="renderZonaChart('${row.zona}','ints')">Interacciones</button>
-        <button type="button" class="btn btn-outline-secondary chart-zona-metric" data-metric="msjs" onclick="renderZonaChart('${row.zona}','msjs')">Mensajes</button>
+        <button type="button" class="btn btn-outline-secondary chart-zona-metric active" data-metric="pubs" onclick="renderZonaChart('${zArg}','pubs')">Publicaciones</button>
+        <button type="button" class="btn btn-outline-secondary chart-zona-metric" data-metric="vis" onclick="renderZonaChart('${zArg}','vis')">Visualizaciones</button>
+        <button type="button" class="btn btn-outline-secondary chart-zona-metric" data-metric="ints" onclick="renderZonaChart('${zArg}','ints')">Interacciones</button>
+        <button type="button" class="btn btn-outline-secondary chart-zona-metric" data-metric="msjs" onclick="renderZonaChart('${zArg}','msjs')">Mensajes</button>
       </div>
       <div style="height:200px;">
         <canvas id="chartZona"></canvas>
@@ -1368,15 +1490,15 @@ function openDetailModal(rowData) {
 
   const html = `
     <div class="row g-3">
-      <div class="col-6 col-md-4"><div class="text-muted small">Fecha</div><div class="fw-medium">${row.fecha || '—'}</div></div>
-      <div class="col-6 col-md-4"><div class="text-muted small">Grupo</div><div class="fw-medium">${row.grupo || '—'}${grupoLink ? ' <a href="' + grupoLink + '" target="_blank" class="text-decoration-none" title="Abrir grupo"><i class="bi bi-box-arrow-up-right ms-1 text-muted"></i></a>' : ''}</div></div>
+      <div class="col-6 col-md-4"><div class="text-muted small">Fecha</div><div class="fw-medium">${escHtml(row.fecha || '—')}</div></div>
+      <div class="col-6 col-md-4"><div class="text-muted small">Grupo</div><div class="fw-medium">${escHtml(row.grupo || '—')}${grupoLink ? ' <a href="' + escHtml(grupoLink) + '" target="_blank" class="text-decoration-none" title="Abrir grupo"><i class="bi bi-box-arrow-up-right ms-1 text-muted"></i></a>' : ''}</div></div>
       <div class="col-6 col-md-4"><div class="text-muted small">Publicaciones</div><div class="fw-medium">${row.publicaciones}</div></div>
       <div class="col-6 col-md-4"><div class="text-muted small">Visualizaciones</div><div class="fw-medium">${row.visualizaciones}</div></div>
       <div class="col-6 col-md-4"><div class="text-muted small">Interacciones</div><div class="fw-medium">${row.interacciones}</div></div>
       <div class="col-6 col-md-4"><div class="text-muted small">Comentarios</div><div class="fw-medium">${row.comentarios}</div></div>
       <div class="col-6 col-md-4"><div class="text-muted small">Mensajes</div><div class="fw-medium">${row.mensajes}</div></div>
-      <div class="col-6 col-md-4"><div class="text-muted small">Zona</div><div class="fw-medium">${row.zona || '—'}</div></div>
-      <div class="col-6 col-md-4"><div class="text-muted small">Estatus</div><div class="fw-medium"><span class="badge-estatus est-${(row.estatus||'SIN DEFINIR').toLowerCase().replace(/ /g,'-')}">${row.estatus || 'SIN DEFINIR'}</span></div></div>
+      <div class="col-6 col-md-4"><div class="text-muted small">Zona</div><div class="fw-medium">${escHtml(row.zona || '—')}</div></div>
+      <div class="col-6 col-md-4"><div class="text-muted small">Estatus</div><div class="fw-medium"><span class="badge-estatus est-${(row.estatus||'SIN DEFINIR').toLowerCase().replace(/ /g,'-')}">${escHtml(row.estatus || 'SIN DEFINIR')}</span></div></div>
     </div>
     ${histHtml}${chartHtml}${zonaChartHtml}`;
 
@@ -1475,7 +1597,36 @@ function saveUpdate() {
   postHistorial(snapshot);
 }
 
+function isDarkTheme() {
+  return document.documentElement.getAttribute('data-theme') === 'dark';
+}
+
+function chartPalette() {
+  if (isDarkTheme()) {
+    return {
+      pubs: '#e2e8f0', vis: '#fbbf24', ints: '#34d399', msjs: '#a5b4fc',
+      grid: 'rgba(226,232,240,0.15)', tick: '#94a3b8'
+    };
+  }
+  return {
+    pubs: '#0f172a', vis: '#f59e0b', ints: '#10b981', msjs: '#6366f1',
+    grid: 'rgba(15,23,42,0.10)', tick: '#64748b'
+  };
+}
+
+function applyChartThemeDefaults() {
+  if (!window.Chart) return;
+  const p = chartPalette();
+  Chart.defaults.color = p.tick;
+  Chart.defaults.borderColor = p.grid;
+}
+
+function encArg(s) { return encodeURIComponent(String(s == null ? '' : s)); }
+
 function renderGrupoChart(grupo, metric) {
+  if (grupo != null) {
+    try { grupo = decodeURIComponent(grupo); } catch { /* ya decodificado */ }
+  }
   metric = metric || 'pubs';
   document.querySelectorAll('.chart-grupo-metric').forEach(b => {
     b.classList.toggle('active', b.dataset.metric === metric);
@@ -1487,7 +1638,8 @@ function renderGrupoChart(grupo, metric) {
 
   const METRIC_FIELD = { pubs: 'publicaciones', vis: 'visualizaciones', ints: 'interacciones', msjs: 'mensajes' };
   const METRIC_LABELS = { pubs: 'Publicaciones', vis: 'Visualizaciones', ints: 'Interacciones', msjs: 'Mensajes' };
-  const METRIC_COLORS = { pubs: '#0f172a', vis: '#f59e0b', ints: '#10b981', msjs: '#6366f1' };
+  const PAL = chartPalette();
+  const METRIC_COLORS = { pubs: PAL.pubs, vis: PAL.vis, ints: PAL.ints, msjs: PAL.msjs };
   const field = METRIC_FIELD[metric] || 'publicaciones';
 
   // Usar historial: filtrar por rowIndex del grupo (mas robusto que campo grupo)
@@ -1505,13 +1657,13 @@ function renderGrupoChart(grupo, metric) {
 
   const labels = dates.map(f => f.substring(0, 5));
   const values = dates.map(f => (latest[f][field] || 0));
-  console.log('renderGrupoChart: grupo=' + grupo + ' metric=' + metric + ' field=' + field + ' labels=' + labels.join(', ') + ' values=' + values.join(','));
 
   if (labels.length === 1) {
     labels.unshift(''); labels.push('');
     values.unshift(null); values.push(null);
   }
 
+  applyChartThemeDefaults();
   try {
     window._grupoChart = new Chart(canvas, {
       type: 'line',
@@ -1520,8 +1672,8 @@ function renderGrupoChart(grupo, metric) {
         datasets: [{
           label: METRIC_LABELS[metric] || metric,
           data: values,
-          borderColor: METRIC_COLORS[metric] || '#0f172a',
-          backgroundColor: (METRIC_COLORS[metric] || '#0f172a') + '20',
+          borderColor: METRIC_COLORS[metric] || PAL.pubs,
+          backgroundColor: (METRIC_COLORS[metric] || PAL.pubs) + '20',
           borderWidth: 2,
           pointRadius: 4,
           tension: 0.3,
@@ -1532,13 +1684,19 @@ function renderGrupoChart(grupo, metric) {
         responsive: true,
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
-        scales: { y: { ticks: { beginAtZero: true, precision: 0 } } }
+        scales: {
+          y: { ticks: { beginAtZero: true, precision: 0 } },
+          x: { grid: { color: PAL.grid }, ticks: { color: PAL.tick } }
+        }
       }
     });
   } catch (e) { console.warn('Grupo chart error:', e); }
 }
 
 function renderZonaChart(zona, metric) {
+  if (zona != null) {
+    try { zona = decodeURIComponent(zona); } catch { /* ya decodificado */ }
+  }
   metric = metric || 'pubs';
   document.querySelectorAll('.chart-zona-metric').forEach(b => {
     b.classList.toggle('active', b.dataset.metric === metric);
@@ -1549,7 +1707,8 @@ function renderZonaChart(zona, metric) {
 
   const METRIC_FIELD = { pubs: 'publicaciones', vis: 'visualizaciones', ints: 'interacciones', msjs: 'mensajes' };
   const METRIC_LABELS = { pubs: 'Publicaciones', vis: 'Visualizaciones', ints: 'Interacciones', msjs: 'Mensajes' };
-  const METRIC_COLORS = { pubs: '#0f172a', vis: '#f59e0b', ints: '#10b981', msjs: '#6366f1' };
+  const PAL = chartPalette();
+  const METRIC_COLORS = { pubs: PAL.pubs, vis: PAL.vis, ints: PAL.ints, msjs: PAL.msjs };
   const field = METRIC_FIELD[metric] || 'publicaciones';
 
   // Todos los rowIndex de la zona
@@ -1580,6 +1739,7 @@ function renderZonaChart(zona, metric) {
     values.unshift(null); values.push(null);
   }
 
+  applyChartThemeDefaults();
   try {
     window._zonaChart = new Chart(canvas, {
       type: 'line',
@@ -1588,8 +1748,8 @@ function renderZonaChart(zona, metric) {
         datasets: [{
           label: METRIC_LABELS[metric] || metric,
           data: values,
-          borderColor: METRIC_COLORS[metric] || '#0f172a',
-          backgroundColor: (METRIC_COLORS[metric] || '#0f172a') + '20',
+          borderColor: METRIC_COLORS[metric] || PAL.pubs,
+          backgroundColor: (METRIC_COLORS[metric] || PAL.pubs) + '20',
           borderWidth: 2,
           pointRadius: 4,
           tension: 0.3,
@@ -1600,7 +1760,10 @@ function renderZonaChart(zona, metric) {
         responsive: true,
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
-        scales: { y: { ticks: { beginAtZero: true, precision: 0 } } }
+        scales: {
+          y: { ticks: { beginAtZero: true, precision: 0 } },
+          x: { grid: { color: PAL.grid }, ticks: { color: PAL.tick } }
+        }
       }
     });
   } catch (e) { console.warn('Zona chart error:', e); }
@@ -1628,9 +1791,7 @@ function renderZonasDashboard() {
   })();
 
   // Cargar grupos fresco para el conteo
-  fetch(API_BASE + '/api/grupos', {
-    headers: { 'Authorization': 'Bearer ' + getToken() }
-  })
+  authFetch(API_BASE + '/api/grupos')
     .then(r => r.json())
     .then(body => {
       const freshGrupos = body.data || [];
@@ -1707,7 +1868,7 @@ function renderZonasDashboardInner(grupos, zonaFilter, periodLimit) {
   if (tbody) {
     tbody.innerHTML = sortedZones.map(z => `
       <tr>
-        <td class="fw-medium">${z.zona}</td>
+        <td class="fw-medium">${escHtml(z.zona)}</td>
         <td class="text-center">${z.publicaciones}</td>
         <td class="text-center fw-medium">${z.visualizaciones}</td>
         <td class="text-center text-success fw-medium">${z.interacciones}</td>
@@ -1731,6 +1892,7 @@ function renderZonasDashboardInner(grupos, zonaFilter, periodLimit) {
     const el = document.getElementById(id);
     if (!el) return;
     if (!labels.length) return;
+    const PAL = chartPalette();
     try {
       chartsInstances[id] = new Chart(el, {
         type: 'bar',
@@ -1741,14 +1903,18 @@ function renderZonasDashboardInner(grupos, zonaFilter, periodLimit) {
         options: {
           responsive: true, maintainAspectRatio: false,
           plugins: { legend: { display: false } },
-          scales: { y: { ticks: { beginAtZero: true, precision: 0 } }, x: { ticks: { maxRotation: 30 } } }
+          scales: {
+            y: { ticks: { beginAtZero: true, precision: 0 } },
+            x: { ticks: { maxRotation: 30, color: PAL.tick }, grid: { color: PAL.grid } }
+          }
         }
       });
     } catch (e) { console.warn('Zonas chart error:', e); }
   }
 
-  makeBar('chartZonasPubs', '#0f172a', pubsData);
-  makeBar('chartZonasInts', '#10b981', intsData);
+  const PALZ = chartPalette();
+  makeBar('chartZonasPubs', PALZ.pubs, pubsData);
+  makeBar('chartZonasInts', PALZ.ints, intsData);
 }
 
 function initCharts(chartData, periodLimit) {
@@ -1830,6 +1996,7 @@ function initCharts(chartData, periodLimit) {
   function makeChart(id, color, bg, dataArr, labels, label) {
     const el = document.getElementById(id);
     if (!el) return;
+    const PAL = chartPalette();
     try {
       chartsInstances[id] = new Chart(el, {
         type: 'line',
@@ -1851,15 +2018,20 @@ function initCharts(chartData, periodLimit) {
           responsive: true,
           maintainAspectRatio: false,
           plugins: { legend: { display: false } },
-          scales: { y: { ticks: { beginAtZero: true, precision: 0 } } }
+          scales: {
+            y: { ticks: { beginAtZero: true, precision: 0 } },
+            x: { grid: { color: PAL.grid }, ticks: { color: PAL.tick } }
+          }
         }
       });
     } catch (e) { console.warn('Chart error ' + id + ':', e); }
   }
 
-  makeChart('chartPublicaciones', '#0f172a', null, pubsVals, pubsLabels);
-  makeChart('chartInteracciones', '#10b981', 'rgba(16, 185, 129, 0.1)', intsSeries.values, intsSeries.labels);
-  makeChart('chartComparativo', '#6366f1', 'rgba(99, 102, 241, 0.1)', msjsSeries.values, msjsSeries.labels, 'Msj');
+  applyChartThemeDefaults();
+  const PALI = chartPalette();
+  makeChart('chartPublicaciones', PALI.pubs, null, pubsVals, pubsLabels);
+  makeChart('chartInteracciones', PALI.ints, 'rgba(16, 185, 129, 0.1)', intsSeries.values, intsSeries.labels);
+  makeChart('chartComparativo', PALI.msjs, 'rgba(99, 102, 241, 0.1)', msjsSeries.values, msjsSeries.labels, 'Msj');
 }
 function loadUsers() {
   apiFetch('/api/auth/users').then(({ status, body }) => {
@@ -1879,8 +2051,8 @@ function renderUsers(users) {
     const canDelete = !isSelf && !isAdmin;
     tbody.innerHTML += `
       <tr>
-        <td class="fw-semibold text-dark">${u.name}</td>
-        <td>${u.email}</td>
+        <td class="fw-semibold text-dark">${escHtml(u.name)}</td>
+        <td>${escHtml(u.email)}</td>
         <td>
           <select class="form-select form-select-sm role-select" data-user-id="${u.id}" ${isSelf || isAdmin ? 'disabled' : ''}
             onchange="updateUserRole(${u.id}, this.value)">
@@ -1888,7 +2060,7 @@ function renderUsers(users) {
             <option value="admin" ${isAdmin ? 'selected' : ''}>Admin</option>
           </select>
         </td>
-        <td>${u.fecha ? u.fecha.substring(0, 10) : '-'}</td>
+        <td>${u.fecha ? escHtml(u.fecha).substring(0, 10) : '-'}</td>
         <td class="text-end">
           <button class="btn btn-sm btn-link text-danger p-0" onclick="deleteUser(${u.id})" ${canDelete ? '' : 'disabled style="opacity:0.2;"'}>
             <i class="bi bi-trash3-fill"></i>
@@ -2060,10 +2232,10 @@ function renderCodes(codes) {
     const usedBy = c.used_by_name || '-';
     tbody.innerHTML += `
       <tr>
-        <td class="font-monospace fw-semibold">${c.code}</td>
+        <td class="font-monospace fw-semibold">${escHtml(c.code)}</td>
         <td><span class="user-role-badge ${statusClass}">${statusText}</span></td>
-        <td class="text-muted small">${usedBy}</td>
-        <td class="text-muted small">${c.created_at ? c.created_at.substring(0, 10) : '-'}</td>
+        <td class="text-muted small">${escHtml(usedBy)}</td>
+        <td class="text-muted small">${c.created_at ? escHtml(c.created_at).substring(0, 10) : '-'}</td>
         <td class="text-end">
           ${!c.used ? '<button class="btn btn-sm btn-link text-danger p-0" onclick="deleteCode(' + c.id + ')"><i class="bi bi-trash3-fill"></i></button>' : ''}
         </td>

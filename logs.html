@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Logs — Potage</title>
     <link rel="icon" type="image/png" href="img/icon-192.png">
     <link rel="manifest" href="manifest.json">
@@ -306,9 +306,7 @@
         function loadLogs(silent) {
             const tbody = document.getElementById('logs-tbody');
             if (!silent) tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Cargando...</td></tr>';
-            fetch(API_BASE + '/api/logs', {
-                headers: { 'Authorization': 'Bearer ' + getToken() }
-            })
+            authFetch(API_BASE + '/api/logs')
                 .then(r => r.json().then(b => ({ status: r.status, body: b })))
                 .then(({ status, body }) => {
                     if (status !== 200) {

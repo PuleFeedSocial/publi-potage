@@ -1,8 +1,6 @@
-const jwt = require('jsonwebtoken');
+const { verifyAccessToken } = require('../tokens');
 const getDb = require('../database');
 const { hasPermission } = require('../permissions');
-
-const SECRET = process.env.JWT_SECRET || 'Potage_S3cr3t_K3y_2026';
 
 function authenticate(req, res, next) {
   const header = req.headers.authorization;
@@ -11,7 +9,7 @@ function authenticate(req, res, next) {
   }
   try {
     const token = header.split(' ')[1];
-    req.user = jwt.verify(token, SECRET);
+    req.user = verifyAccessToken(token);
     next();
   } catch {
     return res.status(401).json({ error: 'Token inválido o expirado.' });

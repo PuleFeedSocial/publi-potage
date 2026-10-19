@@ -1,17 +1,28 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const getDb = require('../database');
 const { authenticate, requireAdmin } = require('../middleware/auth');
+const { signAccessToken, signRefreshToken, verifyRefreshCredential } = require('../tokens');
 const { CATALOG, getRolePermissions, setRolePermissions, DEFAULT_ROLE_PERMISSIONS, normalizeRole } = require('../permissions');
 
 const router = express.Router();
-const SECRET = process.env.JWT_SECRET || 'Potage_S3cr3t_K3y_2026';
 const { logAction } = require('./logs');
+
+const ALLOWED_ROLES = ['admin', 'colaborador'];
+
+function issueTokens(user) {
+  return { token: signAccessToken(user), refreshToken: signRefreshToken(user) };
+}
+
+function normalizeEmail(email) {
+  return String(email || '').trim().toLowerCase();
+}
 
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, activationCode } = req.body;
+    const { name, activationCode } = req.body;
+    const email = normalizeEmail(req.body.email);
+    const password = req.body.password;
 
     if (!name || !email || !password || !activationCode) {
       return res.status(400).json({ error: 'Todos los campos son obligatorios.' });
@@ -27,7 +38,7 @@ router.post('/register', async (req, res) => {
 
     const db = await getDb();
 
-    const existingUser = await db.get('SELECT id FROM users WHERE email = ?', [email]);
+    const existingUser = await db.get('SELECT id FROM users WHERE LOWER(email) = ?', [email]);
     if (existingUser) {
       return res.status(409).json({ error: 'El email ya está registrado.' });
     }
@@ -44,13 +55,14 @@ router.post('/register', async (req, res) => {
     const user = await db.get('SELECT id FROM users WHERE email = ?', [email]);
     await db.run('UPDATE activation_codes SET used = 1, used_by = ? WHERE id = ?', [user.id, code.id]);
 
-    const token = jwt.sign({ id: user.id, name, email, role: 'colaborador' }, SECRET, { expiresIn: '7d' });
+    const { token, refreshToken } = issueTokens({ id: user.id, name, email, role: 'colaborador' });
 
     logAction(user.id, email, 'Registro', 'Usuario registrado como colaborador', req.ip);
 
     res.status(201).json({
       message: 'Cuenta creada exitosamente.',
       token,
+      refreshToken,
       user: { id: user.id, name, email, role: 'colaborador' }
     });
   } catch (err) {
@@ -68,7 +80,7 @@ router.post('/login', async (req, res) => {
     }
 
     const db = await getDb();
-    const user = await db.get('SELECT * FROM users WHERE email = ?', [email]);
+    const user = await db.get('SELECT * FROM users WHERE LOWER(email) = ?', [normalizeEmail(email)]);
 
     if (!user) {
       return res.status(401).json({ error: 'Credenciales inválidas.' });
@@ -78,22 +90,56 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Credenciales inválidas.' });
     }
 
-    const token = jwt.sign(
-      { id: user.id, name: user.name, email: user.email, role: user.role },
-      SECRET,
-      { expiresIn: '7d' }
-    );
+    const { token, refreshToken } = issueTokens(user);
 
     res.json({
       message: 'Inicio de sesión exitoso.',
       token,
+      refreshToken,
       user: { id: user.id, name: user.name, email: user.email, role: user.role }
     });
 
-    logAction(user.id, email, 'Inicio de sesión', '', req.ip);
+    logAction(user.id, user.email, 'Inicio de sesión', '', req.ip);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error interno del servidor.' });
+  }
+});
+
+// Renueva la sesión sin volver a pedir usuario/contraseña:
+//  - Prefiere el refresh token (30 días).
+//  - Fallback: un access token vencido hace menos de 7 días (gracia para
+//    sesiones antiguas que no tienen refresh token).
+router.post('/refresh', async (req, res) => {
+  try {
+    const credential = (req.body && (req.body.refreshToken || req.body.token)) || '';
+    if (!credential) {
+      return res.status(401).json({ error: 'Token de refresh requerido.' });
+    }
+
+    let decoded;
+    try {
+      decoded = verifyRefreshCredential(credential);
+    } catch {
+      return res.status(401).json({ error: 'Sesión vencida. Iniciá sesión nuevamente.' });
+    }
+
+    const db = await getDb();
+    const user = await db.get('SELECT id, name, email, role FROM users WHERE id = ?', [decoded.id]);
+    if (!user) {
+      return res.status(401).json({ error: 'Usuario no encontrado.' });
+    }
+
+    const tokens = issueTokens(user);
+    res.json({
+      message: 'Sesión renovada.',
+      token: tokens.token,
+      refreshToken: tokens.refreshToken,
+      user: { id: user.id, name: user.name, email: user.email, role: user.role }
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al renovar la sesión.' });
   }
 });
 
@@ -114,7 +160,7 @@ router.post('/forgot-password', async (req, res) => {
     }
 
     const db = await getDb();
-    const user = await db.get('SELECT id, email FROM users WHERE email = ?', [email]);
+    const user = await db.get('SELECT id, email FROM users WHERE LOWER(email) = ?', [normalizeEmail(email)]);
     if (!user) {
       return res.status(400).json({ error: 'El email o el código de activación no son correctos.' });
     }
@@ -197,22 +243,25 @@ router.get('/users', authenticate, requireAdmin, async (req, res) => {
 
 router.post('/users', authenticate, requireAdmin, async (req, res) => {
   try {
-    const { name, email, role } = req.body;
+    const { name } = req.body;
+    const email = normalizeEmail(req.body.email);
+    const role = normalizeRole(req.body.role || 'colaborador');
     if (!name || !email) return res.status(400).json({ error: 'Nombre y email requeridos.' });
+    if (!ALLOWED_ROLES.includes(role)) return res.status(400).json({ error: 'Rol inválido.' });
 
     const db = await getDb();
-    const existing = await db.get('SELECT id FROM users WHERE email = ?', [email]);
+    const existing = await db.get('SELECT id FROM users WHERE LOWER(email) = ?', [email]);
     if (existing) return res.status(409).json({ error: 'El email ya está registrado.' });
 
     const tempPassword = Math.random().toString(36).slice(-8);
     const hashed = bcrypt.hashSync(tempPassword, 10);
     await db.run('INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
-      [name, email, hashed, (role || 'colaborador').toLowerCase()]);
+      [name, email, hashed, role]);
 
     const user = await db.get('SELECT id, name, email, role, created_at as fecha FROM users WHERE email = ?', [email]);
     user.tempPassword = tempPassword;
 
-    logAction(req.user.id, req.user.email, 'Creación de usuario', `Usuario creado: ${name} (${email}) como ${role || 'colaborador'}`, req.ip);
+    logAction(req.user.id, req.user.email, 'Creación de usuario', `Usuario creado: ${name} (${email}) como ${role}`, req.ip);
 
     res.status(201).json(user);
   } catch (err) {
@@ -222,15 +271,14 @@ router.post('/users', authenticate, requireAdmin, async (req, res) => {
 
 router.put('/users/:id/role', authenticate, requireAdmin, async (req, res) => {
   try {
-    const { role } = req.body;
-    const normalizedRole = role.toLowerCase();
-    if (!['admin', 'colaborador'].includes(normalizedRole)) {
+    const role = normalizeRole(req.body && req.body.role);
+    if (!ALLOWED_ROLES.includes(role)) {
       return res.status(400).json({ error: 'Rol inválido.' });
     }
     const db = await getDb();
-    await db.run('UPDATE users SET role = ? WHERE id = ?', [normalizedRole, req.params.id]);
+    await db.run('UPDATE users SET role = ? WHERE id = ?', [role, req.params.id]);
 
-    logAction(req.user.id, req.user.email, 'Cambio de rol', `Usuario #${req.params.id} ahora es ${normalizedRole}`, req.ip);
+    logAction(req.user.id, req.user.email, 'Cambio de rol', `Usuario #${req.params.id} ahora es ${role}`, req.ip);
 
     res.json({ message: 'Rol actualizado correctamente.' });
   } catch (err) {
@@ -241,7 +289,7 @@ router.put('/users/:id/role', authenticate, requireAdmin, async (req, res) => {
 router.delete('/users/:id', authenticate, requireAdmin, async (req, res) => {
   try {
     const db = await getDb();
-    const user = await db.get('SELECT role FROM users WHERE id = ?', [req.params.id]);
+    const user = await db.get('SELECT role, email FROM users WHERE id = ?', [req.params.id]);
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado.' });
     if (user.role === 'admin') return res.status(400).json({ error: 'No se puede eliminar al administrador principal.' });
     await db.run('DELETE FROM users WHERE id = ?', [req.params.id]);

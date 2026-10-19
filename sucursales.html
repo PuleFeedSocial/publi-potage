@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Sucursales — Potage</title>
     <link rel="icon" type="image/png" href="img/icon-192.png">
     <link rel="manifest" href="manifest.json">
@@ -29,8 +29,9 @@
             display: none;
             max-height: 210px;
             overflow-y: auto;
-            background: #fff;
-            border: 1px solid rgba(0, 0, 0, .12);
+            background: var(--bs-body-bg, #fff);
+            border: 1px solid var(--bs-border-color, rgba(0, 0, 0, .12));
+            color: var(--bs-body-color, #212529);
             border-radius: 8px;
             box-shadow: 0 6px 16px rgba(0, 0, 0, .12);
             margin-top: 4px;
@@ -391,8 +392,8 @@ let _lastSucursalesSnapshot = '';
             const cols = (selectedAddress ? 9 : 8);
             if (!silent) tbody.innerHTML = '<tr><td colspan="' + cols + '" class="text-center text-muted">Cargando...</td></tr>';
             Promise.all([
-                fetch(API_BASE + '/api/sucursales', { headers: { 'Authorization': 'Bearer ' + getToken() } }),
-                fetch(API_BASE + '/api/zonas', { headers: { 'Authorization': 'Bearer ' + getToken() } })
+                authFetch(API_BASE + '/api/sucursales'),
+                authFetch(API_BASE + '/api/zonas')
             ])
                 .then(([rSuc, rZonas]) => Promise.all([
                     rSuc.json().then(b => ({ status: rSuc.status, body: b })),
@@ -703,9 +704,9 @@ function hideAddressList() {
                 const best = bestAddressMatch(addrQuery, results);
                 if (best) {
                     try {
-                        await fetch(API_BASE + '/api/sucursales/' + s.rowIndex, {
+                        await authFetch(API_BASE + '/api/sucursales/' + s.rowIndex, {
                             method: 'PUT',
-                            headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 empresa: s.empresa, ubicacion: s.ubicacion, direccion: s.direccion,
                                 contacto: s.contacto, horario: s.horario, zona: s.zona, activo: s.activo,
@@ -856,9 +857,9 @@ function hideAddressList() {
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Guardando...';
 
-            fetch(API_BASE + url, {
+            authFetch(API_BASE + url, {
                 method,
-                headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ empresa, ubicacion, direccion, contacto, horario, zona, activo, lat, lng })
             })
                 .then(r => r.json())
@@ -899,9 +900,8 @@ function hideAddressList() {
 
         function deleteSucursal(rowIndex, ubicacion) {
             if (!confirm('¿Eliminar esta sucursal permanentemente?\n\n' + (ubicacion || ''))) return;
-            fetch(API_BASE + '/api/sucursales/' + rowIndex, {
-                method: 'DELETE',
-                headers: { 'Authorization': 'Bearer ' + getToken() }
+            authFetch(API_BASE + '/api/sucursales/' + rowIndex, {
+                method: 'DELETE'
             })
                 .then(r => r.json())
                 .then(res => {

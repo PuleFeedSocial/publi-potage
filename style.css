@@ -73,7 +73,7 @@ body {
     height: 100vh;
     width: var(--sidebar-width);
     background: var(--bg-sidebar);
-    padding: 32px 24px 0;
+    padding: calc(32px + env(safe-area-inset-top, 0px)) 24px calc(0px + env(safe-area-inset-bottom, 0px));
     z-index: 1000;
     box-shadow: 1px 0 20px rgba(0, 0, 0, 0.01);
     display: flex;
@@ -324,7 +324,7 @@ body.sidebar-open .main-content {
 .main-content {
     flex: 1;
     margin-left: 0;
-    padding: 48px;
+    padding: calc(48px + env(safe-area-inset-top, 0px)) calc(48px + env(safe-area-inset-right, 0px)) calc(48px + env(safe-area-inset-bottom, 0px)) calc(48px + env(safe-area-inset-left, 0px));
     min-height: 100vh;
     transition: margin-left 0.3s ease;
     max-width: 100%;
@@ -1433,7 +1433,7 @@ body.sidebar-open .main-content {
     }
 
     .main-content {
-        padding: 32px;
+        padding: calc(32px + env(safe-area-inset-top, 0px)) calc(32px + env(safe-area-inset-right, 0px)) calc(32px + env(safe-area-inset-bottom, 0px)) calc(32px + env(safe-area-inset-left, 0px));
     }
 
     .top-navbar {
@@ -1503,7 +1503,7 @@ body.sidebar-open .main-content {
     }
 
     .main-content {
-        padding: 20px 16px;
+        padding: calc(20px + env(safe-area-inset-top, 0px)) calc(16px + env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) calc(16px + env(safe-area-inset-left, 0px));
     }
 
     #kpi-container {
@@ -1729,7 +1729,7 @@ body.sidebar-open .main-content {
     }
 
     .main-content {
-        padding: 16px 12px;
+        padding: calc(16px + env(safe-area-inset-top, 0px)) calc(12px + env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) calc(12px + env(safe-area-inset-left, 0px));
     }
 
     .chart-container-card {
@@ -2362,6 +2362,54 @@ html[data-theme="dark"] .table-bordered,
 html[data-theme="dark"] .table-bordered th,
 html[data-theme="dark"] .table-bordered td {
     border-color: #263445 !important;
+}
+
+/* ---------- Overrides Bootstrap en dark (texto ilegible sobre bg claro) ---------- */
+html[data-theme="dark"] .bg-light {
+    background-color: #1e293b !important;
+}
+
+html[data-theme="dark"] .table-light {
+    --bs-table-bg: #1e293b;
+    --bs-table-color: var(--text-main);
+    --bs-table-border-color: #263445;
+    background-color: #1e293b;
+    color: var(--text-main);
+}
+
+html[data-theme="dark"] .table-light > * {
+    color: var(--text-main);
+}
+
+html[data-theme="dark"] .border-light,
+html[data-theme="dark"] .border-light.border-top,
+html[data-theme="dark"] .border-light.border-bottom {
+    border-color: #2d3a4f !important;
+}
+
+html[data-theme="dark"] .form-control-plaintext {
+    color: var(--text-main);
+}
+
+/* ---------- Alertas suaves (reemplazan bg-light) ---------- */
+.alert-soft {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+html[data-theme="dark"] .alert-soft {
+    background: #1e293b;
+    color: #e2e8f0;
+    border-color: #2d3a4f !important;
+}
+
+/* ---------- Modal footer: respetar notch / home bar ---------- */
+.modal-footer {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
+.modal-body {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
 }
 
 /* ---------- Switch de tema ---------- */

@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Informes — Potage</title>
     <link rel="icon" type="image/png" href="img/icon-192.png">
     <link rel="manifest" href="manifest.json">
@@ -246,9 +246,7 @@
         function loadInformes() {
             const tbody = document.getElementById('informes-tbody');
             tbody.innerHTML = '<tr><td colspan="99" class="text-center text-muted">Cargando...</td></tr>';
-            fetch(API_BASE + '/api/informes', {
-                headers: { 'Authorization': 'Bearer ' + getToken() }
-            })
+            authFetch(API_BASE + '/api/informes')
                 .then(r => r.json().then(b => ({ status: r.status, body: b })))
                 .then(({ status, body }) => {
                     if (status !== 200) {
@@ -372,9 +370,9 @@
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Importando...';
 
-            fetch(API_BASE + '/api/informes/import', {
+            authFetch(API_BASE + '/api/informes/import', {
                 method: 'POST',
-                headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ data: pendingImport })
             })
                 .then(r => r.json())
@@ -393,9 +391,8 @@
 
         function deleteInformeRow(rowIndex) {
             if (!confirm('¿Eliminar esta fila permanentemente?')) return;
-            fetch(API_BASE + '/api/informes/' + rowIndex, {
-                method: 'DELETE',
-                headers: { 'Authorization': 'Bearer ' + getToken() }
+            authFetch(API_BASE + '/api/informes/' + rowIndex, {
+                method: 'DELETE'
             })
                 .then(r => r.json())
                 .then(res => {
@@ -459,9 +456,9 @@
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Sincronizando...';
 
-            fetch(API_BASE + '/api/informes/sync', {
+            authFetch(API_BASE + '/api/informes/sync', {
                 method: 'POST',
-                headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ columnMapping })
             })
                 .then(r => r.json())

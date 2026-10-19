@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Grupos — Potage</title>
     <link rel="icon" type="image/png" href="img/icon-192.png">
     <link rel="manifest" href="manifest.json">
@@ -373,9 +373,9 @@
             const tbody = document.getElementById('grupos-page-table-body');
             if (!silent) tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">Cargando...</td></tr>';
             Promise.all([
-                fetch(API_BASE + '/api/grupos', { headers: { 'Authorization': 'Bearer ' + getToken() } }),
-                fetch(API_BASE + '/api/marketing', { headers: { 'Authorization': 'Bearer ' + getToken() } }),
-                fetch(API_BASE + '/api/zonas', { headers: { 'Authorization': 'Bearer ' + getToken() } })
+                authFetch(API_BASE + '/api/grupos'),
+                authFetch(API_BASE + '/api/marketing'),
+                authFetch(API_BASE + '/api/zonas')
             ])
                 .then(([rGrupos, rMarketing, rZonas]) => Promise.all([
                     rGrupos.json().then(b => ({ status: rGrupos.status, body: b })),
@@ -532,9 +532,9 @@
             const method = rowIndex ? 'PUT' : 'POST';
             const url = rowIndex ? '/api/grupos/' + rowIndex : '/api/grupos';
 
-            fetch(API_BASE + url, {
+            authFetch(API_BASE + url, {
                 method,
-                headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ nombre, enlace, zona, fechaIngreso, activo })
             })
                 .then(r => r.json())
@@ -562,9 +562,8 @@
 
         function deleteGrupoPage(rowIndex) {
             if (!confirm('¿Eliminar este grupo permanentemente?')) return;
-            fetch(API_BASE + '/api/grupos/' + rowIndex, {
-                method: 'DELETE',
-                headers: { 'Authorization': 'Bearer ' + getToken() }
+            authFetch(API_BASE + '/api/grupos/' + rowIndex, {
+                method: 'DELETE'
             })
                 .then(r => r.json())
                 .then(res => {
