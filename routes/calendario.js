@@ -159,6 +159,7 @@ router.get('/', authenticate, async (req, res) => {
     let where = '';
     const params = [];
     const { desde, hasta } = req.query;
+    if ((desde || hasta) && !(isValidFecha(desde) && isValidFecha(hasta) && desde <= hasta)) return res.status(400).json({ error: 'Rango de fechas inválido.' });
     if (desde && hasta && isValidFecha(desde) && isValidFecha(hasta) && desde <= hasta) {
       where = 'WHERE c.fecha <= ? AND coalesce(c.fecha_fin, c.fecha) >= ?';
       params.push(hasta, desde);
@@ -173,6 +174,7 @@ router.get('/', authenticate, async (req, res) => {
 
 router.post('/', authenticate, requireAdmin, async (req, res) => {
   try {
+    if (req.body.hora && !req.body.hora_fin && isValidHora(req.body.hora)) req.body.hora_fin = addMinutes(req.body.hora, 60);
     const errors = validate(req.body, false);
     if (errors.length) return res.status(400).json({ error: errors[0] });
 
@@ -198,11 +200,11 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
     const serieTotal = recurrencia !== 'none' ? RECURRENCIAS[recurrencia] : 1;
     const occFechas = [fecha].concat(serieTotal > 1 ? serieDates(fecha, recurrencia, serieTotal) : []);
     const created = [];
-    try {
+    await db.transaction(async tx => {
       for (let i = 0; i < serieTotal; i++) {
         const occFecha = occFechas[i];
         const occFechaFin = fecha_fin ? addDays(occFecha, diffDays(fecha_fin, fecha)) : null;
-        const result = await db.run(
+        const result = await tx.run(
           `INSERT INTO calendario (titulo, descripcion, fecha, hora, hora_fin, fecha_fin, tipo, estado, user_id,
                                    responsable_id, recurrencia, serie_id, serie_pos)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
@@ -213,14 +215,9 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
         created.push(id);
       }
       if (created.length) {
-        await db.run('UPDATE calendario SET serie_id = ? WHERE id = ANY(?)', [created[0], created]);
+        await tx.run('UPDATE calendario SET serie_id = ? WHERE id = ANY(?)', [created[0], created]);
       }
-    } catch (e) {
-      if (created.length) {
-        await db.run('DELETE FROM calendario WHERE id = ANY(?)', [created]).catch(() => {});
-      }
-      throw e;
-    }
+    });
 
     logAction(req.user.id, req.user.email, 'Creación en calendario',
       `${tipo}: ${titulo} (${fecha}${serieTotal > 1 ? `, ${serieTotal} repeticiones` : ''})`, req.ip);
@@ -239,8 +236,8 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
 
 router.put('/:id', authenticate, requireAdmin, async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) return res.status(400).json({ error: 'ID inválido.' });
+    const id = Number(req.params.id);
+    if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ error: 'ID inválido.' });
 
     const db = await getDb();
     const existing = await db.get(
@@ -354,8 +351,8 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
 
 router.patch('/:id/estado', authenticate, requirePermission('complete_calendario'), async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) return res.status(400).json({ error: 'ID inválido.' });
+    const id = Number(req.params.id);
+    if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ error: 'ID inválido.' });
     if (!req.body.estado || !ESTADOS.includes(req.body.estado)) {
       return res.status(400).json({ error: 'Estado inválido. Debe ser "realizada" o "pendiente".' });
     }
@@ -392,8 +389,8 @@ router.patch('/:id/estado', authenticate, requirePermission('complete_calendario
 
 router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) return res.status(400).json({ error: 'ID inválido.' });
+    const id = Number(req.params.id);
+    if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ error: 'ID inválido.' });
 
     const db = await getDb();
     const existing = await db.get('SELECT id, titulo, tipo, serie_id FROM calendario WHERE id = ?', [id]);

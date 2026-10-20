@@ -1,29 +1,16 @@
 const express = require('express');
-const { google } = require('googleapis');
+const { sheets, count, sheetError, mutation, revision, validateRow } = require('../services/sheets');
 const router = express.Router();
 const { authenticate, requirePermission } = require('../middleware/auth');
+router.use(authenticate, mutation);
+validateRow(router, 'Informes', 'ZZ');
+const { dateKey } = require('../services/validation');
 const { logAction } = require('./logs');
 
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SHEET_NAME = 'Informes';
 
-let _auth = null;
-function getAuth() {
-  if (_auth) return _auth;
-  const credsJson = process.env.GOOGLE_CREDENTIALS;
-  if (!credsJson) return null;
-  try {
-    const credentials = JSON.parse(credsJson);
-    _auth = new google.auth.GoogleAuth({ credentials, scopes: ['https://www.googleapis.com/auth/spreadsheets'] });
-    return _auth;
-  } catch { return null; }
-}
 
-function sheets() {
-  const auth = getAuth();
-  if (!auth) return null;
-  return google.sheets({ version: 'v4', auth });
-}
 
 async function ensureSheet(headers) {
   const s = sheets();
@@ -37,7 +24,7 @@ async function ensureSheet(headers) {
     });
     await s.spreadsheets.values.update({
       spreadsheetId: SHEET_ID, range: SHEET_NAME + '!A1',
-      valueInputOption: 'USER_ENTERED',
+      valueInputOption: 'RAW',
       resource: { values: [headers] }
     });
     return { s, isNew: true, finalHeaders: headers };
@@ -52,28 +39,22 @@ async function ensureSheet(headers) {
     finalHeaders = [...existingHeaders, ...newCols];
     await s.spreadsheets.values.update({
       spreadsheetId: SHEET_ID, range: SHEET_NAME + '!1:1',
-      valueInputOption: 'USER_ENTERED',
+      valueInputOption: 'RAW',
       resource: { values: [finalHeaders] }
     });
   }
   return { s, isNew: false, finalHeaders };
 }
 
-router.get('/', authenticate, async (req, res) => {
+router.get('/', requirePermission(["view_informes"]), async (req, res) => {
   try {
     const s = sheets();
     if (!s) return res.status(503).json({ error: 'Google Sheets no configurado.' });
-    try {
-      await s.spreadsheets.values.get({
-        spreadsheetId: SHEET_ID, range: SHEET_NAME + '!A1',
-        valueRenderOption: 'FORMATTED_VALUE'
-      });
-    } catch {
-      return res.json({ data: [], columns: [] });
-    }
+    const meta = await s.spreadsheets.get({ spreadsheetId: SHEET_ID, fields: 'sheets.properties' });
+    if (!meta.data.sheets.some(sheet => sheet.properties.title === SHEET_NAME)) return res.json({ data: [], columns: [] });
     const result = await s.spreadsheets.values.get({
       spreadsheetId: SHEET_ID, range: SHEET_NAME + '!A:ZZ',
-      valueRenderOption: 'FORMATTED_VALUE'
+      valueRenderOption: 'UNFORMATTED_VALUE', dateTimeRenderOption: 'FORMATTED_STRING'
     });
     const rows = result.data.values || [];
     if (rows.length < 2) return res.json({ data: [], columns: rows[0] || [] });
@@ -81,22 +62,26 @@ router.get('/', authenticate, async (req, res) => {
     const data = [];
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
-      if (!row.some(c => c)) continue;
+      if (row[0] === '__DELETED__' || !row.some(c => c !== '' && c != null)) continue;
       const obj = { rowIndex: i + 1 };
-      headers.forEach((h, j) => { obj[h] = (row[j] || '').toString().trim(); });
+      headers.forEach((h, j) => { if (!['__proto__', 'prototype', 'constructor', 'rowIndex'].includes(h)) obj[h] = String(row[j] ?? '').trim(); });
       data.push(obj);
     }
     res.json({ data, columns: headers });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    sheetError(res, err);
   }
 });
 
-router.post('/import', authenticate, requirePermission('edit_informes'), async (req, res) => {
+router.post('/import', requirePermission('edit_informes'), async (req, res) => {
   try {
     const { data } = req.body;
-    if (!data || !data.length) return res.status(400).json({ error: 'No hay datos para importar.' });
-    const headers = Object.keys(data[0]);
+    if (!Array.isArray(data) || !data.length || data.length > 5000 || data.some(row => !row || typeof row !== 'object' || Array.isArray(row))) return res.status(400).json({ error: 'No hay datos para importar.' });
+    if (data.some(row => Object.values(row).some(value => value != null && (typeof value === 'object' || String(value).length > 50000)))) {
+      return res.status(400).json({ error: 'El informe contiene celdas inválidas o demasiado largas.' });
+    }
+    const headers = [...new Set(data.flatMap(row => Object.keys(row)))];
+    if (headers.length > 702 || headers.some(h => !h.trim() || ['__proto__', 'prototype', 'constructor', 'rowIndex'].includes(h))) return res.status(400).json({ error: 'Columnas inválidas.' });
     const { s, finalHeaders } = await ensureSheet(headers);
     const values = data.map(row =>
       finalHeaders.map(h => {
@@ -107,7 +92,7 @@ router.post('/import', authenticate, requirePermission('edit_informes'), async (
     );
     await s.spreadsheets.values.append({
       spreadsheetId: SHEET_ID, range: SHEET_NAME + '!A1',
-      valueInputOption: 'USER_ENTERED', insertDataOption: 'INSERT_ROWS',
+      valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS',
       resource: { values }
     });
 
@@ -115,39 +100,34 @@ router.post('/import', authenticate, requirePermission('edit_informes'), async (
 
     res.status(201).json({ message: `${values.length} filas importadas correctamente.` });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    sheetError(res, err);
   }
 });
 
-router.delete('/:rowIndex', authenticate, requirePermission('edit_informes'), async (req, res) => {
+router.delete('/:rowIndex', requirePermission('edit_informes'), async (req, res) => {
   try {
     const s = sheets();
     if (!s) return res.status(503).json({ error: 'Google Sheets no configurado.' });
-    const rowIndex = parseInt(req.params.rowIndex);
-    if (isNaN(rowIndex) || rowIndex < 2) return res.status(400).json({ error: 'Índice inválido.' });
+    const rowIndex = Number(req.params.rowIndex);
+    if (!Number.isSafeInteger(rowIndex) || rowIndex < 2) return res.status(400).json({ error: 'Índice inválido.' });
     const meta = await s.spreadsheets.get({ spreadsheetId: SHEET_ID, ranges: [] });
     const sheet = meta.data.sheets.find(sh => sh.properties.title === SHEET_NAME);
     if (!sheet) return res.status(404).json({ error: 'Hoja no encontrada.' });
-    await s.spreadsheets.batchUpdate({
-      spreadsheetId: SHEET_ID,
-      resource: {
-        requests: [{
-          deleteDimension: {
-            range: { sheetId: sheet.properties.sheetId, dimension: 'ROWS', startIndex: rowIndex - 1, endIndex: rowIndex }
-          }
-        }]
-      }
+    await s.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID, range: SHEET_NAME + '!A' + rowIndex,
+      valueInputOption: 'RAW',
+      resource: { values: [['__DELETED__', ...Array(Math.max(0, req.sheetRow.length - 1)).fill('')]] }
     });
 
     logAction(req.user.id, req.user.email, 'Eliminación en Informes', `Fila #${rowIndex} eliminada`, req.ip);
 
     res.json({ message: 'Fila eliminada correctamente.' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    sheetError(res, err);
   }
 });
 
-router.post('/sync', authenticate, requirePermission('sync_informes'), async (req, res) => {
+router.post('/sync', requirePermission('sync_informes'), async (req, res) => {
   try {
     const { columnMapping } = req.body;
     if (!columnMapping || !columnMapping.grupo || !columnMapping.fecha) {
@@ -160,7 +140,7 @@ router.post('/sync', authenticate, requirePermission('sync_informes'), async (re
     // Read Metricas sheet
     const metricasResult = await s.spreadsheets.values.get({
       spreadsheetId: SHEET_ID, range: 'Metricas!A:I',
-      valueRenderOption: 'FORMATTED_VALUE'
+      valueRenderOption: 'UNFORMATTED_VALUE', dateTimeRenderOption: 'FORMATTED_STRING'
     });
     const metricasRows = metricasResult.data.values || [];
     const headerIdx = metricasRows.findIndex(r => r[0] === 'Fecha');
@@ -168,79 +148,36 @@ router.post('/sync', authenticate, requirePermission('sync_informes'), async (re
       return res.status(400).json({ error: 'La hoja Métricas no tiene el formato esperado.' });
     }
 
-    // Normalize a string for loose comparison (remove spaces, separators, case)
-    const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-    // Parse date from various formats, returns Date or null
-    function parseFecha(str) {
-      if (!str) return null;
-      const s = str.trim();
-      // ISO: YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss
-      const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s);
-      if (iso) {
-        const d = new Date(parseInt(iso[1]), parseInt(iso[2]) - 1, parseInt(iso[3]));
-        if (!isNaN(d.getTime())) return d;
-      }
-      // DD/MM/YYYY or MM/DD/YYYY — also handles "DD/MM/YYYY HH:mm" etc
-      const parts = s.split(/[/\-.\s]/).filter(Boolean);
-      if (parts.length >= 3) {
-        const nums = parts.map(p => parseInt(p));
-        if (nums[2] > 1900) {
-          // Detect orientation: if either part is NaN, skip numeric approach
-          if (!isNaN(nums[0]) && !isNaN(nums[1])) {
-            let d;
-            if (nums[0] > 12) {
-              // First > 12 → DD/MM/YYYY
-              d = new Date(nums[2], nums[1] - 1, nums[0]);
-            } else if (nums[1] > 12) {
-              // Second > 12 → MM/DD/YYYY
-              d = new Date(nums[2], nums[0] - 1, nums[1]);
-            } else {
-              // Ambiguous: try DD/MM first (more common in Spanish locale)
-              d = new Date(nums[2], nums[1] - 1, nums[0]);
-              // Verify no month overflow: JS silently wraps months (14→Mar next year)
-              if (d.getMonth() !== Math.abs(nums[1] - 1) % 12) {
-                d = new Date(nums[2], nums[0] - 1, nums[1]);
-              }
-            }
-            if (d && !isNaN(d.getTime())) return d;
-          }
-        }
-      }
-      // Try text-based dates like "Jul 15, 2026" or "15-jul-2026"
-      const d = new Date(s);
-      if (!isNaN(d.getTime()) && d.getFullYear() > 1900) return d;
-      return null;
-    }
-
-    // Check if a date string falls within the last 7 days (inclusive)
-    function isWithinLast7Days(dateStr) {
-      const d = parseFecha(dateStr);
-      if (!d) return null; // null = couldn't parse, don't filter
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const weekAgo = new Date(today);
-      weekAgo.setDate(weekAgo.getDate() - 6);
-      return d >= weekAgo && d <= today;
+    const norm = value => String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    const weekAgo = new Date(today + 'T00:00:00Z');
+    weekAgo.setUTCDate(weekAgo.getUTCDate() - 6);
+    function isWithinLast7Days(value) {
+      const key = dateKey(value);
+      return key && key >= weekAgo.toISOString().slice(0, 10) && key <= today;
     }
 
     // Build lookup keyed by (grupo|fecha) — store under both exact and normalized key
-    const metricasMap = {};
+    const metricasMap = Object.create(null);
+    const ambiguous = new Set();
+    const pending = new Map();
     const metricasKeys = [];
     for (let i = headerIdx + 1; i < metricasRows.length; i++) {
       const row = metricasRows[i];
-      if (!row[0]) continue;
-      const grupo = (row[1] || '').trim();
-      const fecha = (row[0] || '').trim();
+      if (!row[0] || row[0] === '__DELETED__') continue;
+      const grupo = String(row[1] ?? '').trim();
+      const fecha = String(row[0] ?? '').trim();
       if (!grupo || !fecha) continue;
-      const exact = grupo.toLowerCase() + '|' + fecha.toLowerCase();
-      const normalized = norm(grupo) + '|' + norm(fecha);
+      const exact = grupo.toLowerCase() + '|' + dateKey(fecha);
+      const normalized = norm(grupo) + '|' + dateKey(fecha);
       const entry = {
         rowIndex: i + 1,
-        visualizaciones: parseInt(row[3]) || 0,
-        interacciones: parseInt(row[4]) || 0,
-        comentarios: parseInt(row[5]) || 0
+        visualizaciones: count(row[3]) ?? 0,
+        interacciones: count(row[4]) ?? 0,
+        comentarios: count(row[5]) ?? 0
       };
+      if (metricasMap[exact]) ambiguous.add(exact);
+      if (metricasMap[normalized]) ambiguous.add(normalized);
       metricasMap[exact] = entry;
       if (normalized !== exact) metricasMap[normalized] = entry;
       metricasKeys.push(exact);
@@ -249,7 +186,7 @@ router.post('/sync', authenticate, requirePermission('sync_informes'), async (re
     // Read Informes sheet
     const informesResult = await s.spreadsheets.values.get({
       spreadsheetId: SHEET_ID, range: 'Informes!A:ZZ',
-      valueRenderOption: 'FORMATTED_VALUE'
+      valueRenderOption: 'UNFORMATTED_VALUE', dateTimeRenderOption: 'FORMATTED_STRING'
     });
     const rows = informesResult.data.values || [];
     if (rows.length < 2) {
@@ -278,20 +215,21 @@ router.post('/sync', authenticate, requirePermission('sync_informes'), async (re
 
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
-      if (!row || !row.some(c => c)) continue;
+      if (!row || row[0] === '__DELETED__' || !row.some(c => c !== '' && c != null)) continue;
 
-      const grupo = (row[colIdx.grupo] || '').trim();
-      const fecha = (row[colIdx.fecha] || '').trim();
+      const grupo = String(row[colIdx.grupo] ?? '').trim();
+      const fecha = String(row[colIdx.fecha] ?? '').trim();
       if (!grupo || !fecha) { sinMatch++; continue; }
 
       // Solo procesar filas de los últimos 7 días (si la fecha se puede parsear)
       const enRango = isWithinLast7Days(fecha);
-      if (enRango === false) { fueraRango++; continue; }
+      if (!enRango) { fueraRango++; continue; }
 
       // Try exact, then normalized
-      const exactKey = grupo.toLowerCase() + '|' + fecha.toLowerCase();
-      const normKey = norm(grupo) + '|' + norm(fecha);
-      let match = metricasMap[exactKey] || metricasMap[normKey];
+      const exactKey = grupo.toLowerCase() + '|' + dateKey(fecha);
+      const normKey = norm(grupo) + '|' + dateKey(fecha);
+      let match = ambiguous.has(exactKey) ? null : metricasMap[exactKey];
+      if (!match && !ambiguous.has(normKey)) match = metricasMap[normKey];
 
       if (!match) {
         sinMatch++;
@@ -309,8 +247,8 @@ router.post('/sync', authenticate, requirePermission('sync_informes'), async (re
       const updates = {};
       fieldMappings.forEach(fm => {
         if (fm.col === -1) return;
-        const raw = (row[fm.col] || '').toString().replace(/[^0-9.,-]/g, '').replace(',', '.');
-        const csvVal = parseFloat(raw) || 0;
+        const csvVal = count(row[fm.col]);
+        if (csvVal === null) return;
         if (csvVal > match[fm.field]) {
           updates[fm.field] = { value: csvVal, colNum: fm.colNum };
         }
@@ -320,8 +258,7 @@ router.post('/sync', authenticate, requirePermission('sync_informes'), async (re
         let allEqual = true;
         fieldMappings.forEach(fm => {
           if (fm.col === -1) return;
-          const raw = (row[fm.col] || '').toString().replace(/[^0-9]/g, '');
-          const csvVal = parseInt(raw) || 0;
+          const csvVal = count(row[fm.col]);
           if (csvVal !== match[fm.field]) allEqual = false;
         });
         if (allEqual) yaActualizados++;
@@ -330,24 +267,19 @@ router.post('/sync', authenticate, requirePermission('sync_informes'), async (re
 
       // Update the Metricas row
       const rowIndex = match.rowIndex;
-      const currentRow = metricasRows[rowIndex - 1];
-      const updatedRow = [...currentRow];
-      while (updatedRow.length < 9) updatedRow.push('');
-
-      Object.values(updates).forEach(u => {
-        updatedRow[u.colNum] = String(u.value);
-      });
-
-      await s.spreadsheets.values.update({
-        spreadsheetId: SHEET_ID,
-        range: 'Metricas!A' + rowIndex + ':I' + rowIndex,
-        valueInputOption: 'USER_ENTERED',
-        resource: { values: [updatedRow] }
+      Object.entries(updates).forEach(([field, update]) => {
+        const range = 'Metricas!' + String.fromCharCode(65 + update.colNum) + rowIndex;
+        pending.set(range, { range, values: [[update.value]] });
+        match[field] = update.value;
       });
 
       actualizados++;
       detalles.push({ grupo, fecha, ...Object.fromEntries(Object.entries(updates).map(([k, v]) => [k, v.value])) });
     }
+
+    if (pending.size) await s.spreadsheets.values.batchUpdate({
+      spreadsheetId: SHEET_ID, resource: { valueInputOption: 'RAW', data: [...pending.values()] }
+    });
 
     logAction(req.user.id, req.user.email, 'Sincronización Informes → Métricas', actualizados + ' filas actualizadas, ' + sinMatch + ' sin coincidencia', req.ip);
 
@@ -363,7 +295,7 @@ router.post('/sync', authenticate, requirePermission('sync_informes'), async (re
     });
   } catch (err) {
     console.error('Sync error:', err);
-    res.status(500).json({ error: err.message });
+    sheetError(res, err);
   }
 });
 

@@ -2,17 +2,26 @@ const { verifyAccessToken } = require('../tokens');
 const getDb = require('../database');
 const { hasPermission } = require('../permissions');
 
-function authenticate(req, res, next) {
+async function authenticate(req, res, next) {
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Token requerido.' });
   }
   try {
     const token = header.split(' ')[1];
-    req.user = verifyAccessToken(token);
-    next();
-  } catch {
-    return res.status(401).json({ error: 'Token inválido o expirado.' });
+    const decoded = verifyAccessToken(token);
+    const db = await getDb();
+    const user = await db.get('SELECT id, name, email, role, token_version FROM users WHERE id = ?', [decoded.id]);
+    if (!user || (decoded.ver || 0) !== user.token_version) {
+      return res.status(401).json({ error: 'Sesión revocada. Iniciá sesión nuevamente.' });
+    }
+    req.user = user;
+    return next();
+  } catch (err) {
+    if (['JsonWebTokenError', 'TokenExpiredError', 'NotBeforeError'].includes(err.name)) {
+      return res.status(401).json({ error: 'Token inválido o expirado.' });
+    }
+    return res.status(503).json({ error: 'No se pudo verificar la sesión. Reintentá en unos instantes.' });
   }
 }
 
@@ -29,7 +38,8 @@ function requirePermission(permission) {
       const role = (req.user.role || '').toLowerCase();
       if (role === 'admin') return next();
       const db = await getDb();
-      const ok = await hasPermission(db, role, permission);
+      const permissions = Array.isArray(permission) ? permission : [permission];
+      const ok = (await Promise.all(permissions.map(key => hasPermission(db, role, key)))).some(Boolean);
       if (!ok) return res.status(403).json({ error: 'No tenés permiso para realizar esta acción.' });
       next();
     } catch (err) {

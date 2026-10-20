@@ -1,0 +1,265 @@
+const { test, before, after, beforeEach } = require('node:test');
+const assert = require('node:assert/strict');
+const bcrypt = require('bcryptjs');
+process.env.JWT_SECRET = 'test-only-secret-not-for-production';
+process.env.GOOGLE_SHEET_ID = 'test-sheet';
+
+let users, permissions, operations, sheetRows, missingSheets, sheetFailure, calendarFailure;
+let nextId = 10;
+const db = {
+  async get(sql, params = []) {
+    operations.push({ sql, params });
+    if (sql.includes('COUNT')) return { c: 1 };
+    if (sql.includes('activation_codes')) return { id: 1 };
+    if (sql.includes('FROM users')) {
+      return sql.includes('email') && sql.includes('WHERE LOWER(email)')
+        ? [...users.values()].find(u => u.email === params[0]) || null
+        : users.get(Number(params[0])) || null;
+    }
+    return null;
+  },
+  async all(sql, params = []) {
+    if (sql.includes('role_permissions')) return [...permissions.entries()]
+      .filter(([key]) => key.startsWith(params[0] + ':'))
+      .map(([key, enabled]) => ({ permission: key.split(':')[1], enabled }));
+    if (sql.includes('FROM roles')) return [{ name: 'colaborador', label: 'Colaborador' }, { name: 'editor', label: 'Editor' }];
+    return [];
+  },
+  async run(sql, params = []) {
+    operations.push({ sql, params });
+    if (sql.includes('INSERT INTO role_permissions')) {
+      const key = params[0] + ':' + params[1];
+      if (!permissions.has(key) || sql.includes('DO UPDATE')) permissions.set(key, params[2]);
+    }
+    if (sql.includes('UPDATE users SET password')) {
+      const user = users.get(Number(params[1]));
+      user.password = params[0]; user.token_version++;
+      return { rows: [{ ...user }] };
+    }
+    if (sql.includes('INSERT INTO calendario')) {
+      if (calendarFailure) throw new Error('simulated write failure');
+      return { rows: [{ id: nextId++ }] };
+    }
+    if (sql.includes('INSERT INTO users')) {
+      const user = { id: nextId++, name: params[0], email: params[1], password: params[2], role: params[3], token_version: 0 };
+      users.set(user.id, user);
+      return { rows: [{ id: user.id }] };
+    }
+    return { rows: [], rowCount: 1 };
+  },
+  async transaction(fn) {
+    operations.push({ sql: 'BEGIN' });
+    try { const result = await fn(db); operations.push({ sql: 'COMMIT' }); return result; }
+    catch (err) { operations.push({ sql: 'ROLLBACK' }); throw err; }
+  }
+};
+require.cache[require.resolve('../database')] = { exports: async () => db };
+const sheetService = require('../services/sheets');
+const google = {
+  spreadsheets: {
+    async get() {
+      if (sheetFailure) throw Object.assign(new Error('sensitive upstream detail'), { code: 403 });
+      return { data: { sheets: ['Metricas','Grupos','Informes','Historial','Sucursales']
+        .filter(name => !missingSheets.includes(name)).map((title, sheetId) => ({ properties: { title, sheetId } })) } };
+    },
+    async batchUpdate(request) { operations.push({ google: 'structure', request }); return { data: {} }; },
+    values: {
+      async get({ range }) {
+        if (sheetFailure) throw Object.assign(new Error('sensitive upstream detail'), { code: 403 });
+        const [name, cells] = range.split('!');
+        const rows = sheetRows[name] || [];
+        const single = /^A(\d+):[A-Z]+\1$/.exec(cells);
+        return { data: { values: single ? (rows[Number(single[1]) - 1] ? [rows[Number(single[1]) - 1]] : []) : rows } };
+      },
+      async append(request) {
+        operations.push({ google: 'append', request });
+        return { data: { updates: { updatedRange: "'Metricas'!A25:I25" } } };
+      },
+      async update(request) {
+        operations.push({ google: 'update', request });
+        const match = /^([^!]+)!A(\d+)(?::[A-Z]+\d+)?$/.exec(request.range);
+        if (match) (sheetRows[match[1]] ||= [])[Number(match[2]) - 1] = request.resource.values[0];
+        return { data: {} };
+      },
+      async batchUpdate(request) {
+        operations.push({ google: 'valuesBatch', request });
+        return { data: {} };
+      }
+    }
+  }
+};
+sheetService.sheets = () => google;
+const validateRow = sheetService.validateRow;
+sheetService.validateRow = (router, sheet, column) => validateRow(router, sheet, column, () => google);
+const { app } = require('../server');
+const { signAccessToken, signRefreshToken } = require('../tokens');
+let server, base;
+before(async () => {
+  server = await new Promise(resolve => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
+  base = `http://127.0.0.1:${server.address().port}`;
+});
+after(() => new Promise(resolve => server.close(resolve)));
+beforeEach(() => {
+  users = new Map([[1, { id: 1, name: 'Admin', email: 'admin@example.test', role: 'admin', token_version: 0, password: bcrypt.hashSync('old-password', 4) }]]);
+  permissions = new Map(); operations = []; missingSheets = []; sheetFailure = false; calendarFailure = false;
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  sheetRows = {
+    Metricas: [['Fecha','Grupo','Publicaciones','Visualizaciones','Interacciones','Comentarios','Mensajes','Zona','Estatus'],
+      [today, 'Grupo Á', 1, 1234, 30, 4, 5, 'Centro', 'PUBLICADA'],
+      [today, 'Grupo B', 1, 25, 2, 0, 0, 'Norte', 'PUBLICADA']],
+    Grupos: [['Nombre'], ['Grupo Á']],
+    Informes: [['Grupo','Fecha','Vistas'], ['Grupo Á', today.split('-').reverse().join('/'), '2.345']],
+    Historial: [['FechaActualizacion'], [today, 3, 'Grupo B', today, 'Norte', 1, 25, 2, 0, 0]]
+  };
+});
+async function request(path, { method = 'GET', body, token = signAccessToken(users.get(1)) } = {}) {
+  const res = await fetch(base + path, { method, headers: { ...(token ? { Authorization: 'Bearer ' + token } : {}), 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
+  const text = await res.text();
+  let data; try { data = JSON.parse(text); } catch { data = text; }
+  return { status: res.status, data, headers: res.headers };
+}
+
+test('only explicitly public files can be downloaded', async () => {
+  for (const path of ['/server.js','/tokens.js','/database.sqlite','/routes/auth.js','/node_modules/express/package.json','/package.json','/.env','/services/sheets.js','/%73erver.js']) {
+    assert.equal((await request(path)).status, 404, path);
+  }
+  for (const path of ['/dashboard.html','/app.js','/theme.js','/style.css','/img/icon-192.png']) assert.equal((await request(path)).status, 200, path);
+  assert.equal((await request('/api/seed')).status, 404);
+});
+test('authentication rejects absent, removed and revoked sessions', async () => {
+  assert.equal((await request('/api/marketing', { token: '' })).status, 401);
+  const token = signAccessToken(users.get(1));
+  users.get(1).token_version++;
+  assert.equal((await request('/api/marketing', { token })).status, 401);
+  users.delete(1);
+  assert.equal((await request('/api/marketing', { token })).status, 401);
+});
+test('authorization uses current DB role rather than old JWT role', async () => {
+  const token = signAccessToken(users.get(1));
+  users.get(1).role = 'editor';
+  assert.equal((await request('/api/auth/users', { token })).status, 403);
+  assert.equal((await request('/api/marketing', { token })).status, 403);
+});
+test('custom role permissions persist and current permission endpoint exists', async () => {
+  const saved = await request('/api/auth/permissions/editor', { method: 'PUT', body: { permissions: { view_dashboard: true, edit_marketing: false } } });
+  assert.equal(saved.status, 200);
+  assert.equal(saved.data.permissions.view_dashboard, true);
+  assert.equal(saved.data.permissions.edit_marketing, false);
+  assert.equal((await request('/api/auth/permissions')).data.permissions.edit_marketing, true);
+});
+test('password changes revoke old access and refresh tokens but return a new session', async () => {
+  const old = signAccessToken(users.get(1)), refresh = signRefreshToken(users.get(1));
+  const changed = await request('/api/auth/change-password', { method: 'POST', body: { currentPassword: 'old-password', newPassword: 'new-password' } });
+  assert.equal(changed.status, 200);
+  assert.equal((await request('/api/auth/me', { token: old })).status, 401);
+  assert.equal((await request('/api/auth/refresh', { method: 'POST', body: { refreshToken: refresh } })).status, 401);
+  assert.equal((await request('/api/auth/me', { token: changed.data.token })).status, 200);
+});
+test('registration consumes activation code inside a transaction', async () => {
+  const result = await request('/api/auth/register', { method: 'POST', body: { name: 'Prueba', email: 'nuevo@example.test', password: 'test-password', activationCode: '123456' } });
+  assert.equal(result.status, 201);
+  assert.ok(operations.some(o => o.sql?.includes('FOR UPDATE')));
+  assert.ok(operations.some(o => o.sql === 'COMMIT'));
+});
+test('malformed JSON and invalid field types return 400', async () => {
+  const res = await fetch(base + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{' });
+  assert.equal(res.status, 400);
+  assert.equal((await request('/api/auth/register', { method: 'POST', body: { name: [], email: 'x@example.test' } })).status, 400);
+});
+test('Sheets reads preserve metric magnitudes and dates', async () => {
+  const result = await request('/api/marketing?refresh=true');
+  assert.equal(result.status, 200);
+  assert.equal(result.data.data[0].visualizaciones, 1234);
+  assert.equal(result.data.data[1].rowIndex, 3);
+});
+test('Sheets writes reject invalid metrics and save formula-like strings literally', async () => {
+  const body = { fecha: '20/10/2026', grupo: '=IMPORTXML("https://example.test")', visualizaciones: '1.234' };
+  assert.equal((await request('/api/marketing', { method: 'POST', body: { ...body, visualizaciones: -1 } })).status, 400);
+  assert.equal((await request('/api/marketing', { method: 'POST', body: { ...body, fecha: '31/02/2026' } })).status, 400);
+  const result = await request('/api/marketing', { method: 'POST', body });
+  assert.equal(result.status, 201);
+  assert.equal(result.data.rowIndex, 25);
+  const write = operations.find(o => o.google === 'append').request;
+  assert.equal(write.valueInputOption, 'RAW');
+  assert.equal(write.resource.values[0][3], 1234);
+});
+test('invalid and absent rows are never mutated', async () => {
+  for (const row of ['1', '-1', '2bad', '2.5']) assert.equal((await request('/api/marketing/' + row, { method: 'DELETE' })).status, 400);
+  assert.equal((await request('/api/marketing/999', { method: 'DELETE' })).status, 404);
+  assert.equal(operations.filter(o => o.google).length, 0);
+});
+test('deleting publications preserves row references in history', async () => {
+  assert.equal((await request('/api/marketing/2', { method: 'DELETE' })).status, 200);
+  assert.equal(operations.filter(o => o.google === 'structure').length, 0);
+  const read = await request('/api/marketing?refresh=true');
+  assert.deepEqual(read.data.data.map(r => r.rowIndex), [3]);
+  assert.equal(sheetRows.Historial[1][1], 3);
+});
+test('missing Grupos never deletes sheet zero', async () => {
+  missingSheets = ['Grupos'];
+  assert.equal((await request('/api/grupos/2', { method: 'DELETE' })).status, 404);
+  assert.equal(operations.filter(o => o.google === 'structure').length, 0);
+});
+test('group and report deletions leave later row numbers stable', async () => {
+  sheetRows.Grupos.push(['Segundo grupo']);
+  assert.equal((await request('/api/grupos/2', { method: 'DELETE' })).status, 200);
+  assert.deepEqual((await request('/api/grupos?refresh=true')).data.data.map(r => r.rowIndex), [3]);
+  assert.equal((await request('/api/informes/2', { method: 'DELETE' })).status, 200);
+  assert.equal((await request('/api/informes')).data.data.length, 0);
+  assert.equal(operations.filter(o => o.google === 'structure').length, 0);
+});
+test('reports retain numeric zeros and imports preserve columns found in later rows', async () => {
+  sheetRows.Informes = [['Vistas'], [0]];
+  assert.equal((await request('/api/informes')).data.data[0].Vistas, '0');
+  missingSheets = ['Informes'];
+  const result = await request('/api/informes/import', { method: 'POST', body: { data: [{ Grupo: 'A' }, { Grupo: 'B', Vistas: '0' }] } });
+  assert.equal(result.status, 201);
+  const write = operations.find(o => o.google === 'append').request;
+  assert.deepEqual(write.resource.values, [['A', ''], ['B', '0']]);
+  assert.equal(write.valueInputOption, 'RAW');
+});
+test('sync invalidates previously cached marketing data', async () => {
+  assert.equal((await request('/api/marketing?refresh=true')).data.data[0].visualizaciones, 1234);
+  await request('/api/informes/sync', { method: 'POST', body: { columnMapping: { grupo: 'Grupo', fecha: 'Fecha', visualizaciones: 'Vistas' } } });
+  sheetRows.Metricas[1][3] = 2345;
+  assert.equal((await request('/api/marketing')).data.data[0].visualizaciones, 2345);
+});
+test('sync matches equivalent dates and updates only changed cells with maximum values', async () => {
+  sheetRows.Informes.push(['Grupo Á', sheetRows.Metricas[1][0], 2000]);
+  const res = await request('/api/informes/sync', { method: 'POST', body: { columnMapping: { grupo: 'Grupo', fecha: 'Fecha', visualizaciones: 'Vistas' } } });
+  assert.equal(res.status, 200);
+  const batch = operations.find(o => o.google === 'valuesBatch').request;
+  assert.deepEqual(batch.resource.data, [{ range: 'Metricas!D2', values: [[2345]] }]);
+  assert.equal(batch.resource.valueInputOption, 'RAW');
+});
+test('sync avoids ambiguous duplicate publication matches', async () => {
+  sheetRows.Metricas.push([...sheetRows.Metricas[1]]);
+  const res = await request('/api/informes/sync', { method: 'POST', body: { columnMapping: { grupo: 'Grupo', fecha: 'Fecha', visualizaciones: 'Vistas' } } });
+  assert.equal(res.data.sinMatch, 1);
+  assert.equal(operations.filter(o => o.google === 'valuesBatch').length, 0);
+});
+test('Google failures are not reported as empty successful reports or leaked details', async () => {
+  sheetFailure = true;
+  const res = await request('/api/informes');
+  assert.equal(res.status, 503);
+  assert.ok(!res.data.error.includes('sensitive'));
+});
+test('unexpected branch headers and invalid report cells are rejected without rewriting Sheets', async () => {
+  sheetRows.Sucursales = [['Columna ajena', 'No sobrescribir'], ['Dato']];
+  assert.equal((await request('/api/sucursales?refresh=true')).status, 409);
+  assert.equal((await request('/api/informes/import', { method: 'POST', body: { data: [{ Grupo: { nested: true } }] } })).status, 400);
+  assert.equal(operations.filter(o => o.google).length, 0);
+});
+test('calendar validates ranges and creates recurring series transactionally', async () => {
+  assert.equal((await request('/api/calendario?desde=bad&hasta=2026-10-20')).status, 400);
+  const body = { titulo: 'Campaña', fecha: '2026-10-20', recurrencia: 'diaria' };
+  assert.equal((await request('/api/calendario', { method: 'POST', body })).status, 201);
+  assert.equal(operations.filter(o => o.sql?.includes('INSERT INTO calendario')).length, 60);
+  assert.ok(operations.some(o => o.sql === 'COMMIT'));
+  calendarFailure = true;
+  assert.equal((await request('/api/calendario', { method: 'POST', body })).status, 500);
+  assert.ok(operations.some(o => o.sql === 'ROLLBACK'));
+});
+test('calendar rejects default end times that would not follow start times', async () => {
+  assert.equal((await request('/api/calendario', { method: 'POST', body: { titulo: 'Tarea', fecha: '2026-10-20', hora: '23:59' } })).status, 400);
+});

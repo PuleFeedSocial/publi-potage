@@ -149,6 +149,9 @@ async function authFetch(url, options = {}) {
   await ensureFreshToken();
   const opts = { ...options };
   const headers = { ...(opts.headers || {}) };
+  if (typeof opts.body === 'string' && !Object.keys(headers).some(k => k.toLowerCase() === 'content-type')) {
+    headers['Content-Type'] = 'application/json';
+  }
   headers['Authorization'] = 'Bearer ' + getToken();
   opts.headers = headers;
   let res = await fetch(url, opts);
@@ -427,10 +430,12 @@ function loadMarketingData(silent) {
       }
       const newData = body.data || [];
       const snap = JSON.stringify(newData);
+      document.getElementById('data-source-badge').innerHTML = body.stale
+        ? '<i class="bi bi-exclamation-triangle text-warning"></i> Datos guardados · no se pudo actualizar Google Sheets'
+        : '<i class="bi bi-database"></i> Google Sheets';
       if (silent && snap === _appLastMarketingSnapshot) return;
       _appLastMarketingSnapshot = snap;
       marketingData = newData;
-      document.getElementById('data-source-badge').innerHTML = '<i class="bi bi-database"></i> Google Sheets';
       if (!silent) document.getElementById('filter-fecha').value = '';
       populateFilterDropdowns();
     })

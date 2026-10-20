@@ -1,36 +1,26 @@
 const express = require('express');
-const { google } = require('googleapis');
+const { sheets, count, sheetError, mutation, setupSheet, revision, validateFields, validateRow } = require('../services/sheets');
 const router = express.Router();
 const { authenticate, requirePermission } = require('../middleware/auth');
+router.use(authenticate, mutation);
+router.use(validateFields(["fechaActualizacion","grupo","fechaPublicacion"], ["fechaActualizacion","grupo","fechaPublicacion","zona"], ["fechaActualizacion","fechaPublicacion"], ["publicaciones","visualizaciones","interacciones","comentarios","mensajes"]));
+validateRow(router, 'Historial', 'J');
 
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SHEET_NAME = 'Historial';
 
-let _auth = null;
-function getAuth() {
-  if (_auth) return _auth;
-  const credsJson = process.env.GOOGLE_CREDENTIALS;
-  if (!credsJson) return null;
-  try {
-    const credentials = JSON.parse(credsJson);
-    _auth = new google.auth.GoogleAuth({ credentials, scopes: ['https://www.googleapis.com/auth/spreadsheets'] });
-    return _auth;
-  } catch { return null; }
-}
 
-function sheets() {
-  const auth = getAuth();
-  if (!auth) return null;
-  return google.sheets({ version: 'v4', auth });
-}
 
 let cache = null;
+let cacheRevision = -1;
 let cacheTime = 0;
 const CACHE_TTL = 60000;
 
 function invalidateCache() { cache = null; cacheTime = 0; }
 
-async function ensureSheet() {
+function ensureSheet() { return setupSheet(SHEET_NAME, initializeSheet); }
+
+async function initializeSheet() {
   const s = sheets();
   if (!s) throw new Error('Google Sheets no configurado.');
   const meta = await s.spreadsheets.get({ spreadsheetId: SHEET_ID, ranges: [] });
@@ -46,7 +36,7 @@ async function ensureSheet() {
   });
   await s.spreadsheets.values.update({
     spreadsheetId: SHEET_ID, range: SHEET_NAME + '!A1:J1',
-    valueInputOption: 'USER_ENTERED',
+    valueInputOption: 'RAW',
     resource: {
       values: [['FechaActualizacion', 'FilaOrigen', 'Grupo', 'FechaPublicacion', 'Zona', 'Publicaciones', 'Visualizaciones', 'Interacciones', 'Comentarios', 'Mensajes']]
     }
@@ -54,9 +44,10 @@ async function ensureSheet() {
   return s;
 }
 
-router.get('/', authenticate, async (req, res) => {
+router.get('/', requirePermission(["view_dashboard","view_zonas","view_grupos"]), async (req, res) => {
   try {
-    if (cache && Date.now() - cacheTime < CACHE_TTL && req.query.refresh !== 'true') {
+    const readRevision = revision();
+    if (cacheRevision === readRevision && cache && Date.now() - cacheTime < CACHE_TTL && req.query.refresh !== 'true') {
       return res.json({ data: cache });
     }
     const s = sheets();
@@ -65,7 +56,7 @@ router.get('/', authenticate, async (req, res) => {
     await ensureSheet();
 
     const result = await s.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID, range: SHEET_NAME + '!A:J', valueRenderOption: 'FORMATTED_VALUE'
+      spreadsheetId: SHEET_ID, range: SHEET_NAME + '!A:J', valueRenderOption: 'UNFORMATTED_VALUE', dateTimeRenderOption: 'FORMATTED_STRING'
     });
 
     const rows = result.data.values || [];
@@ -75,29 +66,33 @@ router.get('/', authenticate, async (req, res) => {
       if (!row[0]) continue;
       data.push({
         rowIndex: i + 1,
-        fechaActualizacion: (row[0] || '').trim(),
-        filaOrigen: parseInt(row[1]) || 0,
-        grupo: (row[2] || '').trim(),
-        fechaPublicacion: (row[3] || '').trim(),
-        zona: (row[4] || '').trim(),
-        publicaciones: parseInt(row[5]) || 0,
-        visualizaciones: parseInt(row[6]) || 0,
-        interacciones: parseInt(row[7]) || 0,
-        comentarios: parseInt(row[8]) || 0,
-        mensajes: parseInt(row[9]) || 0
+        fechaActualizacion: String(row[0] ?? '').trim(),
+        filaOrigen: count(row[1]) ?? 0,
+        grupo: String(row[2] ?? '').trim(),
+        fechaPublicacion: String(row[3] ?? '').trim(),
+        zona: String(row[4] ?? '').trim(),
+        publicaciones: count(row[5]) ?? 0,
+        visualizaciones: count(row[6]) ?? 0,
+        interacciones: count(row[7]) ?? 0,
+        comentarios: count(row[8]) ?? 0,
+        mensajes: count(row[9]) ?? 0
       });
     }
+    cacheRevision = readRevision;
     cache = data;
     cacheTime = Date.now();
     res.json({ data });
   } catch (err) {
-    if (cache) return res.json({ data: cache });
-    res.status(500).json({ error: err.message });
+    if (cache && cacheRevision === revision() && Date.now() - cacheTime < 300000) return res.json({ data: cache, stale: true, warning: 'Datos guardados: no se pudo actualizar Google Sheets.' });
+    sheetError(res, err);
   }
 });
 
-router.post('/', authenticate, requirePermission('edit_marketing'), async (req, res) => {
+router.post('/', requirePermission('edit_marketing'), async (req, res) => {
   try {
+    if (!Number.isSafeInteger(Number(req.body.filaOrigen)) || Number(req.body.filaOrigen) < 2) {
+      return res.status(400).json({ error: 'Fila de origen inválida.' });
+    }
     const s = sheets();
     if (!s) return res.status(503).json({ error: 'Google Sheets no configurado.' });
 
@@ -107,7 +102,7 @@ router.post('/', authenticate, requirePermission('edit_marketing'), async (req, 
 
     await s.spreadsheets.values.append({
       spreadsheetId: SHEET_ID, range: SHEET_NAME + '!A:J',
-      valueInputOption: 'USER_ENTERED', insertDataOption: 'INSERT_ROWS',
+      valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS',
       resource: {
         values: [[
           fechaActualizacion || '', filaOrigen || 0, grupo || '', fechaPublicacion || '',
@@ -120,7 +115,7 @@ router.post('/', authenticate, requirePermission('edit_marketing'), async (req, 
     invalidateCache();
     res.status(201).json({ message: 'Historial guardado.' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    sheetError(res, err);
   }
 });
 

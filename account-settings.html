@@ -281,6 +281,7 @@
                     showFeedback(body.error || 'Error al cambiar la contraseña.', 'danger');
                     return;
                 }
+                if (body.token && body.user) setSession(body.token, body.user, body.refreshToken);
                 showFeedback('Contraseña actualizada correctamente.', 'success');
                 document.getElementById('change-password-form').reset();
                 if (typeof showToast === 'function') showToast('Contraseña actualizada.', 'success');

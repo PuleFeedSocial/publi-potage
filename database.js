@@ -1,6 +1,7 @@
 const { Pool } = require('pg');
 
 let db = null;
+let initializing = null;
 
 function toPg(sql) {
   let i = 0;
@@ -17,7 +18,7 @@ function convertDates(row) {
   return o;
 }
 
-async function getDb() {
+async function initializeDb() {
   if (db) return db;
 
   let connStr = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/publi_potage';
@@ -27,6 +28,9 @@ async function getDb() {
 
   const pool = new Pool({
     connectionString: connStr,
+    connectionTimeoutMillis: 10000,
+    idleTimeoutMillis: 30000,
+    statement_timeout: 30000,
     ssl: sslDisabled ? false : (process.env.DATABASE_URL ? { rejectUnauthorized: false } : false),
   });
 
@@ -34,6 +38,7 @@ async function getDb() {
     console.error('Error inesperado en el pool de PostgreSQL:', err);
   });
 
+  try {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
@@ -117,22 +122,42 @@ async function getDb() {
     )
   `);
 
-  db = {
-    run: async (sql, params) => {
-      return await pool.query(toPg(sql), params);
-    },
-    get: async (sql, params) => {
-      const result = await pool.query(toPg(sql), params);
-      return convertDates(result.rows[0] || null);
-    },
-    all: async (sql, params) => {
-      const result = await pool.query(toPg(sql), params);
-      return convertDates(result.rows);
-    },
-    _pool: pool,
+  await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0');
+  await pool.query('ALTER TABLE activation_codes DROP CONSTRAINT IF EXISTS activation_codes_used_by_fkey, ADD CONSTRAINT activation_codes_used_by_fkey FOREIGN KEY (used_by) REFERENCES users(id) ON DELETE SET NULL');
+  await pool.query('ALTER TABLE logs DROP CONSTRAINT IF EXISTS logs_user_id_fkey, ADD CONSTRAINT logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL');
+  } catch (err) {
+    await pool.end();
+    throw err;
+  }
+  db = adapter(pool);
+  db._pool = pool;
+  db.transaction = async work => {
+    const connection = await pool.connect();
+    try {
+      await connection.query('BEGIN');
+      const result = await work(adapter(connection));
+      await connection.query('COMMIT');
+      return result;
+    } catch (err) {
+      await connection.query('ROLLBACK');
+      throw err;
+    } finally { connection.release(); }
   };
-
   return db;
+}
+
+function adapter(connection) {
+  return {
+    run: (sql, params) => connection.query(toPg(sql), params),
+    get: async (sql, params) => convertDates((await connection.query(toPg(sql), params)).rows[0] || null),
+    all: async (sql, params) => convertDates((await connection.query(toPg(sql), params)).rows)
+  };
+}
+
+function getDb() {
+  if (db) return Promise.resolve(db);
+  if (!initializing) initializing = initializeDb().catch(err => { initializing = null; throw err; });
+  return initializing;
 }
 
 module.exports = getDb;

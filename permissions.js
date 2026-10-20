@@ -38,7 +38,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
 };
 
 function normalizeRole(role) {
-  return (role || '').toLowerCase();
+  return String(role || '').trim().toLowerCase();
 }
 
 const _seeded = {};
@@ -62,7 +62,7 @@ async function getRolePermissions(db, role) {
   role = normalizeRole(role);
   await ensureRoleDefaults(db, role);
   const map = {};
-  for (const item of CATALOG) map[item.key] = true;
+  for (const item of CATALOG) map[item.key] = role === 'admin' || DEFAULT_ROLE_PERMISSIONS[role]?.[item.key] === true;
   const rows = await db.all('SELECT permission, enabled FROM role_permissions WHERE role = ?', [role]);
   rows.forEach(r => { map[r.permission] = r.enabled === true || r.enabled === 1 || r.enabled === 'true'; });
   return map;
@@ -74,8 +74,8 @@ async function setRolePermissions(db, role, updates) {
   for (const item of CATALOG) {
     if (updates[item.key] === undefined) continue;
     await db.run(
-      'UPDATE role_permissions SET enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE role = ? AND permission = ?',
-      [!!updates[item.key], role, item.key]
+      'INSERT INTO role_permissions (role, permission, enabled) VALUES (?, ?, ?) ON CONFLICT (role, permission) DO UPDATE SET enabled = EXCLUDED.enabled, updated_at = CURRENT_TIMESTAMP',
+      [role, item.key, updates[item.key] === true]
     );
   }
 }
@@ -83,7 +83,7 @@ async function setRolePermissions(db, role, updates) {
 async function hasPermission(db, role, key) {
   role = normalizeRole(role);
   if (role === 'admin') return true;
-  if (!CATALOG.some(i => i.key === key)) return true;
+  if (!CATALOG.some(i => i.key === key)) return false;
   const perms = await getRolePermissions(db, role);
   return perms[key] !== false;
 }

@@ -1,6 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const getDb = require('./database');
 const bcrypt = require('bcryptjs');
 
@@ -20,35 +19,34 @@ const PORT = process.env.PORT || 3000;
 
 app.set('trust proxy', 1);
 app.use(cors());
-app.use(express.json());
+app.disable('x-powered-by');
+app.use((req, res, next) => { res.set('X-Content-Type-Options', 'nosniff'); next(); });
+app.use('/api', (req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
+app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use('/api', require('./services/validation').objectBody);
 
 // Archivos públicos: solo front-end. Nunca servir código del servidor,
 // node_modules, .env, package.json ni la base de datos.
-const STATIC_EXT = new Set(['.html', '.css', '.js', '.png', '.jpg', '.jpeg', '.svg', '.ico', '.json', '.webmanifest', '.txt']);
-const BLOCKED_TOP = new Set([
-  'server.js', 'database.js', 'permissions.js', 'tokens.js',
-  'package.json', 'package-lock.json', 'database.sqlite', '.env', '.env.example', '.gitignore'
+const PUBLIC_FILES = new Set([
+  'index.html', 'login.html', 'register.html', 'dashboard.html', 'grupos.html',
+  'informes.html', 'sucursales.html', 'calendario.html', 'logs.html', 'ayuda.html',
+  'account-settings.html', 'app.js', 'theme.js', 'style.css', 'sw.js', 'manifest.json'
 ]);
-
-app.use(express.static(__dirname, {
-  index: false,
-  maxAge: 0,
-  etag: true,
-  filter(filePath) {
-    const rel = path.relative(__dirname, filePath);
-    if (!rel || rel.startsWith('..')) return false;
-    const parts = rel.split(path.sep);
-    if (parts.some(p => p.startsWith('.'))) return false;
-    if (parts[0] === 'node_modules' || parts[0] === 'routes' || parts[0] === 'middleware') return false;
-    if (parts.length === 1 && BLOCKED_TOP.has(parts[0])) return false;
-    return STATIC_EXT.has(path.extname(filePath).toLowerCase());
-  },
+const servePublic = express.static(__dirname, {
+  index: false, dotfiles: 'deny', redirect: false,
   setHeaders(res, filePath) {
-    if (filePath.endsWith('sw.js')) res.setHeader('Cache-Control', 'no-store');
-    else res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+    res.setHeader('Cache-Control', filePath.endsWith('sw.js') ? 'no-store' : 'public, max-age=0, must-revalidate');
   }
-}));
+});
+app.use((req, res, next) => {
+  let pathname;
+  try { pathname = decodeURIComponent(req.path); } catch { return res.sendStatus(400); }
+  if (PUBLIC_FILES.has(pathname.slice(1)) || /^\/img\/[a-zA-Z0-9_-]+\.(png|jpg|jpeg|svg|ico)$/.test(pathname)) {
+    return servePublic(req, res, next);
+  }
+  next();
+});
 
 app.get('/', (req, res) => res.redirect('/index.html'));
 
@@ -64,51 +62,18 @@ app.use('/api/logs', logsRoutes);
 
 async function runSeed() {
   const db = await getDb();
-
-  const existing = await db.get('SELECT id FROM users WHERE email = ?', ['admin@potage.com']);
-  if (existing) return;
-
-  const adminEmail = 'admin@potage.com';
-  const adminPassword = 'Admin123!';
-  const hashed = bcrypt.hashSync(adminPassword, 10);
-  await db.run('INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
-    ['Víctor Alejandro', adminEmail, hashed, 'admin']);
-
-  const codes = ['111111', '222222', '333333', '444444', '555555'];
-  for (const code of codes) {
-    try {
-      await db.run('INSERT INTO activation_codes (code) VALUES (?)', [code]);
-    } catch { }
+  if (await db.get("SELECT id FROM users WHERE LOWER(role) = 'admin' LIMIT 1")) return;
+  const email = process.env.ADMIN_EMAIL;
+  const password = process.env.ADMIN_PASSWORD;
+  if (!email || !password || password.length < 12) {
+    throw new Error('La base no tiene administrador. Configurá ADMIN_EMAIL y ADMIN_PASSWORD (mínimo 12 caracteres).');
   }
-
-  console.log('Seed completado: admin + 5 códigos de activación creados.');
+  await db.run('INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?) ON CONFLICT (email) DO NOTHING',
+    ['Administrador', email.trim().toLowerCase(), await bcrypt.hash(password, 10), 'admin']);
+  if (!await db.get("SELECT id FROM users WHERE LOWER(role) = 'admin' LIMIT 1")) {
+    throw new Error('ADMIN_EMAIL ya pertenece a otro usuario. Elegí un email nuevo para inicializar el administrador.');
+  }
 }
-
-// El seed normal solo completa lo que falte (idempotente).
-// Borrar datos (force=true) requiere administrador autenticado.
-app.get('/api/seed', async (req, res) => {
-  try {
-    if (req.query.force === 'true') {
-      const header = req.headers.authorization || '';
-      if (!header.startsWith('Bearer ')) {
-        return res.status(401).json({ error: 'Autenticación requerida para forzar el seed.' });
-      }
-      const { verifyAccessToken } = require('./tokens');
-      const payload = verifyAccessToken(header.split(' ')[1]);
-      if (!payload.role || String(payload.role).toLowerCase() !== 'admin') {
-        return res.status(403).json({ error: 'Se requiere rol de administrador.' });
-      }
-      const db = await getDb();
-      await db.run('DELETE FROM activation_codes');
-      await db.run('DELETE FROM users');
-    }
-    await runSeed();
-    res.json({ message: 'Seed ejecutado correctamente.' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error en seed.' });
-  }
-});
 
 // Diagnóstico mínimo (sin exponer emails ni datos sensibles).
 app.get('/debug', authenticate, requireAdmin, async (req, res) => {
@@ -124,22 +89,27 @@ app.get('/debug', authenticate, requireAdmin, async (req, res) => {
 });
 
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Error interno del servidor.' });
+  const status = err.type === 'entity.too.large' ? 413 : err.type === 'entity.parse.failed' ? 400 : 500;
+  if (status === 500) console.error(err.stack);
+  res.status(status).json({ error: status === 413 ? 'La solicitud supera el límite de 5 MB.' : status === 400 ? 'JSON inválido.' : 'Error interno del servidor.' });
 });
 
 async function start() {
   const db = await getDb();
-  await runSeed();
-
-  process.on('SIGTERM', async () => {
-    if (db._pool) await db._pool.end();
-    process.exit(0);
-  });
-
-  app.listen(PORT, () => {
+  try { await runSeed(); } catch (err) { await db._pool.end(); throw err; }
+  const server = app.listen(PORT, () => {
     console.log(`Potage SRL Server corriendo en puerto ${PORT}`);
   });
+  process.once('SIGTERM', () => {
+    const deadline = setTimeout(() => process.exit(1), 30000);
+    deadline.unref();
+    server.close(async () => {
+      try { await db._pool.end(); clearTimeout(deadline); }
+      catch { process.exitCode = 1; }
+    });
+  });
+  return server;
 }
 
-start();
+if (require.main === module) start().catch(err => { console.error(err.message); process.exitCode = 1; });
+module.exports = { app, start };

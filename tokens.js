@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 
-const SECRET = process.env.JWT_SECRET || 'Potage_S3cr3t_K3y_2026';
+const SECRET = process.env.JWT_SECRET;
+if (!SECRET) throw new Error('JWT_SECRET es obligatorio para iniciar el servidor.');
 
 // Access token de corta vida (se renueva en segundo plano con el refresh token).
 // Refresh token de larga vida guardado en el cliente.
@@ -12,7 +13,7 @@ const EXPIRED_ACCESS_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
 
 function signAccessToken(user) {
   return jwt.sign(
-    { id: user.id, name: user.name, email: user.email, role: user.role },
+    { id: user.id, name: user.name, email: user.email, role: user.role, ver: user.token_version || 0 },
     SECRET,
     { expiresIn: ACCESS_TTL }
   );
@@ -20,7 +21,7 @@ function signAccessToken(user) {
 
 function signRefreshToken(user) {
   return jwt.sign(
-    { id: user.id, email: user.email, role: user.role, typ: 'refresh' },
+    { id: user.id, email: user.email, role: user.role, typ: 'refresh', ver: user.token_version || 0 },
     SECRET,
     { expiresIn: REFRESH_TTL }
   );
@@ -28,7 +29,7 @@ function signRefreshToken(user) {
 
 function verifyAccessToken(token) {
   const decoded = jwt.verify(token, SECRET);
-  if (decoded.typ === 'refresh') throw new Error('Token de refresh usado como access token.');
+  if (decoded.typ === 'refresh') throw new jwt.JsonWebTokenError('Token de refresh usado como access token.');
   return decoded;
 }
 

@@ -3,7 +3,7 @@ const router = express.Router();
 const getDb = require('../database');
 const { authenticate, requirePermission } = require('../middleware/auth');
 
-router.get('/', authenticate, async (req, res) => {
+router.get('/', authenticate, requirePermission(['view_zonas', 'view_dashboard', 'view_grupos', 'view_sucursales']), async (req, res) => {
   try {
     const db = await getDb();
     const rows = await db.all('SELECT id, nombre, activo, created_at FROM zonas ORDER BY nombre ASC');
@@ -17,7 +17,7 @@ router.post('/', authenticate, requirePermission('edit_zonas'), async (req, res)
   try {
     const db = await getDb();
     const { nombre } = req.body;
-    if (!nombre || !nombre.trim()) return res.status(400).json({ error: 'El nombre de la zona es obligatorio.' });
+    if (typeof nombre !== 'string' || !nombre.trim() || nombre.length > 120) return res.status(400).json({ error: 'El nombre de la zona es obligatorio.' });
     await db.run('INSERT INTO zonas (nombre) VALUES (?)', [nombre.trim()]);
     res.status(201).json({ message: 'Zona agregada correctamente.' });
   } catch (err) {
@@ -29,8 +29,8 @@ router.post('/', authenticate, requirePermission('edit_zonas'), async (req, res)
 router.delete('/:id', authenticate, requirePermission('edit_zonas'), async (req, res) => {
   try {
     const db = await getDb();
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) return res.status(400).json({ error: 'ID inválido.' });
+    const id = Number(req.params.id);
+    if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ error: 'ID inválido.' });
     await db.run('DELETE FROM zonas WHERE id = ?', [id]);
     res.json({ message: 'Zona eliminada.' });
   } catch (err) {
@@ -41,9 +41,9 @@ router.delete('/:id', authenticate, requirePermission('edit_zonas'), async (req,
 router.put('/:id', authenticate, requirePermission('edit_zonas'), async (req, res) => {
   try {
     const db = await getDb();
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) return res.status(400).json({ error: 'ID inválido.' });
-    const nombre = (req.body.nombre || '').trim();
+    const id = Number(req.params.id);
+    if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ error: 'ID inválido.' });
+    const nombre = typeof req.body.nombre === 'string' ? req.body.nombre.trim() : '';
     if (!nombre) return res.status(400).json({ error: 'El nombre de la zona es obligatorio.' });
     const activo = req.body.activo === false || req.body.activo === 'false' ? false : true;
     try {

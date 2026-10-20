@@ -1,39 +1,28 @@
 const express = require('express');
-const { google } = require('googleapis');
+const { sheets, count, sheetError, mutation, revision, validateFields, validateRow } = require('../services/sheets');
 const router = express.Router();
 const { authenticate, requirePermission } = require('../middleware/auth');
+router.use(authenticate, mutation);
+router.use(validateFields(["nombre"], ["nombre","enlace","zona","fechaIngreso"], ["fechaIngreso"], []));
+validateRow(router, 'Grupos', 'E');
 const { logAction } = require('./logs');
 
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SHEET_NAME = 'Grupos';
 
-let _auth = null;
-function getAuth() {
-  if (_auth) return _auth;
-  const credsJson = process.env.GOOGLE_CREDENTIALS;
-  if (!credsJson) return null;
-  try {
-    const credentials = JSON.parse(credsJson);
-    _auth = new google.auth.GoogleAuth({ credentials, scopes: ['https://www.googleapis.com/auth/spreadsheets'] });
-    return _auth;
-  } catch { return null; }
-}
 
-function sheets() {
-  const auth = getAuth();
-  if (!auth) return null;
-  return google.sheets({ version: 'v4', auth });
-}
 
 let cache = null;
+let cacheRevision = -1;
 let cacheTime = 0;
 const CACHE_TTL = 60000;
 
 function invalidateCache() { cache = null; cacheTime = 0; }
 
-router.get('/', authenticate, async (req, res) => {
+router.get('/', requirePermission(["view_grupos","view_dashboard","view_zonas"]), async (req, res) => {
   try {
-    if (cache && Date.now() - cacheTime < CACHE_TTL && req.query.refresh !== 'true') {
+    const readRevision = revision();
+    if (cacheRevision === readRevision && cache && Date.now() - cacheTime < CACHE_TTL && req.query.refresh !== 'true') {
       return res.json({ data: cache });
     }
     const s = sheets();
@@ -47,7 +36,7 @@ router.get('/', authenticate, async (req, res) => {
     const data = [];
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
-      if (!row[0]) continue;
+      if (!row[0] || row[0] === '__DELETED__') continue;
       const activoRaw = (row[4] || '').trim().toUpperCase();
       data.push({
         rowIndex: i + 1,
@@ -58,16 +47,17 @@ router.get('/', authenticate, async (req, res) => {
         activo: activoRaw === 'FALSE' || activoRaw === '0' || activoRaw === 'INACTIVO' ? false : true
       });
     }
+    cacheRevision = readRevision;
     cache = data;
     cacheTime = Date.now();
     res.json({ data });
   } catch (err) {
-    if (cache) return res.json({ data: cache });
-    res.status(500).json({ error: err.message });
+    if (cache && cacheRevision === revision() && Date.now() - cacheTime < 300000) return res.json({ data: cache, stale: true, warning: 'Datos guardados: no se pudo actualizar Google Sheets.' });
+    sheetError(res, err);
   }
 });
 
-router.post('/', authenticate, requirePermission('edit_grupos'), async (req, res) => {
+router.post('/', requirePermission('edit_grupos'), async (req, res) => {
   try {
     const s = sheets();
     if (!s) return res.status(503).json({ error: 'Google Sheets no configurado.' });
@@ -78,7 +68,7 @@ router.post('/', authenticate, requirePermission('edit_grupos'), async (req, res
 
     await s.spreadsheets.values.append({
       spreadsheetId: SHEET_ID, range: SHEET_NAME + '!A:E',
-      valueInputOption: 'USER_ENTERED', insertDataOption: 'INSERT_ROWS',
+      valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS',
       resource: { values: [[nombre, enlace || '', zona || '', fechaIngreso || '', activoValue]] }
     });
     invalidateCache();
@@ -87,16 +77,16 @@ router.post('/', authenticate, requirePermission('edit_grupos'), async (req, res
 
     res.status(201).json({ message: 'Grupo agregado correctamente.' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    sheetError(res, err);
   }
 });
 
-router.put('/:rowIndex', authenticate, requirePermission('edit_grupos'), async (req, res) => {
+router.put('/:rowIndex', requirePermission('edit_grupos'), async (req, res) => {
   try {
     const s = sheets();
     if (!s) return res.status(503).json({ error: 'Google Sheets no configurado.' });
-    const rowIndex = parseInt(req.params.rowIndex);
-    if (isNaN(rowIndex) || rowIndex < 2) return res.status(400).json({ error: 'Índice inválido.' });
+    const rowIndex = Number(req.params.rowIndex);
+    if (!Number.isSafeInteger(rowIndex) || rowIndex < 2) return res.status(400).json({ error: 'Índice inválido.' });
     const { nombre, enlace, zona, fechaIngreso, activo } = req.body;
     if (!nombre) return res.status(400).json({ error: 'Nombre del grupo es obligatorio.' });
 
@@ -104,7 +94,7 @@ router.put('/:rowIndex', authenticate, requirePermission('edit_grupos'), async (
 
     await s.spreadsheets.values.update({
       spreadsheetId: SHEET_ID, range: SHEET_NAME + `!A${rowIndex}:E${rowIndex}`,
-      valueInputOption: 'USER_ENTERED',
+      valueInputOption: 'RAW',
       resource: { values: [[nombre, enlace || '', zona || '', fechaIngreso || '', activoValue]] }
     });
     invalidateCache();
@@ -113,30 +103,24 @@ router.put('/:rowIndex', authenticate, requirePermission('edit_grupos'), async (
 
     res.json({ message: 'Grupo actualizado correctamente.' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    sheetError(res, err);
   }
 });
 
-router.delete('/:rowIndex', authenticate, requirePermission('edit_grupos'), async (req, res) => {
+router.delete('/:rowIndex', requirePermission('edit_grupos'), async (req, res) => {
   try {
     const s = sheets();
     if (!s) return res.status(503).json({ error: 'Google Sheets no configurado.' });
-    const rowIndex = parseInt(req.params.rowIndex);
-    if (isNaN(rowIndex) || rowIndex < 2) return res.status(400).json({ error: 'Índice inválido.' });
+    const rowIndex = Number(req.params.rowIndex);
+    if (!Number.isSafeInteger(rowIndex) || rowIndex < 2) return res.status(400).json({ error: 'Índice inválido.' });
 
     const meta = await s.spreadsheets.get({ spreadsheetId: SHEET_ID, ranges: [] });
     const sheet = meta.data.sheets.find(sh => sh.properties.title === SHEET_NAME);
-    const sheetId = sheet ? sheet.properties.sheetId : 0;
-
-    await s.spreadsheets.batchUpdate({
-      spreadsheetId: SHEET_ID,
-      resource: {
-        requests: [{
-          deleteDimension: {
-            range: { sheetId, dimension: 'ROWS', startIndex: rowIndex - 1, endIndex: rowIndex }
-          }
-        }]
-      }
+    if (!sheet) return res.status(404).json({ error: 'Hoja no encontrada.' });
+    await s.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID, range: SHEET_NAME + '!A' + rowIndex,
+      valueInputOption: 'RAW',
+      resource: { values: [['__DELETED__', ...Array(5 - 1).fill('')]] }
     });
     invalidateCache();
 
@@ -144,7 +128,7 @@ router.delete('/:rowIndex', authenticate, requirePermission('edit_grupos'), asyn
 
     res.json({ message: 'Grupo eliminado correctamente.' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    sheetError(res, err);
   }
 });
 

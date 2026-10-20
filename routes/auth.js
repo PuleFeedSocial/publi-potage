@@ -1,5 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
+const rateLimit = require('../middleware/rate-limit');
 const getDb = require('../database');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 const { signAccessToken, signRefreshToken, verifyRefreshCredential } = require('../tokens');
@@ -8,7 +10,29 @@ const { CATALOG, getRolePermissions, setRolePermissions, DEFAULT_ROLE_PERMISSION
 const router = express.Router();
 const { logAction } = require('./logs');
 
-const ALLOWED_ROLES = ['admin', 'colaborador'];
+const authLimit = rateLimit();
+router.use(['/login', '/register', '/forgot-password'], authLimit);
+router.use((req, res, next) => {
+  const body = req.body || {};
+  for (const key of ['name', 'email', 'password', 'currentPassword', 'newPassword', 'activationCode', 'role', 'label']) {
+    if (body[key] !== undefined && (typeof body[key] !== 'string' || body[key].length > 1000)) {
+      return res.status(400).json({ error: 'Campo inválido: ' + key });
+    }
+  }
+  if (body.email !== undefined && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email.trim())) {
+    return res.status(400).json({ error: 'Email inválido.' });
+  }
+  for (const key of ['password', 'newPassword']) {
+    if (body[key] && Buffer.byteLength(body[key], 'utf8') > 72) {
+      return res.status(400).json({ error: 'La contraseña es demasiado larga (máximo 72 bytes).' });
+    }
+  }
+  next();
+});
+
+async function allowedRole(db, role) {
+  return role === 'admin' || role === 'colaborador' || (await getRolesList(db)).some(item => item.name === role);
+}
 
 function issueTokens(user) {
   return { token: signAccessToken(user), refreshToken: signRefreshToken(user) };
@@ -59,7 +83,7 @@ router.post('/register', async (req, res) => {
     const email = normalizeEmail(req.body.email);
     const password = req.body.password;
 
-    if (!name || !email || !password || !activationCode) {
+    if (!name || !name.trim() || !email || !password || !activationCode) {
       return res.status(400).json({ error: 'Todos los campos son obligatorios.' });
     }
 
@@ -78,17 +102,17 @@ router.post('/register', async (req, res) => {
       return res.status(409).json({ error: 'El email ya está registrado.' });
     }
 
-    const code = await db.get('SELECT id FROM activation_codes WHERE code = ? AND used = 0', [activationCode]);
-    if (!code) {
-      return res.status(400).json({ error: 'Código de activación inválido o ya utilizado.' });
-    }
-
-    const hashedPassword = bcrypt.hashSync(password, 10);
-    await db.run('INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
-      [name, email, hashedPassword, 'colaborador']);
-
-    const user = await db.get('SELECT id FROM users WHERE email = ?', [email]);
-    await db.run('UPDATE activation_codes SET used = 1, used_by = ? WHERE id = ?', [user.id, code.id]);
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await db.transaction(async tx => {
+      const code = await tx.get('SELECT id FROM activation_codes WHERE code = ? AND used = 0 FOR UPDATE', [activationCode]);
+      if (!code) return null;
+      const result = await tx.run('INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?) RETURNING id',
+        [name.trim(), email, hashedPassword, 'colaborador']);
+      const created = result.rows[0];
+      await tx.run('UPDATE activation_codes SET used = 1, used_by = ? WHERE id = ?', [created.id, code.id]);
+      return created;
+    });
+    if (!user) return res.status(400).json({ error: 'Código de activación inválido o ya utilizado.' });
 
     const { token, refreshToken } = issueTokens({ id: user.id, name, email, role: 'colaborador' });
 
@@ -101,6 +125,7 @@ router.post('/register', async (req, res) => {
       user: { id: user.id, name, email, role: 'colaborador' }
     });
   } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'El email ya está registrado.' });
     console.error(err);
     res.status(500).json({ error: 'Error interno del servidor.' });
   }
@@ -121,7 +146,7 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Credenciales inválidas.' });
     }
 
-    if (!bcrypt.compareSync(password, user.password)) {
+    if (!await bcrypt.compare(password, user.password)) {
       return res.status(401).json({ error: 'Credenciales inválidas.' });
     }
 
@@ -160,8 +185,8 @@ router.post('/refresh', async (req, res) => {
     }
 
     const db = await getDb();
-    const user = await db.get('SELECT id, name, email, role FROM users WHERE id = ?', [decoded.id]);
-    if (!user) {
+    const user = await db.get('SELECT id, name, email, role, token_version FROM users WHERE id = ?', [decoded.id]);
+    if (!user || (decoded.ver || 0) !== user.token_version) {
       return res.status(401).json({ error: 'Usuario no encontrado.' });
     }
 
@@ -205,8 +230,8 @@ router.post('/forgot-password', async (req, res) => {
       return res.status(400).json({ error: 'El email o el código de activación no son correctos.' });
     }
 
-    const hashed = bcrypt.hashSync(newPassword, 10);
-    await db.run('UPDATE users SET password = ? WHERE id = ?', [hashed, user.id]);
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await db.run('UPDATE users SET password = ?, token_version = token_version + 1 WHERE id = ?', [hashed, user.id]);
 
     logAction(user.id, user.email, 'Recuperación de contraseña', 'Contraseña restablecida con código de activación', req.ip);
 
@@ -265,6 +290,15 @@ router.delete('/roles/:name', authenticate, requireAdmin, async (req, res) => {
   }
 });
 
+router.get('/permissions', authenticate, async (req, res) => {
+  try {
+    const db = await getDb();
+    res.json({ role: req.user.role, permissions: await getRolePermissions(db, req.user.role) });
+  } catch {
+    res.status(503).json({ error: 'No se pudieron consultar los permisos.' });
+  }
+});
+
 router.get('/permissions/:role', authenticate, requireAdmin, async (req, res) => {
   try {
     const role = normalizeRole(req.params.role);
@@ -281,7 +315,7 @@ router.put('/permissions/:role', authenticate, requireAdmin, async (req, res) =>
   try {
     const role = normalizeRole(req.params.role);
     const updates = req.body && req.body.permissions;
-    if (!updates || typeof updates !== 'object') {
+    if (!updates || typeof updates !== 'object' || Array.isArray(updates) || Object.values(updates).some(v => typeof v !== 'boolean')) {
       return res.status(400).json({ error: 'Permisos inválidos.' });
     }
     const db = await getDb();
@@ -313,14 +347,13 @@ router.post('/users', authenticate, requireAdmin, async (req, res) => {
     const email = normalizeEmail(req.body.email);
     const role = normalizeRole(req.body.role || 'colaborador');
     if (!name || !email) return res.status(400).json({ error: 'Nombre y email requeridos.' });
-    if (!ALLOWED_ROLES.includes(role)) return res.status(400).json({ error: 'Rol inválido.' });
-
     const db = await getDb();
+    if (!await allowedRole(db, role)) return res.status(400).json({ error: 'Rol inválido.' });
     const existing = await db.get('SELECT id FROM users WHERE LOWER(email) = ?', [email]);
     if (existing) return res.status(409).json({ error: 'El email ya está registrado.' });
 
-    const tempPassword = Math.random().toString(36).slice(-8);
-    const hashed = bcrypt.hashSync(tempPassword, 10);
+    const tempPassword = crypto.randomBytes(12).toString('base64url');
+    const hashed = await bcrypt.hash(tempPassword, 10);
     await db.run('INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
       [name, email, hashed, role]);
 
@@ -338,10 +371,15 @@ router.post('/users', authenticate, requireAdmin, async (req, res) => {
 router.put('/users/:id/role', authenticate, requireAdmin, async (req, res) => {
   try {
     const role = normalizeRole(req.body && req.body.role);
-    if (!ALLOWED_ROLES.includes(role)) {
+    const db = await getDb();
+    if (!await allowedRole(db, role)) {
       return res.status(400).json({ error: 'Rol inválido.' });
     }
-    const db = await getDb();
+    const target = await db.get('SELECT id, role FROM users WHERE id = ?', [req.params.id]);
+    if (!target) return res.status(404).json({ error: 'Usuario no encontrado.' });
+    if (normalizeRole(target.role) === 'admin' && role !== 'admin') {
+      return res.status(400).json({ error: 'No se puede quitar el rol al administrador desde esta operación.' });
+    }
     await db.run('UPDATE users SET role = ? WHERE id = ?', [role, req.params.id]);
 
     logAction(req.user.id, req.user.email, 'Cambio de rol', `Usuario #${req.params.id} ahora es ${role}`, req.ip);
@@ -357,7 +395,7 @@ router.delete('/users/:id', authenticate, requireAdmin, async (req, res) => {
     const db = await getDb();
     const user = await db.get('SELECT role, email FROM users WHERE id = ?', [req.params.id]);
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado.' });
-    if (user.role === 'admin') return res.status(400).json({ error: 'No se puede eliminar al administrador principal.' });
+    if (normalizeRole(user.role) === 'admin') return res.status(400).json({ error: 'No se puede eliminar al administrador principal.' });
     await db.run('DELETE FROM users WHERE id = ?', [req.params.id]);
 
     logAction(req.user.id, req.user.email, 'Eliminación de usuario', `Usuario #${req.params.id} (${user.email}) eliminado`, req.ip);
@@ -389,11 +427,11 @@ router.post('/codes', authenticate, requireAdmin, async (req, res) => {
     const db = await getDb();
     const generated = [];
     for (let i = 0; i < count; i++) {
-      const code = String(Math.floor(100000 + Math.random() * 900000));
+      const code = String(crypto.randomInt(100000, 1000000));
       try {
         await db.run('INSERT INTO activation_codes (code) VALUES (?)', [code]);
         generated.push(code);
-      } catch { /* code exists, skip */ }
+      } catch (err) { if (err.code !== '23505') throw err; }
     }
     logAction(req.user.id, req.user.email, 'Creación de códigos', `${generated.length} códigos generados`, req.ip);
 
@@ -415,15 +453,17 @@ router.post('/change-password', authenticate, async (req, res) => {
     const db = await getDb();
     const user = await db.get('SELECT * FROM users WHERE id = ?', [req.user.id]);
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado.' });
-    if (!bcrypt.compareSync(currentPassword, user.password)) {
+    if (!await bcrypt.compare(currentPassword, user.password)) {
       return res.status(400).json({ error: 'La contraseña actual no es correcta.' });
     }
-    const hashed = bcrypt.hashSync(newPassword, 10);
-    await db.run('UPDATE users SET password = ? WHERE id = ?', [hashed, req.user.id]);
+    const hashed = await bcrypt.hash(newPassword, 10);
+    const result = await db.run('UPDATE users SET password = ?, token_version = token_version + 1 WHERE id = ? RETURNING id, name, email, role, token_version', [hashed, req.user.id]);
+    const updatedUser = result.rows[0];
 
     logAction(req.user.id, req.user.email, 'Cambio de contraseña', '', req.ip);
 
-    res.json({ message: 'Contraseña actualizada correctamente.' });
+    res.json({ message: 'Contraseña actualizada correctamente.', ...issueTokens(updatedUser),
+      user: { id: updatedUser.id, name: updatedUser.name, email: updatedUser.email, role: updatedUser.role } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al cambiar contraseña.' });
