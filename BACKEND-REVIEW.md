@@ -105,3 +105,14 @@ de ensayo sobre PostgreSQL real ni una comprobación con la cuenta de servicio.
 
 - [Opciones de lectura de valores de Google Sheets](https://developers.google.com/workspace/sheets/api/reference/rest/v4/ValueRenderOption?hl=es-419).
 - [Servicio de archivos estáticos en Express](https://expressjs.com/en/4x/api.html#express.static).
+
+## Refuerzo de seguridad y experiencia — 20/10/2026
+
+- Se escapan nombres, zonas, fechas, direcciones, logs y mensajes de error al construir HTML. Los argumentos de botones codifican también apóstrofos; los nombres con comillas conservan su valor al abrir detalles o eliminar una sucursal.
+- Los enlaces importados en informes solo son clicables con HTTP/HTTPS. Los enlaces externos modificados usan noopener/noreferrer.
+- Se bloquea el enmarcado del sitio, objetos incrustados y cambios de base externos; se restringen cámara/micrófono y se conserva geolocalización del propio sitio. La CSP es parcial: no restringe scripts todavía porque existen scripts y manejadores inline.
+- Se elimina CORS abierto: el frontend utiliza la API del mismo origen. Un cliente web alojado en otro origen necesitaría una lista explícita de orígenes autorizados.
+- Una falla de red, respuesta HTML de proxy o error temporal al renovar sesión ya no se interpreta como credenciales revocadas. Los 401/403 siguen invalidándola.
+- Se actualizan dependencias dentro de los rangos existentes mediante npm audit fix: de cinco avisos a cero vulnerabilidades conocidas al ejecutar la auditoría. Esto no garantiza ausencia de vulnerabilidades.
+- Validación: 34 pruebas automáticas; sintaxis de scripts JS/HTML; Chrome local con HTML malicioso, comillas y URL javascript en grupos, sucursales, logs e informes, verificando que no se ejecutan y que los botones preservan el nombre original.
+- Pendientes de arquitectura/configuración: recuperación por email con enlaces de un solo uso y vencimiento (el código original de activación sigue siendo reutilizable); cookies HttpOnly y defensa CSRF para sustituir tokens en localStorage; CSP estricta tras retirar scripts inline; comprobación de backups y restauración en producción. Las pruebas de DB/Sheets siguen usando dobles, no credenciales de producción.

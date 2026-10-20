@@ -1,5 +1,4 @@
 const express = require('express');
-const cors = require('cors');
 const getDb = require('./database');
 const bcrypt = require('bcryptjs');
 
@@ -18,9 +17,17 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.set('trust proxy', 1);
-app.use(cors());
 app.disable('x-powered-by');
-app.use((req, res, next) => { res.set('X-Content-Type-Options', 'nosniff'); next(); });
+app.use((req, res, next) => {
+  res.set({
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Content-Security-Policy': "base-uri 'self'; object-src 'none'; frame-ancestors 'none'",
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=(self)'
+  });
+  next();
+});
 app.use('/api', (req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true }));

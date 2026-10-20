@@ -263,3 +263,12 @@ test('calendar validates ranges and creates recurring series transactionally', a
 test('calendar rejects default end times that would not follow start times', async () => {
   assert.equal((await request('/api/calendario', { method: 'POST', body: { titulo: 'Tarea', fecha: '2026-10-20', hora: '23:59' } })).status, 400);
 });
+
+test('pages prevent framing and restrict unnecessary browser capabilities', async () => {
+  const res = await fetch(base + '/index.html', { headers: { Origin: 'https://untrusted.example' } });
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get('x-frame-options'), 'DENY');
+  assert.match(res.headers.get('content-security-policy'), /frame-ancestors 'none'/);
+  assert.match(res.headers.get('permissions-policy'), /geolocation=\(self\)/);
+  assert.equal(res.headers.get('access-control-allow-origin'), null);
+});

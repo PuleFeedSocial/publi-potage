@@ -463,7 +463,7 @@
                 const est = window._gruposEstatus[g.nombre] || {};
                 const enlaceSafe = g.enlace && /^https?:\/\//i.test(g.enlace) ? g.enlace : null;
                 const enlaceDisplay = enlaceSafe
-                    ? '<a href="' + enlaceSafe + '" target="_blank" class="small text-muted">' + enlaceSafe.substring(0, 45) + '...</a>'
+                    ? '<a href="' + escHtml(enlaceSafe) + '" target="_blank" rel="noopener noreferrer" class="small text-muted">' + escHtml(enlaceSafe.substring(0, 45)) + '...</a>'
                     : '<span class="text-muted small">—</span>';
                 const fechaDisplay = g.fechaIngreso || '—';
                 const malas = (est.SUPRIMIDA || 0) + (est.ELIMINADA || 0) + (est['EN REVISION'] || 0);
@@ -479,17 +479,17 @@
                     : '<span class="badge-estatus est-eliminada">Inactivo</span>';
                 tr.innerHTML = `
                     <td class="fw-medium">
-                        <a href="#" class="text-decoration-none text-dark" onclick="editGrupoPage(${g.rowIndex});return false" title="Editar grupo">${g.nombre}</a>
+                        <a href="#" class="text-decoration-none text-dark" onclick="editGrupoPage(${g.rowIndex});return false" title="Editar grupo">${escHtml(g.nombre)}</a>
                         <button class="btn btn-sm btn-link text-primary p-0 ms-1" onclick="editGrupoPage(${g.rowIndex})" title="Editar"><i class="bi bi-pencil-fill"></i></button>
                         <button class="btn btn-sm btn-link text-danger p-0 ms-1" onclick="deleteGrupoPage(${g.rowIndex})" title="Eliminar"><i class="bi bi-trash3-fill"></i></button>
                     </td>
                     <td class="small">${enlaceDisplay}</td>
-                    <td><span class="badge-zone zone-${(g.zona || '').toLowerCase().replace(/ /g, '-')}">${g.zona || '—'}</span></td>
-                    <td class="text-center small text-muted">${fechaDisplay}</td>
+                    <td><span class="badge-zone zone-${escHtml((g.zona || '').toLowerCase().replace(/ /g, '-'))}">${escHtml(g.zona || '—')}</span></td>
+                    <td class="text-center small text-muted">${escHtml(fechaDisplay)}</td>
                     <td class="text-center fw-semibold text-primary">${pubs}</td>
                     <td class="text-center">${activoBadge}</td>
                     <td class="text-center">${rendBadge}</td>
-                    <td class="text-center"><button class="btn btn-sm btn-outline-secondary" onclick="openGrupoDetailModal('${(g.nombre || '').replace(/'/g, "\\'")}')"><i class="bi bi-eye" aria-hidden="true"></i><span class="visually-hidden">Ver detalle del grupo</span></button></td>
+                    <td class="text-center"><button class="btn btn-sm btn-outline-secondary" onclick="openGrupoDetailModal(decodeURIComponent('${encArg(g.nombre)}'))"><i class="bi bi-eye" aria-hidden="true"></i><span class="visually-hidden">Ver detalle del grupo</span></button></td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -582,7 +582,7 @@
             document.getElementById('detail-grupo-nombre').innerText = g.nombre;
             const enlaceEl = document.getElementById('detail-grupo-enlace');
             if (g.enlace && /^https?:\/\//i.test(g.enlace)) {
-                enlaceEl.innerHTML = '<a href="' + g.enlace + '" target="_blank" rel="noopener">' + g.enlace + '</a>';
+                enlaceEl.innerHTML = '<a href="' + g.enlace + '" target="_blank" rel="noopener noreferrer" rel="noopener">' + g.enlace + '</a>';
             } else {
                 enlaceEl.innerText = g.enlace || '—';
             }

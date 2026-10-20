@@ -395,7 +395,7 @@ let _lastSucursalesSnapshot = '';
                 ]))
                 .then(([sucRes, zonasRes]) => {
                     if (sucRes.status !== 200) {
-                        if (!silent) tbody.innerHTML = '<tr><td colspan="' + cols + '" class="text-center text-danger">' + (sucRes.body.error || 'Error') + '</td></tr>';
+                        if (!silent) tbody.innerHTML = '<tr><td colspan="' + cols + '" class="text-center text-danger">' + escHtml(sucRes.body.error || 'Error') + '</td></tr>';
                         return;
                     }
                     const newData = sucRes.body.data || [];
@@ -470,7 +470,7 @@ function distanceKm(lat1, lng1, lat2, lng2) {
                 filtered = conDist;
                 if (msgEl) {
                     msgEl.className = 'text-muted small ms-2';
-                    msgEl.innerHTML = ' · <i class="bi bi-geo-alt-fill"></i> Ordenadas por distancia desde «' + selectedAddress.label + '»' +
+                    msgEl.innerHTML = ' · <i class="bi bi-geo-alt-fill"></i> Ordenadas por distancia desde «' + escHtml(selectedAddress.label) + '»' +
                         (sinCoords > 0 ? ' · <span class="text-warning">' + sinCoords + ' sucursal(es) sin coordenadas no pudieron ubicarse</span>' : '');
                 }
             }
@@ -481,27 +481,26 @@ function distanceKm(lat1, lng1, lat2, lng2) {
                 tr.style.animation = 'fadeSlideUp 0.3s ease-out forwards';
                 tr.style.animationDelay = (i * 0.03) + 's';
                 const zonaDisplay = s.zona
-                    ? '<span class="badge-zone zone-' + s.zona.toLowerCase().replace(/ /g, '-') + '">' + s.zona + '</span>'
+                    ? '<span class="badge-zone zone-' + escHtml(s.zona.toLowerCase().replace(/ /g, '-')) + '">' + escHtml(s.zona) + '</span>'
                     : '<span class="badge-zone zone-otro">OTRO</span>';
                 const activoBadge = s.activo !== false
                     ? '<span class="badge-estatus est-publicada">Activo</span>'
                     : '<span class="badge-estatus est-eliminada">Inactivo</span>';
-                const nombreEsc = (s.ubicacion || '').replace(/'/g, "\\'");
                 const distCell = showDist
                     ? '<td class="text-center small fw-semibold text-primary">' + (s.distKm !== undefined ? s.distKm.toFixed(2) + ' km' : '—') + '</td>'
                     : '';
                 tr.innerHTML = `
-                    <td class="small fw-medium">${s.empresa || '—'}</td>
-                    <td class="fw-semibold">${s.ubicacion || '—'}</td>
-                    <td class="small">${s.direccion || '—'}</td>
-                    <td class="small">${s.contacto || '—'}</td>
-                    <td class="small text-muted">${s.horario || '—'}</td>
+                    <td class="small fw-medium">${escHtml(s.empresa || '—')}</td>
+                    <td class="fw-semibold">${escHtml(s.ubicacion || '—')}</td>
+                    <td class="small">${escHtml(s.direccion || '—')}</td>
+                    <td class="small">${escHtml(s.contacto || '—')}</td>
+                    <td class="small text-muted">${escHtml(s.horario || '—')}</td>
                     <td class="text-center">${zonaDisplay}</td>
                     <td class="text-center">${activoBadge}</td>
                     ${distCell}
                     <td class="text-center">
                         <button class="btn btn-link text-primary p-0 mx-1" onclick="editSucursal(${s.rowIndex})" title="Editar"><i class="bi bi-pencil-fill"></i></button>
-                        <button class="btn btn-link text-danger p-0 mx-1" onclick="deleteSucursal(${s.rowIndex}, '${nombreEsc}')" title="Eliminar"><i class="bi bi-trash3-fill"></i></button>
+                        <button class="btn btn-link text-danger p-0 mx-1" onclick="deleteSucursal(${s.rowIndex}, decodeURIComponent('${encArg(s.ubicacion)}'))" title="Eliminar"><i class="bi bi-trash3-fill"></i></button>
                     </td>
                 `;
                 tbody.appendChild(tr);

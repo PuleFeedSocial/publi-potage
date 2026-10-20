@@ -118,9 +118,9 @@ function refreshSession() {
           setSession(body.token, body.user, body.refreshToken);
           return true;
         }
-        return false;
+        return status === 401 || status === 403 ? false : null;
       })
-      .catch(() => false)
+      .catch(() => null)
       .finally(() => { _refreshPromise = null; });
   }
   return _refreshPromise;
@@ -160,7 +160,7 @@ async function authFetch(url, options = {}) {
     if (renewed) {
       headers['Authorization'] = 'Bearer ' + getToken();
       res = await fetch(url, opts);
-    } else {
+    } else if (renewed === false) {
       onSessionExpired();
     }
   }
@@ -240,7 +240,8 @@ function applyNavPermissions() {
 function guardPage(perm) {
   if (!getCurrentSession()) { window.location.href = 'index.html'; return; }
   ensureFreshToken().then(ok => {
-    if (!ok) { onSessionExpired(); return; }
+    if (ok === false) { onSessionExpired(); return; }
+    if (ok === null) return;
     loadMyPermissions().then(() => {
       if (!hasPermission(perm)) {
         showToast('No tenés permiso para acceder a esa sección.', 'error');
@@ -254,7 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (getCurrentSession()) {
     ensureFreshToken().then(ok => {
       if (ok) loadMyPermissions();
-      else onSessionExpired();
+      else if (ok === false) onSessionExpired();
     });
     scheduleTokenRefresh();
   }
@@ -424,8 +425,8 @@ function loadMarketingData(silent) {
       if (status !== 200) {
         if (silent) return;
         const msg = body.error || 'Error ' + status;
-        document.getElementById('data-source-badge').innerHTML = '<i class="bi bi-exclamation-triangle text-danger"></i> ' + msg;
-        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">' + msg + '</td></tr>';
+        document.getElementById('data-source-badge').innerHTML = '<i class="bi bi-exclamation-triangle text-danger"></i> ' + escHtml(msg);
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">' + escHtml(msg) + '</td></tr>';
         return;
       }
       const newData = body.data || [];
@@ -440,7 +441,7 @@ function loadMarketingData(silent) {
       populateFilterDropdowns();
     })
     .catch((err) => {
-      if (!silent) tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Error de red: ' + (err.message || 'desconocido') + '</td></tr>';
+      if (!silent) tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Error de red: ' + escHtml(err.message || 'desconocido') + '</td></tr>';
     });
 }
 
@@ -582,8 +583,8 @@ function renderDashboard(data, chartData, periodLimit) {
         <td class="text-center text-success fw-medium">${row.interacciones}</td>
         <td class="text-center">${row.comentarios}</td>
         <td class="text-center text-indigo fw-medium">${row.mensajes}</td>
-        <td><span class="badge-zone zone-${zClass}">${escHtml(row.zona || '')}</span></td>
-        <td class="text-center"><span class="badge-estatus est-${(row.estatus||'SIN DEFINIR').toLowerCase().replace(/ /g,'-')}">${escHtml(row.estatus || 'SIN DEFINIR')}</span></td>`;
+        <td><span class="badge-zone zone-${escHtml(zClass)}">${escHtml(row.zona || '')}</span></td>
+        <td class="text-center"><span class="badge-estatus est-${escHtml((row.estatus||'SIN DEFINIR').toLowerCase().replace(/ /g,'-'))}">${escHtml(row.estatus || 'SIN DEFINIR')}</span></td>`;
     tbody.appendChild(tr);
   });
 
@@ -1451,7 +1452,7 @@ function openDetailModal(rowData) {
           <tbody>
             ${historiales.sort((a, b) => a.fechaActualizacion.localeCompare(b.fechaActualizacion)).map(h => `
               <tr>
-                <td class="text-muted">${h.fechaActualizacion}</td>
+                <td class="text-muted">${escHtml(h.fechaActualizacion)}</td>
                 <td>${h.publicaciones}</td>
                 <td>${h.visualizaciones}</td>
                 <td>${h.interacciones}</td>
@@ -1504,20 +1505,20 @@ function openDetailModal(rowData) {
   const html = `
     <div class="row g-3">
       <div class="col-6 col-md-4"><div class="text-muted small">Fecha</div><div class="fw-medium">${escHtml(row.fecha || '—')}</div></div>
-      <div class="col-6 col-md-4"><div class="text-muted small">Grupo</div><div class="fw-medium">${escHtml(row.grupo || '—')}${grupoLink ? ' <a href="' + escHtml(grupoLink) + '" target="_blank" class="text-decoration-none" title="Abrir grupo"><i class="bi bi-box-arrow-up-right ms-1 text-muted"></i></a>' : ''}</div></div>
+      <div class="col-6 col-md-4"><div class="text-muted small">Grupo</div><div class="fw-medium">${escHtml(row.grupo || '—')}${grupoLink ? ' <a href="' + escHtml(grupoLink) + '" target="_blank" rel="noopener noreferrer" class="text-decoration-none" title="Abrir grupo"><i class="bi bi-box-arrow-up-right ms-1 text-muted"></i></a>' : ''}</div></div>
       <div class="col-6 col-md-4"><div class="text-muted small">Publicaciones</div><div class="fw-medium">${row.publicaciones}</div></div>
       <div class="col-6 col-md-4"><div class="text-muted small">Visualizaciones</div><div class="fw-medium">${row.visualizaciones}</div></div>
       <div class="col-6 col-md-4"><div class="text-muted small">Interacciones</div><div class="fw-medium">${row.interacciones}</div></div>
       <div class="col-6 col-md-4"><div class="text-muted small">Comentarios</div><div class="fw-medium">${row.comentarios}</div></div>
       <div class="col-6 col-md-4"><div class="text-muted small">Mensajes</div><div class="fw-medium">${row.mensajes}</div></div>
       <div class="col-6 col-md-4"><div class="text-muted small">Zona</div><div class="fw-medium">${escHtml(row.zona || '—')}</div></div>
-      <div class="col-6 col-md-4"><div class="text-muted small">Estatus</div><div class="fw-medium"><span class="badge-estatus est-${(row.estatus||'SIN DEFINIR').toLowerCase().replace(/ /g,'-')}">${escHtml(row.estatus || 'SIN DEFINIR')}</span></div></div>
+      <div class="col-6 col-md-4"><div class="text-muted small">Estatus</div><div class="fw-medium"><span class="badge-estatus est-${escHtml((row.estatus||'SIN DEFINIR').toLowerCase().replace(/ /g,'-'))}">${escHtml(row.estatus || 'SIN DEFINIR')}</span></div></div>
     </div>
     ${histHtml}${chartHtml}${zonaChartHtml}`;
 
   const footer = `
     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
-    <button type="button" class="btn btn-sm btn-outline-success" onclick="openUpdateModal(JSON.parse(decodeURIComponent('${encodeURIComponent(JSON.stringify(row))}')))">
+    <button type="button" class="btn btn-sm btn-outline-success" onclick="openUpdateModal(JSON.parse(decodeURIComponent('${encArg(JSON.stringify(row))}')))">
       <i class="bi bi-arrow-repeat me-1"></i>Actualizar
     </button>
     <button type="button" class="btn btn-sm btn-action-primary" id="detail-edit-btn">
@@ -1662,7 +1663,7 @@ function refreshChartTheme() {
   });
 }
 
-function encArg(s) { return encodeURIComponent(String(s == null ? '' : s)); }
+function encArg(s) { return encodeURIComponent(String(s == null ? '' : s)).replace(/'/g, '%27'); }
 
 function renderGrupoChart(grupo, metric) {
   if (grupo != null) {
@@ -2153,8 +2154,8 @@ function loadRolesTable() {
           <td class="fw-semibold text-dark">${escHtml(label)}</td>
           <td class="text-muted small">${escHtml(name)}</td>
           <td class="text-end">
-            <button class="btn btn-sm btn-outline-secondary me-1" onclick="openRolePerms('${escHtml(name).replace(/'/g,'&#39;')}', '${escHtml(label).replace(/'/g,'&#39;')}')"><i class="bi bi-sliders me-1"></i>Ajustes</button>
-            <button class="btn btn-sm btn-link text-danger p-0" onclick="deleteRole('${escHtml(name).replace(/'/g,'&#39;')}')"><i class="bi bi-trash3-fill"></i></button>
+            <button class="btn btn-sm btn-outline-secondary me-1" onclick="openRolePerms(decodeURIComponent('${encArg(name)}'), decodeURIComponent('${encArg(label)}'))"><i class="bi bi-sliders me-1"></i>Ajustes</button>
+            <button class="btn btn-sm btn-link text-danger p-0" onclick="deleteRole(decodeURIComponent('${encArg(name)}'))"><i class="bi bi-trash3-fill"></i></button>
           </td>
         </tr>`;
     });
@@ -2216,7 +2217,7 @@ function openRolePerms(name, label) {
   cont.innerHTML = '<div class="text-muted small py-3"><span class="spinner-border spinner-border-sm me-2"></span>Cargando permisos...</div>';
   apiFetch('/api/auth/permissions/' + encodeURIComponent(name)).then(({ status, body }) => {
     if (status !== 200) {
-      cont.innerHTML = '<div class="text-danger small py-2">' + (body.error || 'Error al cargar permisos.') + '</div>';
+      cont.innerHTML = '<div class="text-danger small py-2">' + escHtml(body.error || 'Error al cargar permisos.') + '</div>';
       return;
     }
     permissionDefaults = body.defaults || {};
@@ -2233,7 +2234,7 @@ function loadPermissionsPanel() {
   cont.innerHTML = '<div class="text-muted small py-3"><span class="spinner-border spinner-border-sm me-2"></span>Cargando permisos...</div>';
   apiFetch('/api/auth/permissions/colaborador').then(({ status, body }) => {
     if (status !== 200) {
-      cont.innerHTML = '<div class="text-danger small py-2">' + (body.error || 'Error al cargar permisos.') + '</div>';
+      cont.innerHTML = '<div class="text-danger small py-2">' + escHtml(body.error || 'Error al cargar permisos.') + '</div>';
       return;
     }
     permissionDefaults = body.defaults || {};

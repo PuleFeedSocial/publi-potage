@@ -366,9 +366,9 @@
 
                 tr.innerHTML = `
                     <td class="text-muted" style="white-space:nowrap">${fecha}</td>
-                    <td class="fw-medium">${log.email || '—'}</td>
-                    <td><span class="badge-accion ${badge}">${log.accion || '—'}</span></td>
-                    <td class="text-muted">${log.detalle || ''}</td>
+                    <td class="fw-medium">${escHtml(log.email || '—')}</td>
+                    <td><span class="badge-accion ${badge}">${escHtml(log.accion || '—')}</span></td>
+                    <td class="text-muted">${escHtml(log.detalle || '')}</td>
                 `;
                 tbody.appendChild(tr);
             });

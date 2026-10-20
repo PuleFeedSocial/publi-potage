@@ -244,7 +244,7 @@
                 .then(r => r.json().then(b => ({ status: r.status, body: b })))
                 .then(({ status, body }) => {
                     if (status !== 200) {
-                        tbody.innerHTML = '<tr><td colspan="99" class="text-center text-danger">' + (body.error || 'Error') + '</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="99" class="text-center text-danger">' + esc(body.error || 'Error') + '</td></tr>';
                         return;
                     }
                     informesData = body.data || [];
@@ -280,7 +280,7 @@
                     let raw = row[c];
                     let val = (raw !== undefined && raw !== null && raw !== '') ? String(raw) : '';
                     if (c.toLowerCase().includes('enlace') || c.toLowerCase().includes('link') || c.toLowerCase().includes('url')) {
-                        val = val ? '<a href="' + esc(val) + '" target="_blank" class="small">' + esc(val.substring(0, 40)) + '</a>' : '—';
+                        val = /^https?:\/\//i.test(val) ? '<a href="' + esc(val) + '" target="_blank" rel="noopener noreferrer" class="small">' + esc(val.substring(0, 40)) + '</a>' : esc(val || '—');
                         cells += '<td class="small">' + val + '</td>';
                     } else if (val.length > 60) {
                         cells += '<td class="small text-truncate-cell" title="' + esc(val) + '">' + esc(val) + '</td>';
