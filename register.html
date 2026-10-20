@@ -73,14 +73,26 @@
                             Este código lo otorga el administrador de Potage SRL.
                         </small>
                     </div>
-                    <button type="submit" class="btn btn-action-primary w-100">Crear Cuenta</button>
+                        <div class="mb-2 form-check">
+                            <input type="checkbox" class="form-check-input" id="accept-privacy" required>
+                            <label class="form-check-label small" for="accept-privacy">
+                                He leído y acepto las <a href="politicas-privacidad.html" target="_blank" rel="noopener">Políticas de Privacidad</a>
+                            </label>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="accept-terms" required>
+                            <label class="form-check-label small" for="accept-terms">
+                                He leído y acepto los <a href="terminos-condiciones.html" target="_blank" rel="noopener">Términos y Condiciones</a>
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn-action-primary w-100">Crear Cuenta</button>
                 </form>
                 <div class="auth-card-footer">
                     ¿Ya tenés cuenta? <a href="login.html">Iniciar sesión</a>
                 </div>
                 <div class="auth-card-credit">
                     <span class="text-decoration-none small text-muted">
-                        <i class="bi bi-cpu atlas-credit-icon"></i>Altas Engineering
+                        <i class="bi bi-cpu atlas-credit-icon"></i>Atlas Software &amp; Diseño
                     </span>
                 </div>
             </div>
