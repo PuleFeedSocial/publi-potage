@@ -15,7 +15,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-<link rel="stylesheet" href="style.css">
+    <script src="theme.js"></script>
+    <link rel="stylesheet" href="style.css">
     <style>
         .suc-address-wrap {
             position: relative;
@@ -63,7 +64,6 @@
             background: rgba(255, 255, 255, .06);
         }
     </style>
-    <script>if(localStorage.getItem('potageTheme')==='dark')document.documentElement.setAttribute('data-theme','dark');</script>
 </head>
 
 <body>
@@ -228,7 +228,7 @@
                         </div>
                     </div>
                     <div class="table-responsive">
-                        <table class="table custom-table mb-0">
+                        <table class="table custom-table mb-0 table-actions-sticky">
                             <thead>
                                 <tr>
                                     <th>Empresa</th>
@@ -328,12 +328,6 @@ let sucursalesData = [];
         let sucursalesZonasData = [];
         const ZONA_OTRO = '__OTRO__';
         let selectedAddress = null;
-
-        function toggleSidebar() {
-            const isOpen = document.querySelector('.sidebar').classList.toggle('open');
-            document.body.classList.toggle('sidebar-open', isOpen);
-            localStorage.setItem('sidebarOpen', isOpen);
-        }
 
         function fillEmpresaSelects() {
             const formSel = document.getElementById('sucursal-empresa');
@@ -923,10 +917,6 @@ function hideAddressList() {
             document.getElementById('display-user-name').innerText = session.name;
             document.getElementById('nav-avatar').innerText = initials;
             document.getElementById('nav-user-name').innerText = session.name.split(' ')[0];
-            if (localStorage.getItem('sidebarOpen') === 'true') {
-                document.querySelector('.sidebar').classList.add('open');
-                document.body.classList.add('sidebar-open');
-            }
             const sessionRole = (session.role || '').toLowerCase();
             const isAdmin = sessionRole === 'admin';
             const gestionLabel = document.getElementById('gestion-label');

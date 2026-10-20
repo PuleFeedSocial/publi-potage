@@ -1,9 +1,9 @@
-const CACHE = 'potage-v42';
+const CACHE = 'potage-v43';
 const STATIC = [
   '/dashboard.html', '/index.html', '/login.html', '/register.html',
   '/grupos.html', '/informes.html', '/logs.html', '/account-settings.html',
   '/sucursales.html', '/ayuda.html', '/calendario.html',
-  '/app.js', '/style.css', '/manifest.json', '/sw.js'
+  '/app.js', '/theme.js', '/style.css', '/manifest.json', '/sw.js'
 ];
 
 self.addEventListener('install', (e) => {

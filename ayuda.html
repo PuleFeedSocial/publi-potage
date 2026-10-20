@@ -15,8 +15,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <script src="theme.js"></script>
     <link rel="stylesheet" href="style.css">
-    <script>if(localStorage.getItem('potageTheme')==='dark')document.documentElement.setAttribute('data-theme','dark');</script>
     <style>
         .help-section {
             background: var(--bg-card);
@@ -340,21 +340,11 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="app.js"></script>
     <script>
-        function toggleSidebar() {
-            const isOpen = document.querySelector('.sidebar').classList.toggle('open');
-            document.body.classList.toggle('sidebar-open', isOpen);
-            localStorage.setItem('sidebarOpen', isOpen);
-        }
-
         document.addEventListener('DOMContentLoaded', () => {
             const session = getCurrentSession();
             if (!session) {
                 window.location.href = 'index.html';
                 return;
-            }
-            if (localStorage.getItem('sidebarOpen') === 'true') {
-                document.querySelector('.sidebar').classList.add('open');
-                document.body.classList.add('sidebar-open');
             }
             const initials = session.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
             document.getElementById('display-avatar').innerText = initials;

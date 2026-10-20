@@ -15,8 +15,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <script src="theme.js"></script>
     <link rel="stylesheet" href="style.css">
-    <script>if(localStorage.getItem('potageTheme')==='dark')document.documentElement.setAttribute('data-theme','dark');</script>
     <style>
         .text-truncate-cell { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .text-truncate-cell:hover { overflow: visible; white-space: normal; background: #fff; position: relative; z-index: 1; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
@@ -168,7 +168,7 @@
                         </div>
                     </div>
                     <div class="table-responsive">
-                        <table class="table custom-table mb-0" id="informes-table">
+                        <table class="table custom-table mb-0 table-actions-sticky" id="informes-table">
                             <thead id="informes-thead"></thead>
                             <tbody id="informes-tbody"></tbody>
                         </table>
@@ -234,12 +234,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="app.js"></script>
     <script>
-        function toggleSidebar() {
-            const isOpen = document.querySelector('.sidebar').classList.toggle('open');
-            document.body.classList.toggle('sidebar-open', isOpen);
-            localStorage.setItem('sidebarOpen', isOpen);
-        }
-
         let informesData = [];
         let pendingImport = null;
 
@@ -289,7 +283,7 @@
                         val = val ? '<a href="' + esc(val) + '" target="_blank" class="small">' + esc(val.substring(0, 40)) + '</a>' : '—';
                         cells += '<td class="small">' + val + '</td>';
                     } else if (val.length > 60) {
-                        cells += '<td class="small text-truncate-cell" title="' + esc(val) + '">' + esc(val.substring(0, 60)) + '…</td>';
+                        cells += '<td class="small text-truncate-cell" title="' + esc(val) + '">' + esc(val) + '</td>';
                     } else {
                         cells += '<td class="small text-truncate-cell" title="' + esc(val) + '">' + esc(val || '—') + '</td>';
                     }
@@ -501,10 +495,6 @@
             document.getElementById('display-user-name').innerText = session.name;
             document.getElementById('nav-avatar').innerText = initials;
             document.getElementById('nav-user-name').innerText = session.name.split(' ')[0];
-            if (localStorage.getItem('sidebarOpen') === 'true') {
-                document.querySelector('.sidebar').classList.add('open');
-                document.body.classList.add('sidebar-open');
-            }
             const isAdmin = (session.role || '').toLowerCase() === 'admin';
             const gestionLabel = document.getElementById('gestion-label');
             const gestionItems = document.getElementById('gestion-items');

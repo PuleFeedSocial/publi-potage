@@ -18,11 +18,13 @@ function syncThemeToggle() {
   if (thumb) thumb.style.transform = isDark ? 'translateX(20px)' : '';
 }
 
-function applyTheme(theme) {
+function applyTheme(theme, persist = true) {
   if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
   else document.documentElement.removeAttribute('data-theme');
-  localStorage.setItem('potageTheme', theme);
+  document.documentElement.setAttribute('data-bs-theme', theme);
+  if (persist) localStorage.setItem('potageTheme', theme);
   syncThemeToggle();
+  refreshChartTheme();
 }
 
 function toggleTheme() {
@@ -31,7 +33,11 @@ function toggleTheme() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  applyTheme(getTheme());
+  applyTheme(getTheme(), false);
+});
+
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  if (!localStorage.getItem('potageTheme')) applyTheme(getTheme(), false);
 });
 
 function getCurrentSession() {
@@ -261,6 +267,7 @@ function showToast(mensaje, tipo) {
     document.body.appendChild(container);
   }
   const toast = document.createElement('div');
+  toast.setAttribute('role', tipo === 'error' ? 'alert' : 'status');
   const color = tipo === 'success' ? '#16a34a' : (tipo === 'error' ? '#dc2626' : '#0f172a');
   toast.style.cssText = 'background:' + color + ';color:#fff;padding:10px 16px;border-radius:8px;font-size:0.85rem;font-weight:500;box-shadow:0 4px 12px rgba(0,0,0,0.2);max-width:320px;';
   toast.innerText = mensaje;
@@ -500,11 +507,12 @@ function renderDashboard(data, chartData, periodLimit) {
   const totalVis = kpiData.reduce((s, r) => s + r.visualizaciones, 0);
   const totalInt = kpiData.reduce((s, r) => s + r.interacciones, 0);
   const totalMsj = kpiData.reduce((s, r) => s + r.mensajes, 0);
-  document.getElementById('kpi-grupos').innerText = grupos.length;
-  document.getElementById('kpi-publicaciones').innerText = totalPubs;
-  document.getElementById('kpi-visualizaciones').innerText = totalVis;
-  document.getElementById('kpi-interacciones').innerText = totalInt;
-  document.getElementById('kpi-mensajes').innerText = totalMsj;
+  const numberFormat = new Intl.NumberFormat('es-AR');
+  document.getElementById('kpi-grupos').innerText = numberFormat.format(grupos.length);
+  document.getElementById('kpi-publicaciones').innerText = numberFormat.format(totalPubs);
+  document.getElementById('kpi-visualizaciones').innerText = numberFormat.format(totalVis);
+  document.getElementById('kpi-interacciones').innerText = numberFormat.format(totalInt);
+  document.getElementById('kpi-mensajes').innerText = numberFormat.format(totalMsj);
 
   const trendEls = {
     'trend-publicaciones': 'publicaciones',
@@ -514,7 +522,7 @@ function renderDashboard(data, chartData, periodLimit) {
   };
   Object.keys(trendEls).forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.outerHTML = tendenciaKpiHtml(kpiData, trendEls[id]);
+    if (el) el.innerHTML = tendenciaKpiHtml(kpiData, trendEls[id]);
   });
 
   // KPIs por zona
@@ -563,7 +571,7 @@ function renderDashboard(data, chartData, periodLimit) {
     });
     tr.innerHTML = `
         <td class="fw-medium text-dark">${escHtml(row.fecha || '')}</td>
-        <td>${escHtml(row.grupo || '')}</td>
+        <td><button type="button" class="table-detail-link" title="Ver detalle de la publicación">${escHtml(row.grupo || 'Ver detalle')}</button></td>
         <td class="text-center">${row.publicaciones}</td>
         <td class="text-center fw-medium">${row.visualizaciones}</td>
         <td class="text-center text-success fw-medium">${row.interacciones}</td>
@@ -1619,6 +1627,34 @@ function applyChartThemeDefaults() {
   const p = chartPalette();
   Chart.defaults.color = p.tick;
   Chart.defaults.borderColor = p.grid;
+  Chart.defaults.animation = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? false : { duration: 350 };
+}
+
+function refreshChartTheme() {
+  if (!window.Chart) return;
+  applyChartThemeDefaults();
+  const palette = chartPalette();
+  const colors = {
+    '#e2e8f0': palette.pubs, '#0f172a': palette.pubs,
+    '#fbbf24': palette.vis, '#f59e0b': palette.vis,
+    '#34d399': palette.ints, '#10b981': palette.ints,
+    '#a5b4fc': palette.msjs, '#6366f1': palette.msjs
+  };
+  Object.values(Chart.instances).forEach(chart => {
+    Object.values(chart.options.scales || {}).forEach(scale => {
+      scale.ticks.color = palette.tick;
+      scale.grid.color = palette.grid;
+    });
+    chart.data.datasets.forEach(dataset => {
+      ['borderColor', 'backgroundColor'].forEach(key => {
+        const color = dataset[key];
+        if (typeof color !== 'string') return;
+        const base = color.slice(0, 7);
+        if (colors[base]) dataset[key] = colors[base] + color.slice(7);
+      });
+    });
+    chart.update('none');
+  });
 }
 
 function encArg(s) { return encodeURIComponent(String(s == null ? '' : s)); }
@@ -1685,7 +1721,7 @@ function renderGrupoChart(grupo, metric) {
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
         scales: {
-          y: { ticks: { beginAtZero: true, precision: 0 } },
+          y: { beginAtZero: true, grid: { color: PAL.grid }, ticks: { color: PAL.tick, precision: 0 } },
           x: { grid: { color: PAL.grid }, ticks: { color: PAL.tick } }
         }
       }
@@ -1761,7 +1797,7 @@ function renderZonaChart(zona, metric) {
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
         scales: {
-          y: { ticks: { beginAtZero: true, precision: 0 } },
+          y: { beginAtZero: true, grid: { color: PAL.grid }, ticks: { color: PAL.tick, precision: 0 } },
           x: { grid: { color: PAL.grid }, ticks: { color: PAL.tick } }
         }
       }
@@ -1904,7 +1940,7 @@ function renderZonasDashboardInner(grupos, zonaFilter, periodLimit) {
           responsive: true, maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           scales: {
-            y: { ticks: { beginAtZero: true, precision: 0 } },
+            y: { beginAtZero: true, grid: { color: PAL.grid }, ticks: { color: PAL.tick, precision: 0 } },
             x: { ticks: { maxRotation: 30, color: PAL.tick }, grid: { color: PAL.grid } }
           }
         }
@@ -2019,7 +2055,7 @@ function initCharts(chartData, periodLimit) {
           maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           scales: {
-            y: { ticks: { beginAtZero: true, precision: 0 } },
+            y: { beginAtZero: true, grid: { color: PAL.grid }, ticks: { color: PAL.tick, precision: 0 } },
             x: { grid: { color: PAL.grid }, ticks: { color: PAL.tick } }
           }
         }
@@ -2029,9 +2065,9 @@ function initCharts(chartData, periodLimit) {
 
   applyChartThemeDefaults();
   const PALI = chartPalette();
-  makeChart('chartPublicaciones', PALI.pubs, null, pubsVals, pubsLabels);
-  makeChart('chartInteracciones', PALI.ints, 'rgba(16, 185, 129, 0.1)', intsSeries.values, intsSeries.labels);
-  makeChart('chartComparativo', PALI.msjs, 'rgba(99, 102, 241, 0.1)', msjsSeries.values, msjsSeries.labels, 'Msj');
+  makeChart('chartPublicaciones', PALI.pubs, null, pubsVals, pubsLabels, 'Publicaciones');
+  makeChart('chartInteracciones', PALI.ints, 'rgba(16, 185, 129, 0.1)', intsSeries.values, intsSeries.labels, 'Interacciones');
+  makeChart('chartComparativo', PALI.msjs, 'rgba(99, 102, 241, 0.1)', msjsSeries.values, msjsSeries.labels, 'Mensajes');
 }
 function loadUsers() {
   apiFetch('/api/auth/users').then(({ status, body }) => {
@@ -2574,35 +2610,97 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-/* Mobile: overlay táctil para cerrar la sidebar + cierre al elegir opción o con Esc */
-(function () {
-  function closeSidebarMobile() {
-    const sb = document.querySelector('.sidebar');
-    if (!sb) return;
-    if (sb.classList.contains('open') && window.matchMedia('(max-width: 1024px)').matches) {
-      sb.classList.remove('open');
-      document.body.classList.remove('sidebar-open');
-      localStorage.setItem('sidebarOpen', 'false');
-    }
-  }
-
-  function ensureOverlay() {
-    if (!document.querySelector('.sidebar') || document.querySelector('.sidebar-overlay')) return;
-    const ov = document.createElement('div');
-    ov.className = 'sidebar-overlay';
-    ov.setAttribute('aria-hidden', 'true');
-    document.body.appendChild(ov);
-  }
-
-  ensureOverlay();
-
-  document.addEventListener('click', function (ev) {
-    const t = ev.target;
-    if (!t || !t.closest) return;
-    if (t.closest('.sidebar-overlay') || t.closest('.menu-item')) closeSidebarMobile();
+/* Shared navigation: desktop preference and accessible mobile drawer. */
+let sidebarTrigger = null;
+function setSidebarOpen(open, remember = false) {
+  const sidebar = document.querySelector('.sidebar');
+  if (!sidebar) return;
+  const mobile = window.matchMedia('(max-width: 1024px)').matches;
+  sidebar.classList.toggle('open', open);
+  document.body.classList.toggle('sidebar-open', open);
+  sidebar.inert = !open;
+  sidebar.setAttribute('aria-hidden', String(!open));
+  document.querySelectorAll('.sidebar-toggle').forEach(button => {
+    button.setAttribute('aria-controls', sidebar.id);
+    button.setAttribute('aria-expanded', String(open));
+    button.setAttribute('aria-label', button.closest('.sidebar') ? 'Cerrar menú' : 'Abrir menú');
   });
+  const main = document.querySelector('.main-content');
+  if (main) main.inert = mobile && open;
+  if (remember && !mobile) localStorage.setItem('sidebarOpen', String(open));
+}
 
-  document.addEventListener('keydown', function (ev) {
-    if (ev.key === 'Escape') closeSidebarMobile();
+function toggleSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  if (!sidebar) return;
+  const open = !sidebar.classList.contains('open');
+  if (open) sidebarTrigger = document.activeElement;
+  setSidebarOpen(open, true);
+  if (open && window.matchMedia('(max-width: 1024px)').matches) {
+    sidebar.querySelector('.sidebar-toggle').focus();
+  } else if (!open && sidebarTrigger && sidebarTrigger.isConnected) {
+    sidebarTrigger.focus();
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const main = document.querySelector('.main-content');
+  const sidebar = document.querySelector('.sidebar');
+  if (main) {
+    main.id = main.id || 'main-content';
+    main.tabIndex = -1;
+    const skip = document.createElement('a');
+    skip.className = 'skip-link';
+    skip.href = '#' + main.id;
+    skip.textContent = 'Saltar al contenido';
+    document.body.prepend(skip);
+  }
+  if (sidebar) {
+    sidebar.id = sidebar.id || 'main-navigation';
+    sidebar.setAttribute('aria-label', 'Menú principal');
+    const overlay = document.createElement('div');
+    overlay.className = 'sidebar-overlay';
+    overlay.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(overlay);
+    const mobile = window.matchMedia('(max-width: 1024px)');
+    const restore = () => setSidebarOpen(!mobile.matches && localStorage.getItem('sidebarOpen') === 'true');
+    restore();
+    mobile.addEventListener('change', restore);
+    const close = () => {
+      if (!mobile.matches || !sidebar.classList.contains('open')) return;
+      setSidebarOpen(false);
+      document.querySelector('.top-navbar .sidebar-toggle')?.focus();
+    };
+    overlay.addEventListener('click', close);
+    sidebar.addEventListener('click', event => {
+      if (event.target.closest('.menu-item')) close();
+    });
+    document.addEventListener('keydown', event => {
+      if (!mobile.matches || !sidebar.classList.contains('open')) return;
+      if (event.key === 'Escape') { event.preventDefault(); close(); }
+      if (event.key !== 'Tab') return;
+      const items = [...sidebar.querySelectorAll('a[href], button, [tabindex="0"]')]
+        .filter(el => !el.disabled && el.getClientRects().length);
+      const first = items[0], last = items.at(-1);
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    });
+    sidebar.querySelectorAll('div.menu-item[onclick]').forEach(item => {
+      item.setAttribute('role', 'button');
+      item.tabIndex = 0;
+      item.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); item.click(); }
+      });
+    });
+  }
+  document.querySelectorAll('.table-responsive').forEach((region, index) => {
+    region.tabIndex = 0;
+    region.setAttribute('role', 'region');
+    const title = region.closest('.data-table-card')?.querySelector('.table-card-title');
+    region.setAttribute('aria-label', (title?.textContent.trim() || 'Tabla ' + (index + 1)) + '. Desplazamiento horizontal disponible.');
   });
-})();
+  document.querySelectorAll('label:not([for])').forEach(label => {
+    const control = label.parentElement.querySelector('input[id], select[id], textarea[id]');
+    if (control) label.htmlFor = control.id;
+  });
+});

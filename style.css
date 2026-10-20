@@ -2,9 +2,9 @@
     --bg-main: #fcfcfd;
     --bg-sidebar: #ffffff;
     --bg-card: #ffffff;
-    --border-color: #f1f5f9;
+    --border-color: #e2e8f0;
     --text-main: #1e293b;
-    --text-muted: #94a3b8;
+    --text-muted: #64748b;
     --primary-color: #0f172a;
     --accent-color: #3b82f6;
     --success-color: #10b981;
@@ -2706,19 +2706,19 @@ html[data-theme="dark"] .perm-count {
         animation: none !important;
     }
 
-    .custom-table thead th:last-child,
-    .custom-table tbody td:last-child {
+    .table-actions-sticky thead th:last-child,
+    .table-actions-sticky tbody td:last-child:not([colspan]) {
         position: sticky;
         right: 0;
         background: var(--bg-card) !important;
         box-shadow: -8px 0 12px -12px rgba(0, 0, 0, 0.25);
     }
 
-    .custom-table thead th:last-child {
+    .table-actions-sticky thead th:last-child {
         z-index: 3;
     }
 
-    .custom-table tbody td:last-child {
+    .table-actions-sticky tbody td:last-child:not([colspan]) {
         z-index: 2;
     }
 
@@ -4478,3 +4478,102 @@ html[data-theme="dark"] .cal-scope-opt:has(input:checked) {
     }
 }
 
+
+/* Frontend review: readable surfaces and consistent interaction states. */
+:root {
+    --radius-md: 12px;
+    --text-secondary: var(--text-muted);
+}
+body { line-height: 1.5; }
+.main-content, .page-context, .top-navbar > .d-flex { min-width: 0; }
+.top-navbar > .d-flex { flex: 1; }
+.page-title { overflow-wrap: anywhere; }
+.sidebar { height: 100dvh; }
+.menu-item.active { box-shadow: inset 3px 0 var(--accent-color); }
+.kpi-card, .chart-container-card, .filter-card {
+    border: 1px solid var(--border-color);
+}
+.kpi-value, .custom-table td { font-variant-numeric: tabular-nums; }
+.kpi-title { white-space: normal; }
+#kpi-container { margin-left: 0; margin-right: 0; --bs-gutter-y: 0; }
+.chart-container-card { min-width: 0; }
+.table-responsive { max-width: 100%; overscroll-behavior-x: contain; }
+.custom-table tbody tr:hover td { background-color: color-mix(in srgb, var(--accent-color) 5%, var(--bg-card)); }
+.custom-table th { white-space: nowrap; }
+.pagination-custom { flex-wrap: wrap; gap: 4px; padding-left: 0; }
+.btn, .menu-item, .sidebar-toggle, .pag-btn { transition-duration: 160ms; }
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 3px solid var(--accent-color) !important;
+    outline-offset: 3px;
+    box-shadow: none;
+}
+.btn:disabled, button:disabled { cursor: not-allowed; }
+.skip-link {
+    position: fixed; top: 12px; left: 12px; z-index: 1100;
+    padding: 12px 18px; border-radius: 10px;
+    background: var(--bg-card); color: var(--text-main);
+    transform: translateY(-160%);
+}
+.skip-link:focus { transform: translateY(0); }
+#toast-container { max-width: calc(100vw - 32px); }
+@media (max-width: 1024px) {
+    body.sidebar-open { overflow: hidden; }
+    .sidebar { max-width: calc(100vw - 48px); }
+}
+@media (max-width: 1199px) and (min-width: 769px) {
+    .filter-card .row.g-2 > [class*="col-"] { flex: 0 0 33.333%; max-width: 33.333%; }
+}
+@media (max-width: 768px) {
+    .filter-card .row.g-2, #grupoDetailModal .row.g-2 { gap: 0 !important; }
+    .filter-card .row.g-2 > [class*="col-"] { min-width: 0; }
+    .sidebar-toggle, .profile-btn, .pag-btn { min-height: 44px; min-width: 44px; }
+    .filter-period { min-height: 40px; }
+    .chart-container-card { margin-bottom: 0; }
+    .kpi-title { font-size: 0.7rem; line-height: 1.4; }
+    .kpi-value { font-size: clamp(1.3rem, 5vw, 1.8rem); }
+    .card-header-clean .btn { white-space: normal; }
+    .custom-table td { max-width: 280px; overflow-wrap: anywhere; }
+    .modal-body { min-height: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-delay: 0ms !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+/* Keep dates and names readable instead of squeezing entire rows on phones. */
+#marketing-table-body td:first-child { white-space: nowrap; }
+#marketing-table-body td:nth-child(2) { min-width: 210px; }
+#grupos-page-table-body td:first-child { min-width: 220px; }
+#logs-tbody td:first-child { white-space: nowrap; }
+@media (min-width: 769px) {
+    .custom-table th, .custom-table td { padding: 14px 20px !important; }
+}
+.filter-card .btn.w-100 { white-space: nowrap; }
+html[data-theme="dark"] .cal-view-btn.active {
+    background: var(--accent-color);
+    color: #0b1120;
+}
+@media (max-width: 768px) {
+    .cal-nav-btn, .cal-today-btn, .cal-icon-btn, .cal-view-btn { min-height: 40px; }
+    .cal-nav-btn, .cal-icon-btn { min-width: 40px; }
+    .cal-toolbar-left { flex-wrap: wrap; }
+    .cal-view-title { flex: 1 1 100%; text-align: left; white-space: normal; }
+}
+@media (max-width: 480px) {
+    .cal-filter-ctl { flex-basis: 100%; width: 100%; }
+}
+.table-detail-link {
+    appearance: none; border: 0; background: transparent; color: inherit;
+    padding: 0; font: inherit; text-align: left; line-height: inherit;
+}
+.table-detail-link:hover { color: var(--accent-color); text-decoration: underline; }
+.cal-side .cal-item { display: grid; grid-template-columns: 32px minmax(0, 1fr); }
+.cal-side .cal-item-actions { grid-column: 2; justify-content: flex-end; }
+@media (max-width: 575px) {
+    .cal-item { display: grid; grid-template-columns: 32px minmax(0, 1fr); }
+    .cal-item-actions { grid-column: 2; justify-content: flex-end; }
+    .cal-item-actions .cal-act { width: 40px; height: 40px; }
+}
