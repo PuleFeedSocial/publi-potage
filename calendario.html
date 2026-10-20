@@ -510,7 +510,7 @@
             renderAll();
         }
         function calRebuildRespOptions() {
-            if (!isAdmin()) {
+            if (!calIsAdmin()) {
                 const sel = document.getElementById('cal-filter-resp');
                 if (sel) {
                     sel.innerHTML = '<option value="">Todos los responsables</option>';
@@ -787,7 +787,7 @@
             let meta = tipoBadge + estadoBadge + repBadge;
             if (showDate) meta += '<span class="cal-meta"><i class="bi bi-calendar3"></i> ' + isoToDate(ev.fecha) + '</span>';
             if (ev.hora) meta += '<span class="cal-meta"><i class="bi bi-clock"></i> ' + escHtml(calRangoTexto(ev)) + '</span>';
-                if (ev.responsable_nombre && (isAdmin() || (calSession && ev.responsable_id && String(ev.responsable_id) === String((calSession.user&&calSession.user.id)||'') ))) {
+                    if (ev.responsable_nombre && (calIsAdmin() || (calSession && ev.responsable_id && String(ev.responsable_id) === String((calSession.user&&calSession.user.id)||'') ))) {
                     meta += '<span class="cal-meta"><i class="bi bi-person"></i> ' + escHtml(ev.responsable_nombre) + '</span>';
                 }
             if (calIsAdmin() && ev.realizado_en) {
@@ -1123,11 +1123,11 @@
                 (ev.fecha_fin ? ' → ' + escHtml(calFechaMedia(ev.fecha_fin)) : '') + '</span></div></div>' +
                 '<div class="cal-detail-row"><i class="bi bi-clock"></i><div><strong>Hora</strong>' +
                 '<span>' + escHtml(ev.hora ? calDuracionTexto(ev) + ' (' + calRangoTexto(ev) + ')' : 'Todo el día') + '</span></div></div>';
-            if (ev.responsable_nombre && (isAdmin() || (calSession && ev.responsable_id && String(ev.responsable_id) === String((calSession.user&&calSession.user.id)||'')))) {
+            if (ev.responsable_nombre && (calIsAdmin() || (calSession && ev.responsable_id && String(ev.responsable_id) === String((calSession.user&&calSession.user.id)||'')))) {
                 html += '<div class="cal-detail-row"><i class="bi bi-person"></i><div><strong>Responsable</strong>' +
                     '<span>' + escHtml(ev.responsable_nombre) + '</span></div></div>';
             }
-            if (isAdmin() && ev.realizado_en) {
+            if (calIsAdmin() && ev.realizado_en) {
                 html += '<div class="cal-detail-row"><i class="bi bi-person-check"></i><div><strong>Registro</strong>' +
                     '<span>Marcaron como realizada: ' + escHtml(ev.realizado_por_nombre || '—') + ' · ' + fmtFechaHora(ev.realizado_en) + '</span></div></div>';
             }
