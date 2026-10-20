@@ -390,14 +390,14 @@ function switchView(viewName) {
     subtitle.innerText = 'Métricas agrupadas por zona geográfica';
     loadZonas();
     renderZonasDashboard();
-  } else {
-    title.innerText = 'Gestión de Usuarios y Códigos';
-    subtitle.innerText = 'Administra los permisos y códigos de activación de tu equipo';
-    loadUsers();
-    loadCodes();
-    loadZonas();
-    loadPermissionsPanel();
-  }
+    } else {
+      title.innerText = 'Gestión de Usuarios y Códigos';
+      subtitle.innerText = 'Administra los permisos y códigos de activación de tu equipo';
+      loadUsers();
+      loadCodes();
+      loadZonas();
+      loadRolesTable();
+    }
 }
 
 let _appLastMarketingSnapshot = '';
@@ -2071,6 +2071,119 @@ function renderUsers(users) {
 }
 
 let permissionDefaults = {};
+let currentRolePerm = 'colaborador';
+let currentRolePermLabel = 'Colaborador';
+
+function loadRoles() {
+  if (sessionRole() !== 'admin') return;
+  apiFetch('/api/auth/roles').then(({ status, body }) => {
+    if (status !== 200) return;
+    const sel = document.getElementById('input-role');
+    if (!sel) return;
+    sel.innerHTML = '';
+    body.forEach(r => {
+      const opt = document.createElement('option');
+      opt.value = r.label || r.name;
+      opt.textContent = r.label || r.name;
+      sel.appendChild(opt);
+    });
+    if (!sel.options.length) {
+      const opt = document.createElement('option');
+      opt.value = 'Colaborador';
+      opt.textContent = 'Colaborador';
+      sel.appendChild(opt);
+    }
+    loadRolesTable();
+  });
+}
+
+function loadRolesTable() {
+  if (sessionRole() !== 'admin') return;
+  apiFetch('/api/auth/roles').then(({ status, body }) => {
+    if (status !== 200) return;
+    const tbody = document.getElementById('roles-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    body.forEach(r => {
+      const name = r.name || '';
+      const label = r.label || name;
+      tbody.innerHTML += `
+        <tr>
+          <td class="fw-semibold text-dark">${escHtml(label)}</td>
+          <td class="text-muted small">${escHtml(name)}</td>
+          <td class="text-end">
+            <button class="btn btn-sm btn-outline-secondary me-1" onclick="openRolePerms('${escHtml(name).replace(/'/g,'&#39;')}', '${escHtml(label).replace(/'/g,'&#39;')}')"><i class="bi bi-sliders me-1"></i>Ajustes</button>
+            <button class="btn btn-sm btn-link text-danger p-0" onclick="deleteRole('${escHtml(name).replace(/'/g,'&#39;')}')"><i class="bi bi-trash3-fill"></i></button>
+          </td>
+        </tr>`;
+    });
+    const sel = document.getElementById('input-role');
+    if (sel) {
+      sel.innerHTML = '';
+      body.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r.label || r.name;
+        opt.textContent = r.label || r.name;
+        sel.appendChild(opt);
+      });
+      if (!sel.options.length) {
+        const opt = document.createElement('option');
+        opt.value = 'Colaborador';
+        opt.textContent = 'Colaborador';
+        sel.appendChild(opt);
+      }
+    }
+  });
+}
+
+function openAddRoleModal() {
+  document.getElementById('new-role-name').value = '';
+  new bootstrap.Modal(document.getElementById('addRoleModal')).show();
+}
+
+function createRole() {
+  const label = document.getElementById('new-role-name').value.trim();
+  if (!label) { alert('Ingresá el nombre del rol.'); return; }
+  apiFetch('/api/auth/roles', { method: 'POST', body: JSON.stringify({ label }) })
+    .then(({ status, body }) => {
+      if (status !== 201) { alert(body.error || 'Error al crear rol.'); return; }
+      bootstrap.Modal.getInstance(document.getElementById('addRoleModal')).hide();
+      loadRolesTable();
+      loadRoles();
+      showToast('Rol creado correctamente.', 'success');
+    });
+}
+
+function deleteRole(name) {
+  if (name === 'admin') { alert('No se puede eliminar el rol administrador.'); return; }
+  if (!confirm('¿Eliminar este rol? Solo es posible si no hay usuarios asignados.')) return;
+  apiFetch('/api/auth/roles/' + encodeURIComponent(name), { method: 'DELETE' })
+    .then(({ status, body }) => {
+      if (status !== 200) { alert(body.error || 'Error al eliminar rol.'); return; }
+      loadRolesTable();
+      loadRoles();
+      showToast('Rol eliminado.', 'success');
+    });
+}
+
+function openRolePerms(name, label) {
+  currentRolePerm = name;
+  currentRolePermLabel = label || name;
+  document.getElementById('role-perms-title').textContent = label || name;
+  const cont = document.getElementById('permissions-container');
+  if (!cont) return;
+  cont.innerHTML = '<div class="text-muted small py-3"><span class="spinner-border spinner-border-sm me-2"></span>Cargando permisos...</div>';
+  apiFetch('/api/auth/permissions/' + encodeURIComponent(name)).then(({ status, body }) => {
+    if (status !== 200) {
+      cont.innerHTML = '<div class="text-danger small py-2">' + (body.error || 'Error al cargar permisos.') + '</div>';
+      return;
+    }
+    permissionDefaults = body.defaults || {};
+    renderPermissionsPanel(body.catalog || [], body.permissions || {});
+    const m = new bootstrap.Modal(document.getElementById('rolePermsModal'));
+    m.show();
+  });
+}
 
 function loadPermissionsPanel() {
   if (sessionRole() !== 'admin') return;
@@ -2149,12 +2262,12 @@ function savePermissions() {
   const btn = document.getElementById('save-permissions-btn');
   const original = btn ? btn.innerHTML : '';
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...'; }
-  apiFetch('/api/auth/permissions/colaborador', { method: 'PUT', body: JSON.stringify({ permissions }) })
+  apiFetch('/api/auth/permissions/' + encodeURIComponent(currentRolePerm || 'colaborador'), { method: 'PUT', body: JSON.stringify({ permissions }) })
     .then(({ status, body }) => {
       if (btn) { btn.disabled = false; btn.innerHTML = original; }
       if (status !== 200) { showToast(body.error || 'Error al guardar permisos.', 'error'); return; }
       permissionsStatusText('Los cambios se aplican al guardar.');
-      showToast('Permisos del rol Colaborador actualizados.', 'success');
+      showToast('Permisos del rol ' + (currentRolePermLabel || currentRolePerm) + ' actualizados.', 'success');
     })
     .catch(() => {
       if (btn) { btn.disabled = false; btn.innerHTML = original; }
@@ -2432,9 +2545,10 @@ function enterApp(user) {
   loadHistorial();
   loadZonas();
   logVisit();
-  if (isAdmin) {
-    loadUsers();
-  }
+    if (isAdmin) {
+      loadUsers();
+      loadRoles();
+    }
   document.getElementById('current-page-title').innerText = 'Dashboard Publicaciones';
   document.getElementById('current-page-subtitle').innerText = 'Rendimiento en tiempo real de cuentas de Facebook';
 

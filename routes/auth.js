@@ -18,6 +18,41 @@ function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
 }
 
+function roleKey(name) {
+  return normalizeRole(name);
+}
+
+async function ensureRolesTable(db) {
+  await db.run(`CREATE TABLE IF NOT EXISTS roles (
+    id SERIAL PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    label TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`);
+}
+
+async function getRolesList(db) {
+  await ensureRolesTable(db);
+  const rows = await db.all('SELECT name, label FROM roles ORDER BY id ASC');
+  const out = [];
+  const seen = new Set();
+  rows.forEach(r => {
+    const n = normalizeRole(r.name);
+    if (n === 'admin') return;
+    if (!seen.has(n)) { seen.add(n); out.push({ name: n, label: r.label || r.name }); }
+  });
+  if (!out.length) {
+    await db.run("INSERT INTO roles (name, label) VALUES (?, ?) ON CONFLICT (name) DO NOTHING", ['colaborador', 'Colaborador']);
+    const r2 = await db.all('SELECT name, label FROM roles ORDER BY id ASC');
+    r2.forEach(r => {
+      const n = normalizeRole(r.name);
+      if (n === 'admin') return;
+      out.push({ name: n, label: r.label || r.name });
+    });
+  }
+  return out;
+}
+
 router.post('/register', async (req, res) => {
   try {
     const { name, activationCode } = req.body;
@@ -182,20 +217,51 @@ router.post('/forgot-password', async (req, res) => {
   }
 });
 
-router.get('/permissions', authenticate, async (req, res) => {
+router.get('/roles', authenticate, requireAdmin, async (req, res) => {
   try {
-    const role = normalizeRole(req.user.role);
-    if (role === 'admin') {
-      const all = {};
-      CATALOG.forEach(i => { all[i.key] = true; });
-      return res.json({ role, permissions: all, catalog: CATALOG });
-    }
     const db = await getDb();
-    const permissions = await getRolePermissions(db, role);
-    res.json({ role, permissions, catalog: CATALOG });
+    const roles = await getRolesList(db);
+    res.json(roles);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error al obtener permisos.' });
+    res.status(500).json({ error: 'Error al obtener roles.' });
+  }
+});
+
+router.post('/roles', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const label = String(req.body.label || '').trim();
+    const name = roleKey(label || req.body.name);
+    if (!label) return res.status(400).json({ error: 'Nombre del rol requerido.' });
+    if (name === 'admin') return res.status(400).json({ error: 'No se puede crear el rol administrador.' });
+    if (name.length < 2) return res.status(400).json({ error: 'Nombre de rol inválido.' });
+    const db = await getDb();
+    await ensureRolesTable(db);
+    try {
+      await db.run('INSERT INTO roles (name, label) VALUES (?, ?)', [name, label]);
+    } catch (e) {
+      return res.status(409).json({ error: 'Ya existe un rol con ese nombre.' });
+    }
+    logAction(req.user.id, req.user.email, 'Creación de rol', `Rol creado: ${label} (${name})`, req.ip);
+    res.status(201).json({ name, label });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al crear rol.' });
+  }
+});
+
+router.delete('/roles/:name', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const name = roleKey(req.params.name);
+    if (name === 'admin') return res.status(400).json({ error: 'No se puede eliminar el rol administrador.' });
+    const db = await getDb();
+    await ensureRolesTable(db);
+    const count = await db.get('SELECT COUNT(*) as c FROM users WHERE LOWER(role) = ?', [name]);
+    if (count && (count.c > 0 || (count.count || count.COUNT) > 0)) return res.status(400).json({ error: 'Hay usuarios asignados a este rol. Reasignalos primero.' });
+    await db.run('DELETE FROM role_permissions WHERE role = ?', [name]);
+    await db.run('DELETE FROM roles WHERE LOWER(name) = ?', [name]);
+    logAction(req.user.id, req.user.email, 'Eliminación de rol', `Rol eliminado: ${name}`, req.ip);
+    res.json({ message: 'Rol eliminado.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al eliminar rol.' });
   }
 });
 

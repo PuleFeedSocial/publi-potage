@@ -331,25 +331,27 @@
                 </div>
 
                 <div class="card data-table-card mb-4">
-                    <div class="card-header-clean">
+                    <div class="card-header-clean d-flex justify-content-between align-items-center">
                         <div>
-                            <h5 class="table-card-title"><i class="bi bi-shield-lock-fill me-1"></i> Permisos del Rol Colaborador</h5>
-                            <span class="text-muted small">Definí qué puede hacer un usuario con rol <span class="fw-semibold">Colaborador</span>. El administrador siempre tiene acceso total.</span>
+                            <h5 class="table-card-title"><i class="bi bi-shield-lock-fill me-1"></i> Configuración de Roles y Permisos</h5>
+                            <span class="text-muted small">Gestioná los roles del sistema. El rol <span class="fw-semibold">Admin</span> no se puede modificar ni eliminar.</span>
                         </div>
+                        <button class="btn btn-sm btn-action-primary" onclick="openAddRoleModal()">
+                            <i class="bi bi-plus-circle-fill me-1"></i> Agregar Rol
+                        </button>
                     </div>
-                    <div class="card-body p-4">
-                        <div id="permissions-container"></div>
-                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 border-top pt-3 mt-4">
-                            <span id="permissions-status" class="small text-muted">Los cambios se aplican al guardar.</span>
-                            <div class="d-flex gap-2">
-                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetPermissions()">
-                                    <i class="bi bi-arrow-counterclockwise me-1"></i> Restaurar
-                                </button>
-                                <button type="button" class="btn btn-sm btn-action-primary" id="save-permissions-btn" onclick="savePermissions()">
-                                    <i class="bi bi-check-lg me-1"></i> Guardar cambios
-                                </button>
-                            </div>
-                        </div>
+                    <div class="table-responsive">
+                        <table class="table custom-table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Rol</th>
+                                    <th>Clave</th>
+                                    <th class="text-end">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="roles-table-body">
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
@@ -512,8 +514,7 @@
                         <div class="mb-3">
                             <label class="form-label small fw-medium text-secondary">Rol del Sistema</label>
                             <select id="input-role" class="form-select custom-input" required>
-                                <option value="Colaborador" selected>Colaborador (Solo Lectura)</option>
-                                <option value="Admin">Administrador (Control Total)</option>
+                                <option value="Colaborador" selected>Colaborador</option>
                             </select>
                         </div>
                     </div>
@@ -523,6 +524,50 @@
                         <button type="submit" class="btn btn-sm btn-action-primary">Guardar Usuario</button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="rolePermsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content custom-modal">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-semibold text-dark"><i class="bi bi-shield-lock-fill me-2"></i> Permisos del rol <span id="role-perms-title"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body pt-3">
+                    <div id="permissions-container"></div>
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 border-top pt-3 mt-4">
+                        <span id="permissions-status" class="small text-muted">Los cambios se aplican al guardar.</span>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetPermissions()">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i> Restaurar
+                            </button>
+                            <button type="button" class="btn btn-sm btn-action-primary" id="save-permissions-btn" onclick="savePermissions()">
+                                <i class="bi bi-check-lg me-1"></i> Guardar cambios
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="addRoleModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content custom-modal">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-semibold text-dark"><i class="bi bi-shield-plus me-2"></i> Agregar Rol</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body pt-3">
+                    <label class="form-label small fw-medium text-secondary">Nombre del rol</label>
+                    <input type="text" id="new-role-name" class="form-control custom-input" placeholder="Ej. Operador">
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-sm btn-light-muted" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-sm btn-action-primary" onclick="createRole()">Guardar</button>
+                </div>
             </div>
         </div>
     </div>
