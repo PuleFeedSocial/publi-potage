@@ -38,7 +38,8 @@ app.use('/api', require('./services/validation').objectBody);
 const PUBLIC_FILES = new Set([
   'index.html', 'login.html', 'register.html', 'dashboard.html', 'grupos.html',
   'informes.html', 'sucursales.html', 'calendario.html', 'logs.html', 'ayuda.html',
-  'account-settings.html', 'app.js', 'theme.js', 'style.css', 'sw.js', 'manifest.json'
+  'account-settings.html', 'politicas-privacidad.html', 'terminos-condiciones.html',
+  'app.js', 'theme.js', 'style.css', 'sw.js', 'manifest.json'
 ]);
 const servePublic = express.static(__dirname, {
   index: false, dotfiles: 'deny', redirect: false,
