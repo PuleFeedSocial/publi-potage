@@ -273,15 +273,20 @@ test('pages prevent framing and restrict unnecessary browser capabilities', asyn
   assert.equal(res.headers.get('access-control-allow-origin'), null);
 });
 
-test('legal documents and privacy PDF are public, generation sources stay private', async () => {
-  for (const path of ['/politicas-privacidad.html', '/terminos-condiciones.html']) {
-    const res = await fetch(base + path);
-    assert.equal(res.status, 200);
-    assert.match(await res.text(), /atlasdeveloperar@gmail\.com/);
+test('legal links download PDFs and HTML pages and sources stay private', async () => {
+  for (const slug of ['politicas-privacidad', 'terminos-condiciones']) {
+    const pdf = await fetch(base + '/output/pdf/' + slug + '-atlas.pdf');
+    assert.equal(pdf.status, 200);
+    assert.match(pdf.headers.get('content-type'), /application\/pdf/);
+    assert.equal(pdf.headers.get('content-disposition'), 'attachment; filename="' + slug + '-atlas.pdf"');
+    assert.equal(Buffer.from(await pdf.arrayBuffer()).subarray(0, 5).toString(), '%PDF-');
+    assert.equal((await fetch(base + '/' + slug + '.html')).status, 404);
+    for (const page of ['/index.html', '/login.html', '/register.html']) {
+      const html = await (await fetch(base + page)).text();
+      assert.ok(html.includes('href="output/pdf/' + slug + '-atlas.pdf" download'));
+    }
   }
-  const pdf = await fetch(base + '/output/pdf/politicas-privacidad-atlas.pdf');
-  assert.equal(pdf.status, 200);
-  assert.match(pdf.headers.get('content-type'), /application\/pdf/);
-  assert.equal(Buffer.from(await pdf.arrayBuffer()).subarray(0, 5).toString(), '%PDF-');
-  assert.equal((await fetch(base + '/scripts/build-privacy-pdf.py')).status, 404);
+  for (const path of ['/scripts/build-legal-pdfs.py', '/scripts/legal-content.json']) {
+    assert.equal((await fetch(base + path)).status, 404);
+  }
 });

@@ -1,0 +1,150 @@
+[
+  {
+    "slug": "politicas-privacidad",
+    "title": "Política de Privacidad",
+    "blocks": [
+      [
+        "h2",
+        "1. Quiénes somos y alcance"
+      ],
+      [
+        "p",
+        "Atlas Software & Diseño desarrolla y mantiene esta plataforma de gestión de marketing. Esta política explica el tratamiento de información al crear una cuenta y utilizar sus funciones. Cuando una organización administra su propio espacio de trabajo, determina qué información incorpora y quién puede acceder; Atlas interviene como proveedor técnico en el alcance del servicio contratado."
+      ],
+      [
+        "h2",
+        "2. Información que se utiliza"
+      ],
+      [
+        "p",
+        "Para crear y administrar cuentas se solicitan nombre, correo electrónico, contraseña y código de activación. La contraseña se guarda mediante un hash, no como texto legible. También se gestionan roles, permisos y registros de actividad, que pueden incluir usuario, acción y fecha. Los datos de trabajo comprenden publicaciones, métricas, grupos, sucursales, direcciones, informes, eventos, tareas y responsables que incorporan las personas autorizadas. Los servidores y proveedores pueden procesar datos técnicos de conexión, como la dirección IP."
+      ],
+      [
+        "h2",
+        "3. Para qué se utiliza"
+      ],
+      [
+        "p",
+        "La información permite identificar a los usuarios, habilitar permisos, mantener la sesión, organizar el trabajo, generar informes, sincronizar las hojas de cálculo, atender consultas y detectar usos indebidos. Los campos obligatorios del registro son necesarios para habilitar la cuenta: si no se completan, no es posible registrarse. No se deben cargar datos sensibles ni información de terceros sin autorización o fundamento legítimo."
+      ],
+      [
+        "h2",
+        "4. Almacenamiento en el navegador"
+      ],
+      [
+        "p",
+        "El sitio utiliza almacenamiento local para conservar la sesión y preferencias como el tema visual, y una caché de recursos para facilitar la carga. Estos mecanismos no constituyen por sí mismos publicidad personalizada. En dispositivos compartidos, cerrá la sesión al terminar. Podés eliminar los datos del sitio desde el navegador; esto puede cerrar tu sesión y restablecer preferencias."
+      ],
+      [
+        "h2",
+        "5. Servicios externos y destinatarios"
+      ],
+      [
+        "p",
+        "La plataforma se apoya en servicios de alojamiento, base de datos y Google Sheets para las funciones configuradas. Los usuarios autorizados de la organización pueden consultar información según sus permisos. La descarga de fuentes y bibliotecas externas puede transmitir datos técnicos al proveedor. Las búsquedas de direcciones pueden enviar el texto consultado a Nominatim/OpenStreetMap; la ubicación del dispositivo solo se obtiene cuando se utiliza esa función y el navegador lo permite. Los proveedores pueden operar fuera de Argentina y están sujetos a sus propias condiciones. Las comunicaciones exigidas por una autoridad competente se atenderán conforme a la normativa aplicable."
+      ],
+      [
+        "h2",
+        "6. Conservación y seguridad"
+      ],
+      [
+        "p",
+        "La información se conserva mientras sea necesaria para prestar el servicio y atender obligaciones legales o reclamos. La baja de una cuenta no implica necesariamente la eliminación inmediata de publicaciones, registros o copias de respaldo de la organización. Cada solicitud de supresión se evalúa según el tipo de dato y las obligaciones aplicables. Se aplican controles de acceso y medidas técnicas de protección, pero ningún sistema puede garantizar seguridad absoluta. No compartas contraseñas ni códigos de acceso."
+      ],
+      [
+        "h2",
+        "7. Tus derechos y contacto"
+      ],
+      [
+        "p",
+        "Podés solicitar acceso, rectificación, actualización o supresión de tus datos, y retirar un consentimiento cuando corresponda, escribiendo a atlasdeveloperar@gmail.com. Indicá el correo asociado a la cuenta y el alcance de la solicitud; no envíes tu contraseña. Podremos pedir información proporcional para verificar tu identidad. Si los datos pertenecen al espacio administrado por una organización, se coordinará con ella la atención de la solicitud. En Argentina, la Ley 25.326 reconoce derechos sobre los datos personales y la Agencia de Acceso a la Información Pública (AAIP) recibe denuncias y reclamos."
+      ],
+      [
+        "h2",
+        "8. Cambios de esta política"
+      ],
+      [
+        "p",
+        "Las actualizaciones se publicarán en esta página con su fecha de vigencia. Si un cambio requiere un nuevo consentimiento, se solicitará por el medio que corresponda. Para consultas sobre esta política o el tratamiento de datos, contactá a Atlas Software & Diseño en atlasdeveloperar@gmail.com."
+      ]
+    ]
+  },
+  {
+    "slug": "terminos-condiciones",
+    "title": "Términos y Condiciones",
+    "blocks": [
+      [
+        "h2",
+        "1. Prestador y alcance"
+      ],
+      [
+        "p",
+        "Estos términos regulan el uso de la plataforma desarrollada y mantenida por Atlas Software & Diseño. El sistema permite gestionar publicaciones, métricas, grupos, sucursales, informes y calendario, según los permisos habilitados. El acceso de una organización puede estar sujeto además a un acuerdo de servicio específico. La creación de una cuenta no implica por sí sola la contratación de un plan pago."
+      ],
+      [
+        "h2",
+        "2. Cuentas y acceso"
+      ],
+      [
+        "p",
+        "El registro requiere información veraz y un código de activación otorgado por una persona autorizada. Cada usuario debe resguardar su contraseña, utilizar únicamente las funciones habilitadas y comunicar a atlasdeveloperar@gmail.com cualquier sospecha de acceso indebido. Los permisos pueden ser modificados por la administración. No está permitido ceder una cuenta ni utilizar credenciales ajenas."
+      ],
+      [
+        "h2",
+        "3. Uso permitido"
+      ],
+      [
+        "p",
+        "La plataforma debe utilizarse para fines lícitos y dentro de las autorizaciones de la organización. No se permite introducir código malicioso, intentar acceder a datos ajenos, eludir controles, afectar la disponibilidad del servicio ni cargar contenido que vulnere derechos de terceros. El usuario debe contar con autorización para tratar los datos personales y materiales que incorpora."
+      ],
+      [
+        "h2",
+        "4. Contenido y propiedad intelectual"
+      ],
+      [
+        "p",
+        "Los datos y contenidos incorporados conservan los derechos que correspondan a sus titulares. Su incorporación autoriza únicamente el tratamiento necesario para prestar las funciones del servicio. Atlas Software & Diseño conserva los derechos sobre sus desarrollos, diseño y materiales propios, salvo acuerdo escrito diferente. Los componentes, marcas y servicios de terceros mantienen sus respectivas licencias y derechos."
+      ],
+      [
+        "h2",
+        "5. Métricas e integraciones"
+      ],
+      [
+        "p",
+        "Los resultados dependen de la exactitud de los datos cargados y de la disponibilidad de las integraciones. Las métricas e informes deben ser revisados antes de tomar decisiones comerciales. La plataforma no garantiza ventas, alcance ni resultados de campañas. El uso de Google Sheets, servicios de mapas y otros recursos externos también está sujeto a las condiciones de sus proveedores."
+      ],
+      [
+        "h2",
+        "6. Disponibilidad y mantenimiento"
+      ],
+      [
+        "p",
+        "Pueden existir interrupciones por mantenimiento, actualizaciones, fallas de conexión o servicios externos. Atlas procurará resolver los incidentes dentro del alcance del servicio acordado; estos términos no establecen disponibilidad continua ni un plazo de respuesta garantizado. Se recomienda conservar copias de la información relevante y verificar los datos antes de realizar cambios importantes."
+      ],
+      [
+        "h2",
+        "7. Suspensión y finalización"
+      ],
+      [
+        "p",
+        "El acceso puede restringirse ante uso indebido, riesgos de seguridad o instrucciones de la organización administradora. Las restricciones deben guardar relación con su causa. Para solicitar la baja de una cuenta o consultar sobre la entrega o eliminación de información, escribí a atlasdeveloperar@gmail.com. La conservación de registros y datos compartidos se rige por la Política de Privacidad y las obligaciones aplicables."
+      ],
+      [
+        "h2",
+        "8. Responsabilidad y derechos"
+      ],
+      [
+        "p",
+        "Cada persona es responsable de las operaciones que realiza dentro de sus autorizaciones y de la legalidad del contenido que aporta. La responsabilidad de Atlas Software & Diseño se determina conforme a la legislación y a los acuerdos aplicables. Ninguna disposición de estos términos excluye responsabilidades que no puedan limitarse por ley ni implica la renuncia a derechos irrenunciables del usuario."
+      ],
+      [
+        "h2",
+        "9. Privacidad, cambios y consultas"
+      ],
+      [
+        "p",
+        "El tratamiento de datos se describe en la Política de Privacidad. Las modificaciones de estos términos se publicarán con una nueva fecha; cuando corresponda se solicitará una aceptación adicional. Para consultas o reclamos, contactá a Atlas Software & Diseño en atlasdeveloperar@gmail.com. Las controversias se atenderán conforme a la normativa y ante las autoridades competentes, respetando las reglas imperativas de protección del usuario."
+      ]
+    ]
+  }
+]

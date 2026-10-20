@@ -38,13 +38,16 @@ app.use('/api', require('./services/validation').objectBody);
 const PUBLIC_FILES = new Set([
   'index.html', 'login.html', 'register.html', 'dashboard.html', 'grupos.html',
   'informes.html', 'sucursales.html', 'calendario.html', 'logs.html', 'ayuda.html',
-  'account-settings.html', 'politicas-privacidad.html', 'terminos-condiciones.html',
+  'account-settings.html',
   'app.js', 'theme.js', 'style.css', 'sw.js', 'manifest.json',
-  'output/pdf/politicas-privacidad-atlas.pdf'
+  'output/pdf/politicas-privacidad-atlas.pdf', 'output/pdf/terminos-condiciones-atlas.pdf'
 ]);
 const servePublic = express.static(__dirname, {
   index: false, dotfiles: 'deny', redirect: false,
   setHeaders(res, filePath) {
+    if (filePath.endsWith('.pdf')) {
+      res.setHeader('Content-Disposition', 'attachment; filename="' + require('path').basename(filePath) + '"');
+    }
     res.setHeader('Cache-Control', filePath.endsWith('sw.js') ? 'no-store' : 'public, max-age=0, must-revalidate');
   }
 });
