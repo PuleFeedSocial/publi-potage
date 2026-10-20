@@ -272,3 +272,16 @@ test('pages prevent framing and restrict unnecessary browser capabilities', asyn
   assert.match(res.headers.get('permissions-policy'), /geolocation=\(self\)/);
   assert.equal(res.headers.get('access-control-allow-origin'), null);
 });
+
+test('legal documents and privacy PDF are public, generation sources stay private', async () => {
+  for (const path of ['/politicas-privacidad.html', '/terminos-condiciones.html']) {
+    const res = await fetch(base + path);
+    assert.equal(res.status, 200);
+    assert.match(await res.text(), /atlasdeveloperar@gmail\.com/);
+  }
+  const pdf = await fetch(base + '/output/pdf/politicas-privacidad-atlas.pdf');
+  assert.equal(pdf.status, 200);
+  assert.match(pdf.headers.get('content-type'), /application\/pdf/);
+  assert.equal(Buffer.from(await pdf.arrayBuffer()).subarray(0, 5).toString(), '%PDF-');
+  assert.equal((await fetch(base + '/scripts/build-privacy-pdf.py')).status, 404);
+});

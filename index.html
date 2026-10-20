@@ -17,13 +17,25 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <script src="theme.js"></script>
     <link rel="stylesheet" href="style.css">
+<style>
+#view-landing .landing-nav { max-width:1320px; width:100%; margin:auto; gap:20px; }
+#view-landing .landing-nav-actions { align-items:center; flex-wrap:wrap; }
+#view-landing .theme-toggle-btn-floating { position:static; flex:0 0 40px; order:3; }
+#view-landing .landing-hero { gap:64px; }
+#view-landing .landing-hero-content h1 { font-size:clamp(2rem,4vw,3.4rem); }
+#view-landing .landing-description { max-width:560px; }
+@media(max-width:575px){
+ #view-landing .landing-nav{padding:20px;flex-wrap:wrap;}
+ #view-landing .landing-nav-actions{width:100%;justify-content:space-between;gap:8px;}
+ #view-landing .landing-hero{padding:32px 20px;gap:32px;}
+ #view-landing .landing-footer{padding:24px 20px;}
+}
+</style>
 </head>
 
 <body>
 
-    <button type="button" class="theme-toggle-btn-floating" onclick="toggleTheme()" title="Cambiar tema">
-        <i class="bi bi-moon-stars-fill theme-toggle-icon"></i>
-    </button>
+
 
     <div id="view-landing" class="auth-view">
         <div class="landing-container">
@@ -33,6 +45,9 @@
                     <span>Potage</span>
                 </div>
                 <div class="landing-nav-actions">
+    <button type="button" class="theme-toggle-btn-floating" onclick="toggleTheme()" title="Cambiar tema" aria-label="Cambiar entre modo claro y oscuro">
+        <i class="bi bi-moon-stars-fill theme-toggle-icon"></i>
+    </button>
                     <a href="login.html" class="btn btn-sm btn-light-muted">Iniciar Sesión</a>
                     <a href="register.html" class="btn btn-sm btn-action-primary">Registrarse</a>
                 </div>
@@ -40,9 +55,9 @@
             <main class="landing-hero">
                 <div class="landing-hero-content">
                     <span class="landing-badge">Plataforma de Marketing</span>
-                    <h1>Gestiona y analiza tus<br>campañas en redes sociales</h1>
+                    <h1>Tus campañas, más claras.<br>Tu trabajo, más simple.</h1>
                     <p class="landing-description">Monitoreá el rendimiento de tus publicaciones, visualizá métricas
-                        clave en tiempo real y optimizá tu estrategia digital desde un solo panel de control.</p>
+                        clave de tus campañas y optimizá tu estrategia digital desde un solo panel de control.</p>
                     <div class="landing-cta">
                         <a href="register.html" class="btn btn-action-primary btn-lg px-4">
                             <i class="bi bi-rocket-takeoff-fill me-2"></i>Comenzar ahora
