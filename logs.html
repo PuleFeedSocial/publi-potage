@@ -172,16 +172,24 @@
                             <option value="">Todos los usuarios</option>
                         </select>
                         <select id="logs-filter-tipo" class="form-select form-select-sm custom-input"
-                            style="width:auto;min-width:190px" title="Filtrar por tipo de tarea"
+                            style="width:auto;min-width:220px" title="Filtrar por tipo"
                             onchange="saveLogsFilters();renderLogs()">
                             <option value="">Todas las tareas</option>
                             <option value="Registro">Registro</option>
                             <option value="Visitas">Visitas</option>
                             <option value="Sesión">Inicio de sesión</option>
                             <option value="Creación">Creación</option>
-                            <option value="Edición / Cambios">Edición / Cambios</option>
+                            <option value="Edición Publicaciones">Edición Publicaciones</option>
+                            <option value="Edición Grupos">Edición Grupos</option>
+                            <option value="Edición Zonas">Edición Zonas</option>
+                            <option value="Edición Sucursales">Edición Sucursales</option>
+                            <option value="Edición Informes">Edición Informes</option>
+                            <option value="Edición Usuarios">Edición Usuarios</option>
+                            <option value="Edición Roles/Permisos">Edición Roles/Permisos</option>
+                            <option value="Edición Calendario">Edición Calendario</option>
                             <option value="Eliminación">Eliminación</option>
                             <option value="Importación">Importación</option>
+                            <option value="Sincronización">Sincronización</option>
                             <option value="Permisos">Permisos</option>
                             <option value="Otras">Otras</option>
                         </select>
@@ -190,7 +198,7 @@
                         <input type="date" id="logs-hasta" class="form-control form-control-sm custom-input"
                             style="width:auto;min-width:150px" title="Hasta" onchange="saveLogsFilters();renderLogs()">
                         <input type="text" id="logs-buscar" class="form-control form-control-sm custom-input"
-                            placeholder="Buscar email o detalle..." style="width:auto;min-width:180px" oninput="renderLogs()">
+                            placeholder="Buscar email o detalle..." style="width:auto;min-width:200px" oninput="renderLogs()">
                         <button class="btn btn-sm btn-outline-secondary" onclick="clearLogsFilters()" title="Quitar todos los filtros">
                             <i class="bi bi-x-circle"></i> Limpiar
                         </button>
@@ -246,9 +254,20 @@
             if (a.includes('visita')) return 'Visitas';
             if (a.includes('sesi') || a.includes('inicio')) return 'Sesión';
             if (a.includes('creaci')) return 'Creación';
-            if (a.includes('edici') || a.includes('cambio') || a.includes('sincroniz')) return 'Edición / Cambios';
+            if (a.includes('edici') || a.includes('cambio') || a.includes('sincroniz')) {
+                if (a.includes('publicaci')) return 'Edición Publicaciones';
+                if (a.includes('grupo')) return 'Edición Grupos';
+                if (a.includes('zona')) return 'Edición Zonas';
+                if (a.includes('sucursal')) return 'Edición Sucursales';
+                if (a.includes('informe')) return 'Edición Informes';
+                if (a.includes('usuario') || a.includes('miembro')) return 'Edición Usuarios';
+                if (a.includes('rol') || a.includes('permiso')) return 'Edición Roles/Permisos';
+                if (a.includes('calendario') || a.includes('serie')) return 'Edición Calendario';
+                return 'Edición / Cambios';
+            }
             if (a.includes('elimin')) return 'Eliminación';
-            if (a.includes('import') || a.includes('csv')) return 'Importación';
+            if (a.includes('import')) return 'Importación';
+            if (a.includes('sincroniz')) return 'Sincronización';
             if (a.includes('permisos')) return 'Permisos';
             return 'Otras';
         }
@@ -307,7 +326,7 @@
                         if (!silent) tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">' + (body.error || 'Error') + '</td></tr>';
                         return;
                     }
-                    const logs = body || [];
+                    const logs = Array.isArray(body) ? body : (body.data || body.logs || []);
                     const snap = JSON.stringify(logs);
                     if (silent && snap === _lastLogsSnapshot) return;
                     _lastLogsSnapshot = snap;
