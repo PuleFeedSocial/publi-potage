@@ -132,9 +132,20 @@ const SELECT_EVENTO = `
 const ORDER = ' ORDER BY c.fecha ASC, c.hora ASC, c.serie_pos ASC, c.id ASC';
 
 // Los metadatos de autoría de realización se envían solo a administradores.
+// El responsable solo es visible para el propio responsable o para administradores.
 function stripAudit(ev, isAdmin) {
   if (isAdmin) return ev;
   const { realizado_por, realizado_en, realizado_por_nombre, ...rest } = ev;
+  return rest;
+}
+
+function filterForViewer(ev, isAdmin, viewerId) {
+  let out = stripAudit(ev, isAdmin);
+  if (isAdmin) return out;
+  if (out.responsable_id && String(out.responsable_id) === String(viewerId)) {
+    return out;
+  }
+  const { responsable_id, responsable_nombre, ...rest } = out;
   return rest;
 }
 
@@ -154,7 +165,7 @@ router.get('/', authenticate, async (req, res) => {
     }
     const rows = await db.all(SELECT_EVENTO + where + ORDER, params);
     const isAdmin = normRole(req.user) === 'admin';
-    res.json({ data: rows.map(r => stripAudit(r, isAdmin)) });
+    res.json({ data: rows.map(r => filterForViewer(r, isAdmin, req.user.id)) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -291,7 +302,7 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
         `serie #${existing.serie_id}: ${req.body.titulo !== undefined ? String(req.body.titulo).trim() : existing.titulo}`, req.ip);
       const rows = await db.all(SELECT_EVENTO + ' WHERE c.serie_id = ?' + ORDER, [existing.serie_id]);
       const isAdmin = normRole(req.user) === 'admin';
-      return res.json({ message: 'Serie actualizada correctamente.', data: rows.map(r => stripAudit(r, isAdmin)) });
+      return res.json({ message: 'Serie actualizada correctamente.', data: rows.map(r => filterForViewer(r, isAdmin, req.user.id)) });
     }
 
     if (req.body.titulo !== undefined) col('titulo', String(req.body.titulo).trim());
@@ -335,7 +346,7 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
       `#${id}: ${nuevoTitulo} (${merged.fecha})`, req.ip);
 
     const item = await getEvento(db, id);
-    res.json({ message: 'Elemento actualizado correctamente.', item: stripAudit(item, normRole(req.user) === 'admin') });
+    res.json({ message: 'Elemento actualizado correctamente.', item: filterForViewer(item, normRole(req.user) === 'admin', req.user.id) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -372,7 +383,7 @@ router.patch('/:id/estado', authenticate, requirePermission('complete_calendario
     const item = await getEvento(db, id);
     res.json({
       message: nuevoEstado === 'realizada' ? 'Marcado como realizado.' : 'Marcado como pendiente.',
-      item: stripAudit(item, normRole(req.user) === 'admin')
+      item: filterForViewer(item, normRole(req.user) === 'admin', req.user.id)
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
