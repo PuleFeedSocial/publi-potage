@@ -17,53 +17,6 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <script src="theme.js"></script>
     <link rel="stylesheet" href="style.css">
-    <style>
-        .suc-address-wrap {
-            position: relative;
-        }
-        .suc-address-list {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            right: 0;
-            z-index: 1080;
-            display: none;
-            max-height: 210px;
-            overflow-y: auto;
-            background: var(--bs-body-bg, #fff);
-            border: 1px solid var(--bs-border-color, rgba(0, 0, 0, .12));
-            color: var(--bs-body-color, #212529);
-            border-radius: 8px;
-            box-shadow: 0 6px 16px rgba(0, 0, 0, .12);
-            margin-top: 4px;
-        }
-        .suc-address-item {
-            padding: 8px 12px;
-            font-size: .85rem;
-            cursor: pointer;
-            border-bottom: 1px solid rgba(0, 0, 0, .05);
-        }
-        .suc-address-item:last-child {
-            border-bottom: 0;
-        }
-        .suc-address-item:hover {
-            background: rgba(13, 110, 253, .08);
-        }
-        .suc-address-item.disabled {
-            cursor: default;
-            color: var(--text-muted, #6c757d);
-        }
-        html[data-theme="dark"] .suc-address-list {
-            background: #1f2430;
-            border-color: rgba(255, 255, 255, .1);
-        }
-        html[data-theme="dark"] .suc-address-item {
-            border-bottom-color: rgba(255, 255, 255, .06);
-        }
-        html[data-theme="dark"] .suc-address-item:hover {
-            background: rgba(255, 255, 255, .06);
-        }
-    </style>
 </head>
 
 <body>
@@ -190,10 +143,6 @@
                         </span>
                     </div>
 <div class="d-flex gap-2 align-items-center">
-                        <span id="geocode-status" class="text-muted small d-none"></span>
-                        <button class="btn btn-sm btn-outline-primary d-none" id="btn-geocode" onclick="geocodePendientes()" title="Geocodificar direcciones pendientes">
-                            <i class="bi bi-geo-alt-fill me-1"></i> Geocodificar
-                        </button>
                         <button class="btn btn-sm btn-outline-secondary" onclick="loadSucursales()" title="Recargar">
                             <i class="bi bi-arrow-clockwise"></i> Recargar
                         </button>
@@ -207,14 +156,9 @@
 <div class="card-header-clean d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <div>
                             <h5 class="table-card-title">Listado de Sucursales</h5>
-                            <span class="text-muted small">Datos desde la hoja "Sucursales" · <span id="sucursales-count">0</span> sucursales<span id="sucursales-radius-msg" class="d-none"></span></span>
+                            <span class="text-muted small">Datos desde la hoja "Sucursales" · <span id="sucursales-count">0</span> sucursales</span>
                         </div>
                         <div class="d-flex align-items-center gap-2 flex-wrap sucursales-filter-bar">
-                            <div class="suc-address-wrap" style="min-width:230px">
-                                <input type="text" id="sucursales-search-address" class="form-control form-control-sm custom-input"
-                                    placeholder="Buscar sucursal por direccion" autocomplete="off">
-                                <div class="suc-address-list" id="sucursales-list-address-sug"></div>
-                            </div>
                             <input type="text" id="sucursales-search" class="form-control form-control-sm custom-input"
                                 placeholder="Buscar sucursal" style="width:auto;min-width:150px" oninput="renderSucursales()">
                             <select id="sucursales-filter-empresa" class="form-select form-select-sm custom-input"
@@ -237,8 +181,7 @@
                                     <th>Contacto</th>
                                     <th>Horario</th>
                                     <th class="text-center">Zona</th>
-<th class="text-center">Activo</th>
-                                    <th class="text-center d-none" id="th-distancia">Distancia</th>
+                                    <th class="text-center">Activo</th>
                                     <th class="text-center">Acciones</th>
                                 </tr>
                             </thead>
@@ -275,16 +218,10 @@
                             <input type="text" id="sucursal-ubicacion" class="form-control custom-input"
                                 placeholder="Ej. San Miguel, Centro" required>
                         </div>
-<div class="mb-3">
+                        <div class="mb-3">
                             <label class="form-label small fw-medium text-secondary">Dirección</label>
-                            <div class="suc-address-wrap">
-                                <input type="text" id="sucursal-direccion" class="form-control custom-input"
-                                    placeholder="Ej. Av. Mitre 1234" autocomplete="off">
-                                <input type="hidden" id="sucursal-lat">
-                                <input type="hidden" id="sucursal-lng">
-                                <div class="suc-address-list" id="sucursal-address-list"></div>
-                            </div>
-                            <div class="form-text">Escribí la dirección y elegí la opción correcta de la lista para guardarla con sus coordenadas.</div>
+                            <input type="text" id="sucursal-direccion" class="form-control custom-input"
+                                placeholder="Ej. Av. Mitre 1234">
                         </div>
                         <div class="mb-3">
                             <label class="form-label small fw-medium text-secondary">Contacto</label>
@@ -327,7 +264,6 @@
 let sucursalesData = [];
         let sucursalesZonasData = [];
         const ZONA_OTRO = '__OTRO__';
-        let selectedAddress = null;
 
         function fillEmpresaSelects() {
             const formSel = document.getElementById('sucursal-empresa');
@@ -383,7 +319,7 @@ function fillZonaSelects() {
 let _lastSucursalesSnapshot = '';
         function loadSucursales(silent) {
             const tbody = document.getElementById('sucursales-table-body');
-            const cols = (selectedAddress ? 9 : 8);
+            const cols = 8;
             if (!silent) tbody.innerHTML = '<tr><td colspan="' + cols + '" class="text-center text-muted">Cargando...</td></tr>';
             Promise.all([
                 authFetch(API_BASE + '/api/sucursales'),
@@ -409,33 +345,18 @@ let _lastSucursalesSnapshot = '';
                     fillZonaSelects();
                     renderSucursales();
                     document.getElementById('sucursales-count').innerText = sucursalesData.length;
-                    updateGeocodeButtonVisibility();
+    
                 })
                 .catch(() => {
                     if (!silent) tbody.innerHTML = '<tr><td colspan="' + cols + '" class="text-center text-muted">Error de conexión</td></tr>';
                 });
         }
 
-function distanceKm(lat1, lng1, lat2, lng2) {
-            const R = 6371;
-            const dLat = (lat2 - lat1) * Math.PI / 180;
-            const dLng = (lng2 - lng1) * Math.PI / 180;
-            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                Math.sin(dLng / 2) * Math.sin(dLng / 2);
-            return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        }
-
         function renderSucursales() {
             const tbody = document.getElementById('sucursales-table-body');
-            const thDist = document.getElementById('th-distancia');
-            const msgEl = document.getElementById('sucursales-radius-msg');
             const empresaFilter = document.getElementById('sucursales-filter-empresa').value;
             const zonaFilter = document.getElementById('sucursales-filter-zona').value;
             const search = (document.getElementById('sucursales-search').value || '').toLowerCase().trim();
-            const showDist = !!selectedAddress;
-            if (thDist) thDist.classList.toggle('d-none', !showDist);
-            if (msgEl) msgEl.className = 'd-none';
 
             let filtered = sucursalesData;
             if (empresaFilter) filtered = filtered.filter(s => s.empresa === empresaFilter);
@@ -455,26 +376,6 @@ function distanceKm(lat1, lng1, lat2, lng2) {
                 );
             }
 
-            let sinCoords = 0;
-            if (selectedAddress) {
-                const conDist = [];
-                filtered.forEach(s => {
-                    if (s.lat && s.lng) {
-                        const d = distanceKm(selectedAddress.lat, selectedAddress.lng, parseFloat(s.lat), parseFloat(s.lng));
-                        conDist.push(Object.assign({}, s, { distKm: d }));
-                    } else {
-                        sinCoords++;
-                    }
-                });
-                conDist.sort((a, b) => a.distKm - b.distKm);
-                filtered = conDist;
-                if (msgEl) {
-                    msgEl.className = 'text-muted small ms-2';
-                    msgEl.innerHTML = ' · <i class="bi bi-geo-alt-fill"></i> Ordenadas por distancia desde «' + escHtml(selectedAddress.label) + '»' +
-                        (sinCoords > 0 ? ' · <span class="text-warning">' + sinCoords + ' sucursal(es) sin coordenadas no pudieron ubicarse</span>' : '');
-                }
-            }
-
             tbody.innerHTML = '';
             filtered.forEach((s, i) => {
                 const tr = document.createElement('tr');
@@ -486,9 +387,6 @@ function distanceKm(lat1, lng1, lat2, lng2) {
                 const activoBadge = s.activo !== false
                     ? '<span class="badge-estatus est-publicada">Activo</span>'
                     : '<span class="badge-estatus est-eliminada">Inactivo</span>';
-                const distCell = showDist
-                    ? '<td class="text-center small fw-semibold text-primary">' + (s.distKm !== undefined ? s.distKm.toFixed(2) + ' km' : '—') + '</td>'
-                    : '';
                 tr.innerHTML = `
                     <td class="small fw-medium">${escHtml(s.empresa || '—')}</td>
                     <td class="fw-semibold">${escHtml(s.ubicacion || '—')}</td>
@@ -497,7 +395,6 @@ function distanceKm(lat1, lng1, lat2, lng2) {
                     <td class="small text-muted">${escHtml(s.horario || '—')}</td>
                     <td class="text-center">${zonaDisplay}</td>
                     <td class="text-center">${activoBadge}</td>
-                    ${distCell}
                     <td class="text-center">
                         <button class="btn btn-link text-primary p-0 mx-1" onclick="editSucursal(${s.rowIndex})" title="Editar"><i class="bi bi-pencil-fill"></i></button>
                         <button class="btn btn-link text-danger p-0 mx-1" onclick="deleteSucursal(${s.rowIndex}, decodeURIComponent('${encArg(s.ubicacion)}'))" title="Eliminar"><i class="bi bi-trash3-fill"></i></button>
@@ -506,7 +403,7 @@ function distanceKm(lat1, lng1, lat2, lng2) {
                 tbody.appendChild(tr);
             });
             if (!filtered.length) {
-                tbody.innerHTML = '<tr><td colspan="' + (showDist ? 9 : 8) + '" class="text-center text-muted">Sin resultados</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Sin resultados</td></tr>';
             }
         }
 
@@ -516,9 +413,6 @@ function distanceKm(lat1, lng1, lat2, lng2) {
             document.getElementById('sucursal-empresa').value = '';
             document.getElementById('sucursal-ubicacion').value = '';
             document.getElementById('sucursal-direccion').value = '';
-            document.getElementById('sucursal-lat').value = '';
-            document.getElementById('sucursal-lng').value = '';
-            hideAddressList();
             document.getElementById('sucursal-contacto').value = '';
             document.getElementById('sucursal-horario').value = '';
             document.getElementById('sucursal-zona').value = '';
@@ -528,304 +422,6 @@ function distanceKm(lat1, lng1, lat2, lng2) {
             new bootstrap.Modal(document.getElementById('sucursalModal')).show();
         }
 
-function hideAddressList() {
-            document.getElementById('sucursal-address-list').style.display = 'none';
-        }
-
-        async function geoSearch(q, limit, outerSignal) {
-            const qs = encodeURIComponent(q);
-            const directUrl = 'https://nominatim.openstreetmap.org/search?format=json&limit=' + limit + '&addressdetails=1&accept-language=es&countrycodes=ar&q=' + qs;
-            const proxyUrl = API_BASE + '/api/sucursales/geocode?limit=' + limit + '&q=' + qs;
-
-            async function getJson(url, headers) {
-                const ctrl = new AbortController();
-                const onOuter = () => ctrl.abort();
-                const t = setTimeout(() => ctrl.abort(), 9000);
-                if (outerSignal) {
-                    if (outerSignal.aborted) throw new DOMException('abortado', 'AbortError');
-                    outerSignal.addEventListener('abort', onOuter, { once: true });
-                }
-                try {
-                    const resp = await fetch(url, { headers, signal: ctrl.signal });
-                    if (!resp.ok) return null;
-                    return await resp.json();
-                } finally {
-                    clearTimeout(t);
-                    if (outerSignal) outerSignal.removeEventListener('abort', onOuter);
-                }
-            }
-
-            let data = null;
-            try { data = await getJson(directUrl); } catch { data = null; }
-            if (data && data.length) return data;
-            const prox = await getJson(proxyUrl, { 'Authorization': 'Bearer ' + getToken() });
-            if (prox && prox.data && prox.data.length) return prox.data;
-            return [];
-        }
-
-        function sugLabel(r) {
-            const a = r.address || {};
-            const num = a.house_number || '';
-            const road = a.road || a.pedestrian || a.footway || a.square || '';
-            const loc = a.city || a.town || a.municipality || a.village || a.county || a.state || '';
-            const partes = [];
-            if (road) partes.push(road + (num ? ' ' + num : ''));
-            else if (num) partes.push('N° ' + num);
-            if (loc) partes.push(loc);
-            if (partes.length) return partes.join(', ');
-            return r.display_name;
-        }
-
-        function dedupeResults(results) {
-            const seen = new Set();
-            const out = [];
-            results.forEach(r => {
-                const key = (r.lat + ',' + r.lon) || r.display_name;
-                if (!seen.has(key)) {
-                    seen.add(key);
-                    out.push(r);
-                }
-            });
-            return out;
-        }
-
-        function bestAddressMatch(q, results) {
-            if (!results || !results.length) return null;
-            const num = (String(q).match(/\d+/g) || [])[0];
-            if (num) {
-                const exact = results.find(r => r.address && String(r.address.house_number) === num);
-                if (exact) return exact;
-                const conNum = results.find(r => r.address && r.address.house_number);
-                if (conNum) return conNum;
-            }
-            return results[0];
-        }
-
-        async function searchAddresses(q) {
-            const list = document.getElementById('sucursal-address-list');
-            if (addressSearchController) addressSearchController.abort();
-            const controller = new AbortController();
-            addressSearchController = controller;
-            list.innerHTML = '<div class="suc-address-item disabled">Buscando...</div>';
-            list.style.display = 'block';
-            let results;
-            try {
-                results = await geoSearch(q, 15, controller.signal);
-            } catch (err) {
-                if (controller.signal.aborted) return;
-                list.innerHTML = '<div class="suc-address-item disabled">Error al buscar la dirección</div>';
-                return;
-            }
-            if (controller.signal.aborted) return;
-            results = dedupeResults(results);
-            if (!results.length) {
-                list.innerHTML = '<div class="suc-address-item disabled">Sin resultados para esa dirección</div>';
-                return;
-            }
-            list.innerHTML = '';
-            results.forEach(r => {
-                const div = document.createElement('div');
-                div.className = 'suc-address-item';
-                div.onclick = () => {
-                    document.getElementById('sucursal-direccion').value = r.display_name;
-                    document.getElementById('sucursal-lat').value = r.lat;
-                    document.getElementById('sucursal-lng').value = r.lon;
-                    hideAddressList();
-                };
-                const label = document.createElement('div');
-                label.className = 'fw-medium';
-                label.textContent = sugLabel(r);
-                const sub = document.createElement('div');
-                sub.className = 'small text-muted';
-                sub.textContent = r.display_name;
-                if (label.textContent === sub.textContent) {
-                    label.textContent = r.display_name;
-                }
-                div.appendChild(label);
-                if (label.textContent !== sub.textContent) div.appendChild(sub);
-                list.appendChild(div);
-            });
-        }
-
-        let addressSearchTimer = null;
-        let addressSearchController = null;
-
-        function hideTopAddressList() {
-            document.getElementById('sucursales-list-address-sug').style.display = 'none';
-        }
-
-        function setAddressSearch(address) {
-            selectedAddress = address;
-            renderSucursales();
-        }
-
-        function clearAddressSearch() {
-            selectedAddress = null;
-            const input = document.getElementById('sucursales-search-address');
-            if (input) input.value = '';
-            hideTopAddressList();
-            renderSucursales();
-        }
-
-        function updateGeocodeButtonVisibility() {
-            const pending = sucursalesData.filter(s => !s.lat && !s.lng && s.direccion).length;
-            const btn = document.getElementById('btn-geocode');
-            if (btn) btn.classList.toggle('d-none', pending === 0);
-        }
-
-        async function geocodePendientes() {
-            const pending = sucursalesData.filter(s => !s.lat && !s.lng && s.direccion);
-            if (!pending.length) return;
-            if (!confirm('Se van a geocodificar ' + pending.length + ' sucursales sin coordenadas.\nEsto tardará ~' + pending.length + ' segundos.\n\n¿Continuar?')) return;
-            const btn = document.getElementById('btn-geocode');
-            const status = document.getElementById('geocode-status');
-            btn.disabled = true;
-            status.className = 'text-muted small';
-            let ok = 0, fail = 0;
-            const failedList = [];
-            for (let i = 0; i < pending.length; i++) {
-                const s = pending[i];
-                status.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Geocodificando ' + (i + 1) + '/' + pending.length + '…';
-                const addrQuery = [s.direccion, s.ubicacion].filter(x => x && x.trim()).join(', ');
-                let results = null;
-                for (let att = 0; att < 2; att++) {
-                    try { results = await geoSearch(addrQuery, 10); } catch { results = null; }
-                    if (results && results.length) break;
-                    if (att === 0 && i !== pending.length - 1) await new Promise(r => setTimeout(r, 3000));
-                }
-                results = dedupeResults(results || []);
-                const best = bestAddressMatch(addrQuery, results);
-                if (best) {
-                    try {
-                        await authFetch(API_BASE + '/api/sucursales/' + s.rowIndex, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                empresa: s.empresa, ubicacion: s.ubicacion, direccion: s.direccion,
-                                contacto: s.contacto, horario: s.horario, zona: s.zona, activo: s.activo,
-                                lat: best.lat, lng: best.lon
-                            })
-                        });
-                        ok++;
-                    } catch {
-                        fail++;
-                        failedList.push(s.ubicacion + ' — ' + s.direccion);
-                    }
-                } else {
-                    fail++;
-                    failedList.push(s.ubicacion + ' — ' + s.direccion);
-                }
-                if (i < pending.length - 1) await new Promise(r => setTimeout(r, 1400));
-            }
-            btn.disabled = false;
-            status.className = 'text-muted small';
-            let msg = '<i class="bi bi-check-circle-fill text-success me-1"></i> Geocodificación lista. ' + ok + ' ok';
-            if (fail) {
-                msg += ', <span class="text-danger">' + fail + ' no encontradas</span>';
-                msg += '. Sin ubicar: ' + failedList.slice(0, 3).map(f => f.replace(/</g, '&lt;')).join(' | ');
-                if (failedList.length > 3) msg += ' (+' + (failedList.length - 3) + ' más)';
-            } else {
-                msg += '.';
-            }
-            status.innerHTML = msg;
-            setTimeout(() => { status.className = 'd-none'; }, 20000);
-            loadSucursales();
-        }
-
-        function selectTopAddress(r) {
-            const input = document.getElementById('sucursales-search-address');
-            input.value = r.display_name;
-            hideTopAddressList();
-            setAddressSearch({ lat: parseFloat(r.lat), lng: parseFloat(r.lon), label: r.display_name });
-        }
-
-        async function searchTopAddresses(q) {
-            const list = document.getElementById('sucursales-list-address-sug');
-            if (topSearchController) topSearchController.abort();
-            const controller = new AbortController();
-            topSearchController = controller;
-            list.innerHTML = '<div class="suc-address-item disabled">Buscando...</div>';
-            list.style.display = 'block';
-            let results;
-            try {
-                results = await geoSearch(q, 15, controller.signal);
-            } catch (err) {
-                if (controller.signal.aborted) return;
-                list.innerHTML = '<div class="suc-address-item disabled">Error al buscar la dirección</div>';
-                return;
-            }
-            if (controller.signal.aborted) return;
-            results = dedupeResults(results);
-            if (!results.length) {
-                list.innerHTML = '<div class="suc-address-item disabled">Sin resultados para esa dirección</div>';
-                return;
-            }
-            list.innerHTML = '';
-            results.forEach(r => {
-                const div = document.createElement('div');
-                div.className = 'suc-address-item';
-                div.onclick = () => selectTopAddress(r);
-                const label = document.createElement('div');
-                label.className = 'fw-medium';
-                label.textContent = sugLabel(r);
-                const sub = document.createElement('div');
-                sub.className = 'small text-muted';
-                sub.textContent = r.display_name;
-                div.appendChild(label);
-                if (label.textContent !== sub.textContent) div.appendChild(sub);
-                list.appendChild(div);
-            });
-        }
-
-        let topSearchTimer = null;
-        let topSearchController = null;
-
-        function initTopAddressSearch() {
-            const input = document.getElementById('sucursales-search-address');
-            if (!input) return;
-            input.addEventListener('input', () => {
-                clearTimeout(topSearchTimer);
-                selectedAddress = null;
-                renderSucursales();
-                const q = input.value.trim();
-                if (q.length < 3) { hideTopAddressList(); return; }
-                topSearchTimer = setTimeout(() => searchTopAddresses(q), 700);
-            });
-            input.addEventListener('keydown', e => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    hideTopAddressList();
-                    return;
-                }
-                if (e.key === 'Escape') { hideTopAddressList(); input.value = ''; selectedAddress = null; renderSucursales(); }
-            });
-            input.addEventListener('focus', () => {
-                if (input.value.trim().length >= 3) searchTopAddresses(input.value.trim());
-            });
-        }
-
-        function initAddressAutocomplete() {
-            const input = document.getElementById('sucursal-direccion');
-            input.addEventListener('input', () => {
-                clearTimeout(addressSearchTimer);
-                document.getElementById('sucursal-lat').value = '';
-                document.getElementById('sucursal-lng').value = '';
-                const q = input.value.trim();
-                if (q.length < 3) { hideAddressList(); return; }
-                addressSearchTimer = setTimeout(() => searchAddresses(q), 600);
-            });
-            input.addEventListener('keydown', e => {
-                if (e.key === 'Escape') hideAddressList();
-            });
-            document.addEventListener('click', e => {
-                const wrap = e.target && e.target.closest ? e.target.closest('.suc-address-wrap') : null;
-                if (!wrap) {
-                    hideAddressList();
-                    hideTopAddressList();
-                }
-            });
-        }
-
         function saveSucursal(e) {
             e.preventDefault();
             const btn = document.getElementById('sucursal-save-btn');
@@ -833,8 +429,6 @@ function hideAddressList() {
             const empresa = document.getElementById('sucursal-empresa').value;
             const ubicacion = document.getElementById('sucursal-ubicacion').value.trim();
             const direccion = document.getElementById('sucursal-direccion').value.trim();
-            const lat = document.getElementById('sucursal-lat').value;
-            const lng = document.getElementById('sucursal-lng').value;
             const contacto = document.getElementById('sucursal-contacto').value.trim();
             const horario = document.getElementById('sucursal-horario').value.trim();
             const zona = document.getElementById('sucursal-zona').value;
@@ -845,6 +439,9 @@ function hideAddressList() {
             const rowIndex = document.getElementById('sucursal-row-index').value;
             const method = rowIndex ? 'PUT' : 'POST';
             const url = rowIndex ? '/api/sucursales/' + rowIndex : '/api/sucursales';
+            const existing = rowIndex ? sucursalesData.find(x => String(x.rowIndex) === String(rowIndex)) : null;
+            const lat = existing ? (existing.lat || '') : '';
+            const lng = existing ? (existing.lng || '') : '';
 
             const originalHtml = btn.innerHTML;
             btn.disabled = true;
@@ -880,9 +477,6 @@ function hideAddressList() {
             document.getElementById('sucursal-empresa').value = s.empresa || '';
             document.getElementById('sucursal-ubicacion').value = s.ubicacion || '';
             document.getElementById('sucursal-direccion').value = s.direccion || '';
-            document.getElementById('sucursal-lat').value = s.lat || '';
-            document.getElementById('sucursal-lng').value = s.lng || '';
-            hideAddressList();
             document.getElementById('sucursal-contacto').value = s.contacto || '';
             document.getElementById('sucursal-horario').value = s.horario || '';
             fillZonaSelects();
@@ -921,9 +515,7 @@ function hideAddressList() {
             const gestionLabel = document.getElementById('gestion-label');
             const gestionItems = document.getElementById('gestion-items');
             if (gestionLabel) gestionLabel.style.display = isAdmin ? '' : 'none';
-if (gestionItems) gestionItems.style.display = isAdmin ? '' : 'none';
-            initAddressAutocomplete();
-            initTopAddressSearch();
+            if (gestionItems) gestionItems.style.display = isAdmin ? '' : 'none';
             loadSucursales();
             setInterval(() => loadSucursales(true), 60000);
         });
