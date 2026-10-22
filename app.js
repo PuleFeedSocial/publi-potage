@@ -1196,6 +1196,7 @@ function loadZonas(silent) {
         });
         sel.value = current;
       }
+      if (document.getElementById('zonas-table-body')) renderZonasDashboard();
     }
   });
 }
@@ -1812,6 +1813,8 @@ function renderZonaChart(zona, metric) {
 }
 
 function renderZonasDashboard() {
+  const requestId = (renderZonasDashboard.requestId || 0) + 1;
+  renderZonasDashboard.requestId = requestId;
   // Destruir charts anteriores
   ['chartZonasPubs', 'chartZonasInts'].forEach(id => {
     if (chartsInstances[id]) { try { chartsInstances[id].destroy(); } catch {} delete chartsInstances[id]; }
@@ -1820,11 +1823,8 @@ function renderZonasDashboard() {
   const zonaFilter = document.getElementById('filter-zona-zonas')?.value || '';
   const periodoZonas = filterPeriodZonas;
   const periodLimit = (() => {
-    // El cap de tiempo aplica solo a la vista general "Todas"; al elegir
-    // una zona específica se muestran todas sus publicaciones.
-    if (zonaFilter) return null;
-    const DEFAULT_PERIOD_DAYS = 60;
-    const days = (!periodoZonas || periodoZonas === 'all') ? DEFAULT_PERIOD_DAYS : parseInt(periodoZonas);
+    if (!periodoZonas || periodoZonas === 'all') return null;
+    const days = parseInt(periodoZonas, 10);
     const now = new Date();
     const limit = new Date(now);
     limit.setDate(limit.getDate() - days);
@@ -1834,21 +1834,57 @@ function renderZonasDashboard() {
 
   // Cargar grupos fresco para el conteo
   authFetch(API_BASE + '/api/grupos')
-    .then(r => r.json())
+    .then(r => { if (!r.ok) throw new Error('No se pudieron cargar los grupos'); return r.json(); })
     .then(body => {
+      if (requestId !== renderZonasDashboard.requestId) return;
       const freshGrupos = body.data || [];
       gruposData = freshGrupos;
       renderZonasDashboardInner(freshGrupos, zonaFilter, periodLimit);
     })
     .catch(() => {
+      if (requestId !== renderZonasDashboard.requestId) return;
       renderZonasDashboardInner(gruposData, zonaFilter, periodLimit);
     });
 }
 
+// The configured catalog is the base; Sheets can also contain legacy zones.
+function zonaSummaryKey(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function buildZonaSummary(configured, rows, groups, filter) {
+  const zones = new Map();
+  const selected = zonaSummaryKey(filter);
+  function ensure(name, active) {
+    const label = String(name || '').trim() || 'Sin zona';
+    const key = zonaSummaryKey(label);
+    if (selected && key !== selected) return null;
+    if (!zones.has(key)) zones.set(key, { zona: label, activo: active !== false,
+      publicaciones: 0, visualizaciones: 0, interacciones: 0, comentarios: 0, mensajes: 0, grupos: new Set() });
+    return zones.get(key);
+  }
+  configured.forEach(z => { if (z.nombre) ensure(z.nombre, z.activo); });
+  rows.forEach(row => {
+    const zone = ensure(row.zona);
+    if (!zone) return;
+    ['publicaciones', 'visualizaciones', 'interacciones', 'comentarios', 'mensajes'].forEach(metric => {
+      const value = Number(row[metric]);
+      if (Number.isFinite(value)) zone[metric] += value;
+    });
+  });
+  groups.forEach(group => {
+    const zone = ensure(group.zona);
+    if (zone && group.nombre) zone.grupos.add(zonaSummaryKey(group.nombre));
+  });
+  const sortedZones = [...zones.values()].sort((a, b) => b.publicaciones - a.publicaciones || a.zona.localeCompare(b.zona, 'es'));
+  const totalGruposUnicos = new Set(sortedZones.flatMap(z => [...z.grupos])).size;
+  return { sortedZones, totalGruposUnicos };
+}
+
 function renderZonasDashboardInner(grupos, zonaFilter, periodLimit) {
-  let data = marketingData.filter(r => r.grupo !== 'Perfil Estandar' && isEstatusActivo(r.estatus) && zonaActiva(r.zona));
-  const zonaNorm = normFilterVal(zonaFilter);
-  if (zonaNorm) data = data.filter(r => normFilterVal(r.zona) === zonaNorm);
+  let data = marketingData.filter(r => r.grupo !== 'Perfil Estandar' && isEstatusActivo(r.estatus));
+  const zonaNorm = zonaSummaryKey(zonaFilter);
+  if (zonaNorm) data = data.filter(r => zonaSummaryKey(r.zona) === zonaNorm);
   if (periodLimit) {
     const actualizados = historialSetPeriodo(periodLimit);
     data = data.filter(r => {
@@ -1858,40 +1894,19 @@ function renderZonasDashboardInner(grupos, zonaFilter, periodLimit) {
     });
   }
 
-  // Agrupar por zona desde marketingData
-  const zones = {};
-  data.forEach(r => {
-    const z = r.zona || 'Sin zona';
-    if (!zones[z]) zones[z] = { zona: z, publicaciones: 0, visualizaciones: 0, interacciones: 0, comentarios: 0, mensajes: 0, grupos: new Set() };
-    zones[z].publicaciones += r.publicaciones || 0;
-    zones[z].visualizaciones += r.visualizaciones || 0;
-    zones[z].interacciones += r.interacciones || 0;
-    zones[z].comentarios += r.comentarios || 0;
-    zones[z].mensajes += r.mensajes || 0;
-  });
-
-  // Agregar grupos desde la lista fresca (fuente canónica), solo de zonas activas
-  grupos.forEach(g => {
-    if (!g.zona || !zonaActiva(g.zona)) return;
-    const z = g.zona;
-    if (!zones[z]) zones[z] = { zona: z, publicaciones: 0, visualizaciones: 0, interacciones: 0, comentarios: 0, mensajes: 0, grupos: new Set() };
-    zones[z].grupos.add(g.nombre);
-  });
-
-  const sortedZones = Object.values(zones).sort((a, b) => b.publicaciones - a.publicaciones);
-  const totalGruposUnicos = new Set(grupos.filter(g => g.zona && zonaActiva(g.zona)).map(g => g.nombre)).size;
+  const { sortedZones, totalGruposUnicos } = buildZonaSummary(zonasData, data, grupos, zonaFilter);
 
   // KPIs por zona
   const kpiContainer = document.getElementById('zonas-kpi-container');
   if (kpiContainer) {
     if (!sortedZones.length) { kpiContainer.innerHTML = ''; } else {
       kpiContainer.innerHTML = sortedZones.map(z => {
-        const rowsZona = data.filter(r => r.zona === z.zona);
+        const rowsZona = data.filter(r => zonaSummaryKey(r.zona) === zonaSummaryKey(z.zona));
         const saludCls = saludZonaClass(rowsZona);
         return `
         <div class="col-6 col-md-4 col-lg">
           <div class="zone-kpi-card ${saludCls}">
-            <div class="zone-kpi-name">${saludDiv(rowsZona)}${z.zona} <span class="text-muted small" style="font-weight:400">(${z.grupos.size})</span></div>
+            <div class="zone-kpi-name">${saludDiv(rowsZona)}${escHtml(z.zona)} <span class="text-muted small" style="font-weight:400">(${z.grupos.size})</span></div>
             <div class="zone-kpi-stats">
               <span title="Pubs"><i class="bi bi-file-text"></i> ${z.publicaciones}</span>
               <span title="Vis"><i class="bi bi-eye"></i> ${z.visualizaciones}</span>
@@ -1910,7 +1925,7 @@ function renderZonasDashboardInner(grupos, zonaFilter, periodLimit) {
   if (tbody) {
     tbody.innerHTML = sortedZones.map(z => `
       <tr>
-        <td class="fw-medium">${escHtml(z.zona)}</td>
+        <td class="fw-medium">${escHtml(z.zona)}${z.activo ? '' : ' <span class="badge-estatus est-eliminada">Inactiva</span>'}</td>
         <td class="text-center">${z.publicaciones}</td>
         <td class="text-center fw-medium">${z.visualizaciones}</td>
         <td class="text-center text-success fw-medium">${z.interacciones}</td>
