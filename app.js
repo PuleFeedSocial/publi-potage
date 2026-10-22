@@ -2426,6 +2426,43 @@ function deleteCode(id) {
     });
 }
 
+function inviteUser() {
+  apiFetch('/api/auth/codes').then(({ status, body }) => {
+    if (status !== 200) {
+      alert(body.error || 'Error al obtener códigos.');
+      return;
+    }
+    let codes = Array.isArray(body) ? body : [];
+    const available = codes.find(c => !c.used);
+    if (available) {
+      const msg = `✨ ¡Te invito a unirte a Potage! ✨\n\nRegistrate desde este link: ${location.origin}/register.html\n\nCódigo de activación: ${available.code}\n\nUsalo al momento de crear tu cuenta. ¡Te espero! 🚀`;
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(msg).then(() => showToast('Mensaje de invitación copiado al portapapeles.', 'success')).catch(() => { prompt('Copiá este mensaje:', msg); });
+      } else {
+        prompt('Copiá este mensaje:', msg);
+      }
+      loadCodes();
+      return;
+    }
+    apiFetch('/api/auth/codes', { method: 'POST', body: JSON.stringify({ count: 1 }) })
+      .then(({ status2, body2 }) => {
+        if ((status2 || status) !== 201 && (status2 || status) !== 200) {
+          alert(body2 && body2.error ? body2.error : 'Error al generar código.');
+          return;
+        }
+        const code = (body2 && body2.codes && body2.codes[0]) ? body2.codes[0] : null;
+        if (!code) { loadCodes(); return; }
+        const msg = `✨ ¡Te invito a unirte a Potage! ✨\n\nRegistrate desde este link: ${location.origin}/register.html\n\nCódigo de activación: ${code}\n\nUsalo al momento de crear tu cuenta. ¡Te espero! 🚀`;
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(msg).then(() => showToast('Mensaje de invitación copiado al portapapeles.', 'success')).catch(() => { prompt('Copiá este mensaje:', msg); });
+        } else {
+          prompt('Copiá este mensaje:', msg);
+        }
+        loadCodes();
+      });
+  });
+}
+
 function refreshZonasEditControls() {
   const can = canEditZonas();
   const addBox = document.getElementById('zona-add-box');
