@@ -431,6 +431,13 @@
         function calEndFecha(ev) { return ev.fecha_fin || ev.fecha; }
         function calIsMulti(ev) { return !!(ev.fecha_fin && ev.fecha_fin !== ev.fecha); }
         function calIsAdmin() { return sessionRole() === 'admin'; }
+        function calCanViewResponsible(ev) {
+            if (!ev.responsable_nombre) return false;
+            if (calIsAdmin()) return true;
+            const session = getCurrentSession();
+            return !!(session && session.id && ev.responsable_id &&
+                String(ev.responsable_id) === String(session.id));
+        }
         function calCanComplete() { return hasPermission('complete_calendario'); }
 
         function normEvent(ev) {
@@ -782,9 +789,9 @@
             let meta = tipoBadge + estadoBadge + repBadge;
             if (showDate) meta += '<span class="cal-meta"><i class="bi bi-calendar3"></i> ' + isoToDate(ev.fecha) + '</span>';
             if (ev.hora) meta += '<span class="cal-meta"><i class="bi bi-clock"></i> ' + escHtml(calRangoTexto(ev)) + '</span>';
-                    if (ev.responsable_nombre && (calIsAdmin() || (calSession && ev.responsable_id && String(ev.responsable_id) === String((calSession.user&&calSession.user.id)||'') ))) {
-                    meta += '<span class="cal-meta"><i class="bi bi-person"></i> ' + escHtml(ev.responsable_nombre) + '</span>';
-                }
+            if (calCanViewResponsible(ev)) {
+                meta += '<span class="cal-meta"><i class="bi bi-person"></i> ' + escHtml(ev.responsable_nombre) + '</span>';
+            }
             if (calIsAdmin() && ev.realizado_en) {
                 meta += '<span class="cal-meta cal-meta-hecho"><i class="bi bi-person-check"></i> Hecho por ' +
                     escHtml(ev.realizado_por_nombre || '—') + ' · ' + fmtFechaHora(ev.realizado_en) + '</span>';
@@ -1118,7 +1125,7 @@
                 (ev.fecha_fin ? ' → ' + escHtml(calFechaMedia(ev.fecha_fin)) : '') + '</span></div></div>' +
                 '<div class="cal-detail-row"><i class="bi bi-clock"></i><div><strong>Hora</strong>' +
                 '<span>' + escHtml(ev.hora ? calDuracionTexto(ev) + ' (' + calRangoTexto(ev) + ')' : 'Todo el día') + '</span></div></div>';
-            if (ev.responsable_nombre && (calIsAdmin() || (calSession && ev.responsable_id && String(ev.responsable_id) === String((calSession.user&&calSession.user.id)||'')))) {
+            if (calCanViewResponsible(ev)) {
                 html += '<div class="cal-detail-row"><i class="bi bi-person"></i><div><strong>Responsable</strong>' +
                     '<span>' + escHtml(ev.responsable_nombre) + '</span></div></div>';
             }
@@ -1622,11 +1629,14 @@
             }
             guardPage();
 
-            const initials = session.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+            const name = (session.name || session.email || '').trim();
+            const parts = name ? name.split(/\s+/).filter(Boolean) : [];
+            const initials = parts.length ? parts.map(n => n[0]).join('').slice(0, 2).toUpperCase() : (session.email ? session.email[0].toUpperCase() : 'U');
+            const firstName = parts[0] || name || 'Usuario';
             document.getElementById('display-avatar').innerText = initials;
-            document.getElementById('display-user-name').innerText = session.name;
+            document.getElementById('display-user-name').innerText = name || firstName;
             document.getElementById('nav-avatar').innerText = initials;
-            document.getElementById('nav-user-name').innerText = session.name.split(' ')[0];
+            document.getElementById('nav-user-name').innerText = firstName;
             const isAdminSession = (session.role || '').toLowerCase() === 'admin';
             const gestionLabel = document.getElementById('gestion-label');
             const gestionItems = document.getElementById('gestion-items');
