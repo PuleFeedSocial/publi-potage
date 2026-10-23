@@ -49,14 +49,15 @@ router.post('/test', async (req, res) => {
       [req.user.id]
     );
     if (!subscriptions || !subscriptions.total) {
-      return res.status(400).json({ error: 'Este dispositivo no tiene los avisos activados.' });
+      return res.status(400).json({ error: 'No tenés dispositivos con avisos activados.' });
     }
-    await sendToUser(db, req.user.id, pushPayload({
+    const delivered = await sendToUser(db, req.user.id, pushPayload({
       title: 'Publi Potage',
-      message: 'Los avisos push funcionan en este dispositivo.',
+      message: 'Aviso de prueba para tus dispositivos registrados.',
       link: 'dashboard.html',
       tag: 'push-test-' + Date.now()
     }));
+    if (!delivered) return res.status(502).json({ error: 'El proveedor no aceptó el aviso. Revisá la activación e intentá nuevamente.' });
     res.json({ success: true });
   } catch (err) {
     console.error('Error al enviar push de prueba:', err.message);

@@ -266,6 +266,9 @@ let notifItems = [];
 let notifUnread = 0;
 let notifLoading = false;
 let notifPanelOpen = false;
+let notifMutation = false;
+let notifRevision = 0;
+let notifLoaded = false;
 
 const NOTIF_ICON_FALLBACK = 'bi-bell';
 const NOTIF_ICONS = {
@@ -278,7 +281,7 @@ const NOTIF_ICONS = {
 };
 
 function notifIconFor(type) {
-  return NOTIF_ICONS[type] || NOTIF_ICON_FALLBACK;
+  return Object.hasOwn(NOTIF_ICONS, type) ? NOTIF_ICONS[type] : NOTIF_ICON_FALLBACK;
 }
 
 function notifTimeAgo(value) {
@@ -298,6 +301,8 @@ function notifTimeAgo(value) {
 function notifItemEl(item) {
   const el = document.createElement('button');
   el.type = 'button';
+  el.disabled = notifMutation;
+  el.dataset.notificationId = String(item.id);
   el.className = 'notif-item' + (item.is_read ? '' : ' is-unread');
 
   const icon = document.createElement('span');
@@ -338,8 +343,13 @@ function renderNotifications(unread) {
     badge.hidden = true;
     badge.textContent = '0';
   }
-  if (label) label.textContent = unread > 0 ? unread + ' sin leer' : 'Sin novedades';
+  if (label) label.textContent = unread > 0 ? unread + ' sin leer' : 'Todo al día';
+  const mark = document.getElementById('notif-mark-all');
+  if (mark) mark.disabled = notifMutation || unread === 0;
+  document.getElementById('notif-bell')?.setAttribute('aria-label', unread > 0 ? 'Notificaciones: ' + unread + ' sin leer' : 'Notificaciones');
 
+  const scrollTop = list.scrollTop;
+  const focusedId = list.contains(document.activeElement) ? document.activeElement.dataset.notificationId : null;
   list.innerHTML = '';
   if (!notifItems.length) {
     const empty = document.createElement('div');
@@ -349,44 +359,94 @@ function renderNotifications(unread) {
     return;
   }
   notifItems.forEach(item => list.appendChild(notifItemEl(item)));
+  list.scrollTop = scrollTop;
+  if (focusedId) [...list.children].find(el => el.dataset.notificationId === focusedId)?.focus({ preventScroll: true });
+}
+
+function notifStatus(message, retry = false) {
+  const status = document.getElementById('notif-status');
+  if (!status) return;
+  status.replaceChildren();
+  status.hidden = !message;
+  const text = document.createElement('span');
+  text.textContent = message;
+  status.append(text);
+  if (retry) {
+    const button = document.createElement('button');
+    button.type = 'button'; button.textContent = 'Reintentar';
+    button.addEventListener('click', loadNotifications);
+    status.append(button);
+  }
 }
 
 async function loadNotifications() {
-  if (!getToken() || notifLoading) return;
+  if (!getToken() || notifLoading || notifMutation) return;
+  const revision = notifRevision;
+  const userId = getCurrentSession()?.id;
   notifLoading = true;
+  if (!notifLoaded) notifStatus('Cargando notificaciones…');
   try {
-    const res = await apiFetch('/api/notificaciones');
-    if (res.status === 200 && res.body) {
-      notifItems = Array.isArray(res.body.data) ? res.body.data : [];
-      notifUnread = Number(res.body.unread) || 0;
-      renderNotifications(notifUnread);
-    }
+    const res = await apiFetch('/api/notificaciones', { signal: AbortSignal.timeout(15000) });
+    if (revision !== notifRevision || userId !== getCurrentSession()?.id) return;
+    if (res.status !== 200 || !Array.isArray(res.body?.data)) throw new Error('load');
+    notifItems = res.body.data;
+    notifUnread = Math.max(0, Number(res.body.unread) || 0);
+    notifLoaded = true;
+    notifStatus('');
+    renderNotifications(notifUnread);
   } catch {
-    /* silencioso: no interrumpir la página */
+    if (revision === notifRevision) notifStatus('No pudimos actualizar los avisos. Revisá tu conexión.', true);
   } finally {
     notifLoading = false;
   }
 }
 
-function handleNotifClick(item) {
+function safeNotifLink(value) {
+  if (!value) return '';
+  try {
+    const url = new URL(value, window.location.origin);
+    return url.origin === window.location.origin && /^https?:$/.test(url.protocol) ? url.href : '';
+  } catch { return ''; }
+}
+
+async function handleNotifClick(item) {
+  if (notifMutation) return;
   if (!item.is_read) {
-    item.is_read = true;
-    notifUnread = Math.max(0, notifUnread - 1);
+    notifMutation = true; notifRevision++;
     renderNotifications(notifUnread);
-    apiFetch('/api/notificaciones/' + item.id + '/read', { method: 'POST', body: '{}' }).catch(() => {});
+    try {
+      const res = await apiFetch('/api/notificaciones/' + item.id + '/read', { method: 'POST', body: '{}', signal: AbortSignal.timeout(15000) });
+      if (res.status !== 200) throw new Error('read');
+      item.is_read = true;
+      notifUnread = Math.max(0, notifUnread - 1);
+      notifStatus('');
+    } catch {
+      notifStatus('No pudimos marcar el aviso como leído. Intentá nuevamente.');
+      return;
+    } finally {
+      notifMutation = false;
+      renderNotifications(notifUnread);
+    }
   }
-  if (item.link) window.location.href = item.link;
+  const link = safeNotifLink(item.link);
+  if (link) window.location.href = link;
 }
 
 async function markAllNotificationsRead() {
-  if (!notifItems.some(item => !item.is_read)) return;
-  notifItems.forEach(item => { item.is_read = true; });
-  notifUnread = 0;
-  renderNotifications(0);
+  if (notifMutation || !notifUnread) return;
+  notifMutation = true; notifRevision++;
+  renderNotifications(notifUnread);
   try {
-    await apiFetch('/api/notificaciones/read-all', { method: 'POST', body: '{}' });
+    const res = await apiFetch('/api/notificaciones/read-all', { method: 'POST', body: '{}', signal: AbortSignal.timeout(15000) });
+    if (res.status !== 200) throw new Error('read');
+    notifItems.forEach(item => { item.is_read = true; });
+    notifUnread = 0;
+    notifStatus('');
   } catch {
-    /* silencioso */
+    notifStatus('No pudimos marcar los avisos como leídos. Intentá nuevamente.');
+  } finally {
+    notifMutation = false;
+    renderNotifications(notifUnread);
   }
 }
 
@@ -447,6 +507,7 @@ function updatePushUI() {
 
   row.classList.toggle('is-active', pushSubscribed);
   test.hidden = !pushSubscribed;
+  test.disabled = pushBusy;
   btn.disabled = pushBusy;
 
   if (!pushSupported()) {
@@ -499,12 +560,13 @@ async function refreshPushState() {
       updatePushUI();
       return;
     }
-    pushSubscribed = true;
-    updatePushUI();
-    apiFetch('/api/push/subscribe', {
+    const saved = await apiFetch('/api/push/subscribe', {
       method: 'POST',
       body: JSON.stringify({ subscription: sub.toJSON() })
-    }).catch(() => {});
+    });
+    if (saved.status !== 201) throw new Error('No se pudo confirmar la suscripción');
+    pushSubscribed = true;
+    updatePushUI();
   } catch {
     pushSubscribed = false;
     updatePushUI();
@@ -586,13 +648,28 @@ async function togglePushNotifications() {
 }
 
 async function sendPushTest() {
+  if (pushBusy) return;
+  pushBusy = true; updatePushUI();
   try {
     const res = await apiFetch('/api/push/test', { method: 'POST', body: '{}' });
     if (res.status === 200) showToast('Aviso de prueba enviado.', 'success');
     else showToast(res.body && res.body.error ? res.body.error : 'No se pudo enviar el aviso de prueba.', 'error');
   } catch {
     showToast('No se pudo enviar el aviso de prueba.', 'error');
-  }
+  } finally { pushBusy = false; updatePushUI(); }
+}
+
+function positionNotifPanel() {
+  const panel = document.getElementById('notif-panel');
+  const bell = document.getElementById('notif-bell');
+  if (!panel || !bell || panel.hidden) return;
+  const rect = bell.getBoundingClientRect();
+  const width = Math.min(420, window.innerWidth - 24);
+  const top = Math.max(12, Math.min(rect.bottom + 10, window.innerHeight - 240));
+  panel.style.width = width + 'px';
+  panel.style.left = Math.max(12, Math.min(rect.right - width, window.innerWidth - width - 12)) + 'px';
+  panel.style.top = top + 'px';
+  panel.style.maxHeight = Math.min(620, Math.max(120, window.innerHeight - top - 12)) + 'px';
 }
 
 function setNotifPanel(open) {
@@ -604,7 +681,11 @@ function setNotifPanel(open) {
   panel.hidden = !open;
   bell.setAttribute('aria-expanded', open ? 'true' : 'false');
   if (center) center.classList.toggle('open', open);
-  if (open) loadNotifications();
+  if (open) {
+    positionNotifPanel();
+    document.getElementById('notif-close')?.focus();
+    loadNotifications();
+  } else if (panel.contains(document.activeElement)) bell.focus();
 }
 
 function initNotificationCenter() {
@@ -617,19 +698,19 @@ function initNotificationCenter() {
   center.className = 'notif-center';
   center.id = 'notif-center';
   center.innerHTML = `
-    <button class="notif-bell" id="notif-bell" type="button" aria-label="Notificaciones" aria-expanded="false">
+    <button class="notif-bell" id="notif-bell" type="button" aria-label="Notificaciones" aria-controls="notif-panel" aria-expanded="false">
       <i class="bi bi-bell"></i>
       <span class="notif-badge" id="notif-badge" hidden>0</span>
     </button>
-    <div class="notif-panel" id="notif-panel" hidden>
+    <section class="notif-panel" id="notif-panel" role="region" aria-labelledby="notif-title" hidden>
       <div class="notif-panel-head">
         <div class="notif-panel-heading">
-          <span class="notif-panel-title">Notificaciones</span>
+          <span class="notif-panel-title" id="notif-title">Notificaciones</span>
           <span class="notif-panel-subtitle" id="notif-unread-label">Sin novedades</span>
         </div>
-        <button class="notif-mark-all" id="notif-mark-all" type="button">Marcar todas</button>
+        <div class="notif-head-actions"><button class="notif-mark-all" id="notif-mark-all" type="button" disabled>Marcar leídas</button><button class="notif-close" id="notif-close" type="button" aria-label="Cerrar notificaciones"><i class="bi bi-x-lg" aria-hidden="true"></i></button></div>
       </div>
-      <div class="notif-list" id="notif-list"></div>
+      <div class="notif-status" id="notif-status" role="status" hidden></div><div class="notif-list" id="notif-list" tabindex="0" aria-label="Lista de notificaciones"></div>
       <div class="notif-push-row" id="notif-push-row">
         <div class="notif-push-info">
           <i class="bi bi-phone"></i>
@@ -643,8 +724,12 @@ function initNotificationCenter() {
       <div class="notif-panel-foot">
         <a href="calendario.html"><i class="bi bi-calendar3"></i> Ir al calendario</a>
       </div>
-    </div>`;
+    </section>`;
   actions.prepend(center);
+  document.body.appendChild(document.getElementById('notif-panel'));
+  document.getElementById('notif-close').addEventListener('click', () => setNotifPanel(false));
+  window.addEventListener('resize', positionNotifPanel);
+  window.addEventListener('scroll', positionNotifPanel, { passive: true });
   actions.classList.add('has-notif');
 
   document.getElementById('notif-bell').addEventListener('click', (e) => {
@@ -666,13 +751,14 @@ function initNotificationCenter() {
   document.addEventListener('click', (e) => {
     if (!notifPanelOpen) return;
     const el = document.getElementById('notif-center');
-    if (el && !el.contains(e.target)) setNotifPanel(false);
+    if (el && !el.contains(e.target) && !document.getElementById('notif-panel')?.contains(e.target)) setNotifPanel(false);
   });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && notifPanelOpen) setNotifPanel(false);
   });
 
   loadNotifications();
+  updatePushUI();
   refreshPushState();
   if (!window._notifPollTimer) {
     window._notifPollTimer = setInterval(() => {
@@ -781,6 +867,7 @@ async function logout() {
           method: 'POST',
           body: JSON.stringify({ endpoint: sub.endpoint })
         }).catch(() => {});
+        await sub.unsubscribe();
       }
     }
   } catch {

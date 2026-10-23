@@ -53,3 +53,12 @@ Esta revisión cubre el frontend. No valida escrituras contra Google Sheets,
 permisos reales, autenticación del servidor ni base de datos. Esas comprobaciones
 corresponden a la revisión posterior del backend. Las pruebas visuales se
 realizaron en Chrome; no se ejecutaron en dispositivos físicos con Safari.
+
+## Notificaciones — 23/10/2026
+
+- Panel fuera del contenedor animado de navegación, con posición limitada a la pantalla, altura máxima y lista desplazable sin comprimir avisos; estilos claros/oscuros y pantallas estrechas/horizontales.
+- Cierre explícito, Escape y devolución del foco; etiquetas accesibles; estado de carga, error y reintento. Se conserva el desplazamiento al actualizar.
+- Marcar leído espera confirmación; las fallas conservan el estado anterior. Se evitan acciones simultáneas y respuestas antiguas que sobrescriban cambios. Links de avisos y service worker limitados al mismo origen.
+- Se priorizan avisos no leídos dentro del límite de 50. Los recordatorios vuelven a comprobarse después de cinco minutos (o en la siguiente ejecución del programador) y se descarta la memoria de días anteriores; la deduplicación persistente se mantiene.
+- Push valida HTTPS, proveedores admitidos y formato de claves, limita el tiempo y la concurrencia de envío y elimina suscripciones expiradas. La prueba solo confirma éxito si el proveedor acepta al menos un envío; puede llegar a cualquiera de los dispositivos asociados. Cerrar sesión cancela también la suscripción del navegador.
+- Validación local: pruebas automatizadas de destinos, claves, entregas fallidas/expiradas, enlaces seguros y recordatorios; Chrome en 1440, 390, 320 y 844 px horizontal, claro/oscuro, errores simulados, lista vacía, scroll y teclado. No se enviaron avisos reales a dispositivos ni se usó la base de producción.

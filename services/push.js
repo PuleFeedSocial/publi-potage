@@ -61,15 +61,27 @@ async function getPublicKey(db) {
   return publicKeyCache;
 }
 
+// Only browser push providers are valid destinations, never arbitrary URLs.
+function validPushEndpoint(endpoint) {
+  try {
+    const url = new URL(endpoint);
+    const host = url.hostname;
+    return url.protocol === 'https:' && !url.username && !url.password && !url.port && !url.hash &&
+      (host === 'fcm.googleapis.com' || host === 'updates.push.services.mozilla.com' ||
+       host.endsWith('.push.services.mozilla.com') || host === 'web.push.apple.com' ||
+       host.endsWith('.notify.windows.com'));
+  } catch { return false; }
+}
+
 async function saveSubscription(db, user, subscription, userAgent) {
   const endpoint = subscription && subscription.endpoint;
   const keys = subscription && subscription.keys;
-  if (typeof endpoint !== 'string' || !endpoint || endpoint.length > 1000) {
+  if (typeof endpoint !== 'string' || !endpoint || endpoint.length > 1000 || !validPushEndpoint(endpoint)) {
     const err = new Error('Suscripción inválida.');
     err.status = 400;
     throw err;
   }
-  if (!keys || typeof keys.p256dh !== 'string' || typeof keys.auth !== 'string' || !keys.p256dh || !keys.auth) {
+  if (!keys || typeof keys.p256dh !== 'string' || typeof keys.auth !== 'string' || !/^[A-Za-z0-9_-]{87}=?$/.test(keys.p256dh) || !/^[A-Za-z0-9_-]{22}={0,2}$/.test(keys.auth)) {
     const err = new Error('Suscripción inválida.');
     err.status = 400;
     throw err;
@@ -93,14 +105,16 @@ async function removeSubscription(db, userId, endpoint) {
 
 async function deliver(db, subscription, body) {
   try {
+    if (!validPushEndpoint(subscription.endpoint)) return false;
     await webpush.sendNotification(
       {
         endpoint: subscription.endpoint,
         keys: { p256dh: subscription.p256dh, auth: subscription.auth }
       },
       body,
-      { TTL: 24 * 60 * 60 }
+      { TTL: 24 * 60 * 60, timeout: 10000 }
     );
+    return true;
   } catch (err) {
     const status = err && err.statusCode;
     if (status === 404 || status === 410) {
@@ -108,22 +122,29 @@ async function deliver(db, subscription, body) {
     } else {
       console.error('Error al enviar push:', status || (err && err.message));
     }
+    return false;
   }
 }
 
 async function sendToUser(db, userId, payload) {
-  if (!userId) return;
+  if (!userId) return 0;
   try {
     const subscriptions = await db.all(
       'SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ?',
       [userId]
     );
-    if (!subscriptions.length) return;
+    if (!subscriptions.length) return 0;
     await ensureConfigured(db);
     const body = JSON.stringify(payload || {});
-    await Promise.allSettled(subscriptions.map(sub => deliver(db, sub, body)));
+    let delivered = 0;
+    for (let i = 0; i < subscriptions.length; i += 5) {
+      const results = await Promise.allSettled(subscriptions.slice(i, i + 5).map(sub => deliver(db, sub, body)));
+      delivered += results.filter(r => r.status === 'fulfilled' && r.value === true).length;
+    }
+    return delivered;
   } catch (err) {
     console.error('Error al enviar notificaciones push:', err.message);
+    return 0;
   }
 }
 
@@ -139,6 +160,7 @@ function pushPayload(notification) {
 }
 
 module.exports = {
+  validPushEndpoint,
   getPublicKey,
   saveSubscription,
   removeSubscription,

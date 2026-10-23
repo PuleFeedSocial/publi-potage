@@ -1,4 +1,4 @@
-const CACHE = 'potage-v51';
+const CACHE = 'potage-v52';
 const STATIC = [
   '/dashboard.html', '/index.html', '/login.html', '/register.html',
   '/grupos.html', '/informes.html', '/logs.html', '/account-settings.html',
@@ -44,7 +44,8 @@ self.addEventListener('fetch', (e) => {
 /* ---------- Web Push ---------- */
 function absoluteUrl(value) {
   try {
-    return new URL(value || '/dashboard.html', self.location.origin).href;
+    const url = new URL(value || '/dashboard.html', self.location.origin);
+    return url.origin === self.location.origin && /^https?:$/.test(url.protocol) ? url.href : self.location.origin + '/dashboard.html';
   } catch (e) {
     return self.location.origin + '/dashboard.html';
   }
@@ -70,7 +71,7 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const target = (event.notification.data && event.notification.data.url) || absoluteUrl();
+  const target = absoluteUrl(event.notification.data && event.notification.data.url);
   event.waitUntil((async () => {
     const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const client of all) {

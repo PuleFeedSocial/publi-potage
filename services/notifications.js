@@ -88,9 +88,12 @@ const reminderRuns = new Map();
 
 async function runCalendarReminders(db, user) {
   if (!user || !user.id) return;
-  const runKey = `${user.id}:${todayInTz(0)}`;
-  if (reminderRuns.has(runKey)) return;
-  reminderRuns.set(runKey, true);
+  const todayKey = todayInTz(0);
+  for (const key of reminderRuns.keys()) if (!key.endsWith(':' + todayKey)) reminderRuns.delete(key);
+  const runKey = `${user.id}:${todayKey}`;
+  const previous = reminderRuns.get(runKey);
+  if (previous && (previous.running || Date.now() - previous.time < 5 * 60000)) return;
+  reminderRuns.set(runKey, { running: true, time: Date.now() });
   try {
     const today = todayInTz(0);
     const tomorrow = todayInTz(1);
@@ -126,6 +129,8 @@ async function runCalendarReminders(db, user) {
   } catch (err) {
     reminderRuns.delete(runKey);
     console.error('Error al generar recordatorios:', err.message);
+  } finally {
+    if (reminderRuns.has(runKey)) reminderRuns.set(runKey, { running: false, time: Date.now() });
   }
 }
 

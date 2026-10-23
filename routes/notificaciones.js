@@ -14,7 +14,7 @@ router.get('/', async (req, res) => {
       `SELECT id, type, title, message, link, icon, is_read, created_at
        FROM notifications
        WHERE user_id = ?
-       ORDER BY created_at DESC, id DESC
+       ORDER BY is_read ASC, created_at DESC, id DESC
        LIMIT 50`,
       [req.user.id]
     );
@@ -24,7 +24,8 @@ router.get('/', async (req, res) => {
     );
     res.json({ data: rows, unread: count ? count.total : 0 });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Error de notificaciones:', err.message);
+    res.status(500).json({ error: 'No se pudieron actualizar las notificaciones.' });
   }
 });
 
@@ -34,7 +35,8 @@ router.post('/read-all', async (req, res) => {
     await db.run('UPDATE notifications SET is_read = TRUE WHERE user_id = ? AND is_read = FALSE', [req.user.id]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Error de notificaciones:', err.message);
+    res.status(500).json({ error: 'No se pudieron actualizar las notificaciones.' });
   }
 });
 
@@ -50,7 +52,8 @@ router.post('/:id/read', async (req, res) => {
     if (result.rowCount === 0) return res.status(404).json({ error: 'Notificación no encontrada.' });
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Error de notificaciones:', err.message);
+    res.status(500).json({ error: 'No se pudieron actualizar las notificaciones.' });
   }
 });
 
@@ -63,7 +66,8 @@ router.delete('/:id', async (req, res) => {
     if (result.rowCount === 0) return res.status(404).json({ error: 'Notificación no encontrada.' });
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Error de notificaciones:', err.message);
+    res.status(500).json({ error: 'No se pudieron actualizar las notificaciones.' });
   }
 });
 
