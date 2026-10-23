@@ -346,6 +346,8 @@ function renderNotifications(unread) {
   if (label) label.textContent = unread > 0 ? unread + ' sin leer' : 'Todo al día';
   const mark = document.getElementById('notif-mark-all');
   if (mark) mark.disabled = notifMutation || unread === 0;
+  const clear = document.getElementById('notif-clear');
+  if (clear) clear.disabled = notifMutation || (!notifItems.length && unread === 0);
   document.getElementById('notif-bell')?.setAttribute('aria-label', unread > 0 ? 'Notificaciones: ' + unread + ' sin leer' : 'Notificaciones');
 
   const scrollTop = list.scrollTop;
@@ -444,6 +446,25 @@ async function markAllNotificationsRead() {
     notifStatus('');
   } catch {
     notifStatus('No pudimos marcar los avisos como leídos. Intentá nuevamente.');
+  } finally {
+    notifMutation = false;
+    renderNotifications(notifUnread);
+  }
+}
+
+async function clearNotifications() {
+  if (notifMutation || (!notifItems.length && !notifUnread)) return;
+  if (!confirm('¿Limpiar todas tus notificaciones, incluidas las no leídas? Se quitarán de la lista.')) return;
+  notifMutation = true; notifRevision++;
+  renderNotifications(notifUnread);
+  try {
+    const res = await apiFetch('/api/notificaciones', { method: 'DELETE', signal: AbortSignal.timeout(15000) });
+    if (res.status !== 200) throw new Error('clear');
+    notifItems = []; notifUnread = 0;
+    notifStatus('');
+    showToast('Notificaciones limpiadas.', 'success');
+  } catch {
+    notifStatus('No pudimos limpiar las notificaciones. Intentá nuevamente.');
   } finally {
     notifMutation = false;
     renderNotifications(notifUnread);
@@ -722,6 +743,7 @@ function initNotificationCenter() {
         </div>
       </div>
       <div class="notif-panel-foot">
+        <button id="notif-clear" class="notif-clear" type="button" disabled><i class="bi bi-trash3" aria-hidden="true"></i> Limpiar notificaciones</button>
         <a href="calendario.html"><i class="bi bi-calendar3"></i> Ir al calendario</a>
       </div>
     </section>`;
@@ -736,6 +758,7 @@ function initNotificationCenter() {
     e.stopPropagation();
     setNotifPanel(!notifPanelOpen);
   });
+  document.getElementById('notif-clear').addEventListener('click', clearNotifications);
   document.getElementById('notif-mark-all').addEventListener('click', (e) => {
     e.stopPropagation();
     markAllNotificationsRead();

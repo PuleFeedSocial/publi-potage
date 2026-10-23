@@ -5019,3 +5019,8 @@ html[data-theme="dark"] .cal-view-btn.active {
  .notif-panel { overflow-y:auto; }
  .notif-list { flex:none; min-height:0; max-height:45dvh; }
 }
+
+.notif-panel-foot { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; }
+.notif-clear { border:0; border-radius:8px; padding:8px; min-height:36px; background:transparent; color:var(--text-muted); font-size:.78rem; }
+.notif-clear:hover:not(:disabled) { color:#dc3545; background:color-mix(in srgb, #dc3545 8%, transparent); }
+.notif-clear:disabled { opacity:.45; cursor:default; }

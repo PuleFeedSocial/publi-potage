@@ -13,13 +13,13 @@ router.get('/', async (req, res) => {
     const rows = await db.all(
       `SELECT id, type, title, message, link, icon, is_read, created_at
        FROM notifications
-       WHERE user_id = ?
+       WHERE user_id = ? AND is_dismissed = FALSE
        ORDER BY is_read ASC, created_at DESC, id DESC
        LIMIT 50`,
       [req.user.id]
     );
     const count = await db.get(
-      'SELECT COUNT(*)::int AS total FROM notifications WHERE user_id = ? AND is_read = FALSE',
+      'SELECT COUNT(*)::int AS total FROM notifications WHERE user_id = ? AND is_dismissed = FALSE AND is_read = FALSE',
       [req.user.id]
     );
     res.json({ data: rows, unread: count ? count.total : 0 });
@@ -32,7 +32,7 @@ router.get('/', async (req, res) => {
 router.post('/read-all', async (req, res) => {
   try {
     const db = await getDb();
-    await db.run('UPDATE notifications SET is_read = TRUE WHERE user_id = ? AND is_read = FALSE', [req.user.id]);
+    await db.run('UPDATE notifications SET is_read = TRUE WHERE user_id = ? AND is_dismissed = FALSE AND is_read = FALSE', [req.user.id]);
     res.json({ success: true });
   } catch (err) {
     console.error('Error de notificaciones:', err.message);
@@ -54,6 +54,18 @@ router.post('/:id/read', async (req, res) => {
   } catch (err) {
     console.error('Error de notificaciones:', err.message);
     res.status(500).json({ error: 'No se pudieron actualizar las notificaciones.' });
+  }
+});
+
+// Keep dedupe keys so cleared reminders do not reappear at the next check.
+router.delete('/', async (req, res) => {
+  try {
+    const db = await getDb();
+    await db.run('UPDATE notifications SET is_dismissed = TRUE, is_read = TRUE WHERE user_id = ? AND is_dismissed = FALSE', [req.user.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error al limpiar notificaciones:', err.message);
+    res.status(500).json({ error: 'No se pudieron limpiar las notificaciones.' });
   }
 });
 

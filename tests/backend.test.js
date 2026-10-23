@@ -290,3 +290,12 @@ test('legal links download PDFs and HTML pages and sources stay private', async 
     assert.equal((await fetch(base + path)).status, 404);
   }
 });
+
+test('clearing notifications requires authentication and only clears the current account', async () => {
+  assert.equal((await request('/api/notificaciones', { method: 'DELETE', token: '' })).status, 401);
+  assert.equal((await request('/api/notificaciones', { method: 'DELETE', body: { user_id: 999 } })).status, 200);
+  const operation = operations.find(op => op.sql.startsWith('UPDATE notifications SET is_dismissed'));
+  assert.deepEqual(operation.params, [1]);
+  assert.match(operation.sql, /WHERE user_id = \?/);
+  assert.ok(!operations.some(op => op.sql.startsWith('DELETE FROM notifications')));
+});

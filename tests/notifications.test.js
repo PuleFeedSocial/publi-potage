@@ -35,3 +35,21 @@ test('reminder throttling allows new calendar items later in the same day',async
  let queries=0;const db={all:async()=>{queries++;return [];}};
  try{await runCalendarReminders(db,{id:999,role:'admin'});await runCalendarReminders(db,{id:999,role:'admin'});assert.equal(queries,1);time+=6*60000;await runCalendarReminders(db,{id:999,role:'admin'});assert.equal(queries,2);}finally{Date.now=original;}
 });
+
+for (const scenario of ['cancel', 'failure', 'success']) {
+  test('clear notification UI: ' + scenario, async () => {
+    const source = fs.readFileSync(require.resolve('../app.js'), 'utf8');
+    let calls = 0;
+    const context = vm.createContext({
+      confirm: () => scenario !== 'cancel', AbortSignal,
+      apiFetch: async () => { calls++; return { status: scenario === 'failure' ? 503 : 200 }; },
+      renderNotifications: () => {}, notifStatus: () => {}, showToast: () => {}
+    });
+    vm.runInContext('let notifMutation=false, notifRevision=0, notifUnread=2, notifItems=[{id:1},{id:2}];' + source.slice(source.indexOf('async function clearNotifications()'), source.indexOf('/* ---------- AVISOS PUSH')), context);
+    await context.clearNotifications();
+    assert.equal(calls, scenario === 'cancel' ? 0 : 1);
+    assert.equal(vm.runInContext('notifItems.length', context), scenario === 'success' ? 0 : 2);
+    assert.equal(vm.runInContext('notifUnread', context), scenario === 'success' ? 0 : 2);
+    assert.equal(vm.runInContext('notifMutation', context), false);
+  });
+}
