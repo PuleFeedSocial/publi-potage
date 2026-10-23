@@ -17,7 +17,15 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <script src="theme.js"></script>
     <link rel="stylesheet" href="style.css">
-</head>
+<style>
+.account-hero{display:flex;align-items:center;gap:20px;padding:28px;margin-bottom:24px;border:1px solid var(--border-color);border-radius:20px;background:var(--bg-card)}
+.account-avatar{display:grid;place-items:center;flex:0 0 76px;height:76px;border-radius:22px;background:color-mix(in srgb,var(--accent-color) 16%,var(--bg-card));color:var(--accent-color);font-size:1.65rem;font-weight:700}
+.account-identity{min-width:0;flex:1}.account-identity h2{font-size:1.6rem;overflow-wrap:anywhere;margin:0 0 6px}.account-identity p{overflow-wrap:anywhere}.account-eyebrow{font-size:.68rem;letter-spacing:.12em;color:var(--text-muted);margin-bottom:8px;font-weight:700}
+.account-meta{display:flex;align-items:flex-end;flex-direction:column;gap:10px}.account-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;align-items:start}.account-section .card-header-clean{padding:24px}.account-section-icon{display:inline-grid;place-items:center;width:36px;height:36px;background:color-mix(in srgb,var(--accent-color) 10%,var(--bg-card));color:var(--accent-color);border-radius:10px;margin-bottom:12px}
+.account-section h2{margin-bottom:6px}.account-section .form-label{font-size:.85rem;font-weight:500}.account-section .form-text{color:var(--text-muted);font-size:.78rem;line-height:1.5}.account-verification{border-top:1px solid var(--border-color);padding-top:18px;margin:22px 0}.account-form-actions{display:flex;gap:10px;flex-wrap:wrap}.account-feedback{margin-top:16px;padding:12px;border-radius:10px;font-size:.85rem}.account-feedback[data-kind="success"]{background:color-mix(in srgb,#198754 12%,var(--bg-card));color:var(--text-main)}.account-feedback[data-kind="error"]{background:color-mix(in srgb,#dc3545 12%,var(--bg-card));color:var(--text-main)}
+.account-note{display:flex;gap:16px;padding:20px;border:1px solid var(--border-color);border-radius:16px;background:var(--bg-card)}.account-note>i{color:var(--accent-color);font-size:1.3rem}.account-section input{min-width:0}.account-section fieldset{min-width:0}
+@media(max-width:1000px){.account-grid{grid-template-columns:minmax(0,1fr)}}@media(max-width:575px){.account-hero{padding:20px;gap:14px;flex-wrap:wrap}.account-avatar{flex-basis:56px;height:56px;border-radius:16px;font-size:1.2rem}.account-identity h2{font-size:1.25rem}.account-meta{width:100%;align-items:flex-start}.account-form-actions>*{flex:1}.account-note{padding:16px}}
+</style></head>
 
 <body>
 
@@ -86,16 +94,16 @@
                     <span class="theme-switch"><span class="theme-switch-thumb"></span></span>
                 </button>
                 <div class="user-profile-summary">
-                    <div class="avatar" id="display-avatar">VA</div>
+                    <div class="avatar" id="display-avatar">—</div>
                     <div class="user-info">
-                        <div class="user-name" id="display-user-name">Víctor Alejandro</div>
+                        <div class="user-name" id="display-user-name">Tu cuenta</div>
                         <div class="user-role-badge badge-admin" id="display-user-role">Admin</div>
                     </div>
                 </div>
             </div>
             <div class="sidebar-credit">
                 <span class="text-decoration-none small">
-                    <i class="bi bi-cpu atlas-credit-icon"></i>Altas Engineering
+                    <i class="bi bi-cpu atlas-credit-icon"></i>Atlas Software &amp; Diseño
                 </span>
             </div>
         </aside>
@@ -114,8 +122,8 @@
                 <div class="top-navbar-actions">
                     <div class="dropdown">
                         <button class="btn profile-btn" data-bs-toggle="dropdown" aria-expanded="false">
-                            <span class="avatar-sm" id="nav-avatar">VA</span>
-                            <span class="fw-medium" id="nav-user-name">Víctor</span>
+                            <span class="avatar-sm" id="nav-avatar">—</span>
+                            <span class="fw-medium" id="nav-user-name">Cuenta</span>
                             <i class="bi bi-chevron-down ms-1"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 mt-2">
@@ -131,181 +139,47 @@
                 </div>
             </header>
 
-            <div class="row g-4">
-                <div class="col-md-6">
-                    <div class="card data-table-card h-100">
-                        <div class="card-header-clean">
-                            <h5 class="table-card-title">Datos de la Cuenta</h5>
-                            <span class="text-muted small">Información de tu perfil</span>
-                        </div>
-                        <div class="card-body p-4">
-                            <div class="mb-3">
-                                <label class="form-label small fw-medium text-secondary">Nombre Completo</label>
-                                <input type="text" id="settings-name" class="form-control custom-input" disabled>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label small fw-medium text-secondary">Correo Electrónico</label>
-                                <input type="email" id="settings-email" class="form-control custom-input" disabled>
-                            </div>
-                            <div class="mb-0">
-                                <label class="form-label small fw-medium text-secondary">Rol Asignado</label>
-                                <input type="text" id="settings-role" class="form-control custom-input" disabled>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-6">
-                    <div class="card data-table-card h-100">
-                        <div class="card-header-clean">
-                            <h5 class="table-card-title">Cambiar Contraseña</h5>
-                            <span class="text-muted small">Actualizá tu clave de acceso</span>
-                        </div>
-                        <div class="card-body p-4">
-                            <form id="change-password-form" onsubmit="handleChangePassword(event)">
-                                <div class="mb-3">
-                                    <label class="form-label small fw-medium text-secondary">Contraseña Actual</label>
-                                    <div class="input-group">
-                                        <input type="password" id="current-password" class="form-control custom-input" required minlength="6">
-                                        <button class="btn btn-outline-secondary password-toggle" type="button" onclick="togglePassword('current-password', this)">
-                                            <i class="bi bi-eye"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label small fw-medium text-secondary">Nueva Contraseña</label>
-                                    <div class="input-group">
-                                        <input type="password" id="new-password" class="form-control custom-input" required minlength="6">
-                                        <button class="btn btn-outline-secondary password-toggle" type="button" onclick="togglePassword('new-password', this)">
-                                            <i class="bi bi-eye"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="mb-4">
-                                    <label class="form-label small fw-medium text-secondary">Confirmar Nueva Contraseña</label>
-                                    <div class="input-group">
-                                        <input type="password" id="confirm-password" class="form-control custom-input" required minlength="6">
-                                        <button class="btn btn-outline-secondary password-toggle" type="button" onclick="togglePassword('confirm-password', this)">
-                                            <i class="bi bi-eye"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                                <button type="submit" class="btn btn-action-primary w-100">
-                                    <i class="bi bi-check-lg me-1"></i> Actualizar Contraseña
-                                </button>
-                            </form>
-                            <div id="password-feedback" class="mt-3 small d-none"></div>
-                        </div>
-                    </div>
-                </div>
+            <section class="account-hero" aria-labelledby="profile-title">
+                <div class="account-avatar" id="account-avatar" aria-hidden="true">—</div>
+                <div class="account-identity"><p class="account-eyebrow">TU ESPACIO PERSONAL</p><h2 id="profile-title">Tu cuenta</h2><p id="account-email" class="text-muted mb-0"></p></div>
+                <div class="account-meta"><span class="badge-estatus est-publicada" id="account-role">—</span><span id="account-since" class="small text-muted"></span></div>
+            </section>
+            <div id="account-status" class="alert alert-info" role="status">Cargando tu perfil…</div>
+            <button id="account-retry" class="btn btn-outline-secondary mb-3" type="button" hidden>Reintentar carga</button>
+            <div class="account-grid">
+                <section class="card data-table-card account-section" aria-labelledby="personal-title">
+                    <div class="card-header-clean"><span class="account-section-icon"><i class="bi bi-person" aria-hidden="true"></i></span><h2 id="personal-title" class="table-card-title">Información personal</h2><p class="small text-muted mb-0">Así te identifica el equipo.</p></div>
+                    <form id="profile-form" class="p-4">
+                        <fieldset disabled>
+                            <div class="mb-3"><label for="settings-name" class="form-label">Nombre completo</label><input id="settings-name" name="name" autocomplete="name" maxlength="120" required class="form-control custom-input"></div>
+                            <div class="mb-3"><label for="settings-email" class="form-label">Correo electrónico</label><input id="settings-email" name="email" type="email" autocomplete="email" maxlength="254" required class="form-control custom-input"><p class="form-text">Este será tu correo para iniciar sesión.</p></div>
+                            <div class="account-verification"><label for="profile-verification" class="form-label verification-label">Código de activación</label><div class="input-group"><input id="profile-verification" class="form-control custom-input verification-input" type="password" autocomplete="off" required><button type="button" class="btn btn-outline-secondary" data-reveal="profile-verification" aria-label="Mostrar código" aria-pressed="false"><i class="bi bi-eye" aria-hidden="true"></i></button></div><p class="form-text verification-help">Usá el mismo código con el que te registraste.</p></div>
+                            <div class="account-form-actions"><button type="submit" class="btn btn-action-primary">Guardar cambios</button><button id="profile-cancel" type="button" class="btn btn-outline-secondary">Restablecer</button></div>
+                        </fieldset>
+                        <div id="profile-feedback" class="account-feedback" role="status" hidden></div>
+                    </form>
+                </section>
+                <section class="card data-table-card account-section" aria-labelledby="security-title">
+                    <div class="card-header-clean"><span class="account-section-icon"><i class="bi bi-shield-lock" aria-hidden="true"></i></span><h2 id="security-title" class="table-card-title">Contraseña y acceso</h2><p class="small text-muted mb-0">Actualizá tu contraseña verificando tu identidad.</p></div>
+                    <form id="change-password-form" class="p-4">
+                        <fieldset disabled>
+                            <div class="mb-3"><label for="new-password" class="form-label">Nueva contraseña</label><div class="input-group"><input id="new-password" type="password" autocomplete="new-password" minlength="6" required class="form-control custom-input" aria-describedby="password-help"><button type="button" class="btn btn-outline-secondary" data-reveal="new-password" aria-label="Mostrar contraseña" aria-pressed="false"><i class="bi bi-eye" aria-hidden="true"></i></button></div><p class="form-text" id="password-help">Mínimo 6 caracteres. Preferí una frase larga y única.</p></div>
+                            <div class="mb-3"><label for="confirm-password" class="form-label">Repetí la nueva contraseña</label><div class="input-group"><input id="confirm-password" type="password" autocomplete="new-password" minlength="6" required class="form-control custom-input"><button type="button" class="btn btn-outline-secondary" data-reveal="confirm-password" aria-label="Mostrar contraseña" aria-pressed="false"><i class="bi bi-eye" aria-hidden="true"></i></button></div></div>
+                            <div class="account-verification"><label for="password-verification" class="form-label verification-label">Código de activación</label><div class="input-group"><input id="password-verification" class="form-control custom-input verification-input" type="password" autocomplete="off" required><button type="button" class="btn btn-outline-secondary" data-reveal="password-verification" aria-label="Mostrar código" aria-pressed="false"><i class="bi bi-eye" aria-hidden="true"></i></button></div><p class="form-text verification-help">Usá el mismo código con el que te registraste.</p></div>
+                            <button type="submit" class="btn btn-action-primary w-100">Actualizar contraseña</button>
+                        </fieldset>
+                        <div id="password-feedback" class="account-feedback" role="status" hidden></div>
+                    </form>
+                </section>
             </div>
+            <section class="account-note mt-4"><i class="bi bi-key" aria-hidden="true"></i><div><h2 class="h6">Tu código te acompaña</h2><p class="small text-muted mb-0" id="account-code-help">Guardá tu código en un lugar privado. Sirve para verificar cambios en tu perfil y recuperar la contraseña desde el inicio de sesión. Si lo perdiste, contactá al administrador.</p><p class="small text-muted mt-2 mb-0">Al guardar datos o cambiar la contraseña, se renovará esta sesión y se cerrarán las otras sesiones de tu cuenta. Tu rol y permisos los administra el equipo.</p></div></section>
 
         </main>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="app.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const session = getCurrentSession();
-            if (!session) {
-                window.location.href = 'index.html';
-                return;
-            }
-
-            const initials = session.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-            document.getElementById('display-avatar').innerText = initials;
-            document.getElementById('display-user-name').innerText = session.name;
-            document.getElementById('nav-avatar').innerText = initials;
-            document.getElementById('nav-user-name').innerText = session.name.split(' ')[0];
-            currentRole = session.role;
-            const badge = document.getElementById('display-user-role');
-            const isAdmin = session.role === 'admin' || session.role === 'Admin';
-            badge.className = 'user-role-badge ' + (isAdmin ? 'badge-admin' : 'badge-colab');
-            badge.innerText = isAdmin ? 'Admin' : session.role;
-            document.getElementById('btn-nav-users').style.display = isAdmin ? '' : 'none';
-            const gestionLabel = document.getElementById('gestion-label');
-            const gestionItems = document.getElementById('gestion-items');
-            if (gestionLabel) gestionLabel.style.display = isAdmin ? '' : 'none';
-            if (gestionItems) gestionItems.style.display = isAdmin ? '' : 'none';
-
-            apiFetch('/api/auth/me').then(({ status, body }) => {
-                if (status !== 200) return;
-                document.getElementById('settings-name').value = body.name || '';
-                document.getElementById('settings-email').value = body.email || '';
-                document.getElementById('settings-role').value = body.role || '';
-            });
-        });
-
-        function handleChangePassword(e) {
-            e.preventDefault();
-            const feedback = document.getElementById('password-feedback');
-            feedback.classList.add('d-none');
-
-            const current = document.getElementById('current-password').value;
-            const newPw = document.getElementById('new-password').value;
-            const confirm = document.getElementById('confirm-password').value;
-
-            if (!current || !newPw || !confirm) {
-                showFeedback('Completá todos los campos.', 'danger');
-                return;
-            }
-
-            if (newPw.length < 6) {
-                showFeedback('La nueva contraseña debe tener al menos 6 caracteres.', 'danger');
-                return;
-            }
-
-            if (newPw === current) {
-                showFeedback('La nueva contraseña debe ser distinta a la actual.', 'danger');
-                return;
-            }
-
-            if (newPw !== confirm) {
-                showFeedback('Las contraseñas nuevas no coinciden.', 'danger');
-                return;
-            }
-
-            const btn = e.target.querySelector('button[type="submit"]');
-            const original = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Actualizando...';
-
-            apiFetch('/api/auth/change-password', {
-                method: 'POST',
-                body: JSON.stringify({ currentPassword: current, newPassword: newPw })
-            }).then(({ status, body }) => {
-                btn.disabled = false;
-                btn.innerHTML = original;
-                if (status !== 200) {
-                    showFeedback(body.error || 'Error al cambiar la contraseña.', 'danger');
-                    return;
-                }
-                if (body.token && body.user) setSession(body.token, body.user, body.refreshToken);
-                showFeedback('Contraseña actualizada correctamente.', 'success');
-                document.getElementById('change-password-form').reset();
-                if (typeof showToast === 'function') showToast('Contraseña actualizada.', 'success');
-            }).catch(() => {
-                btn.disabled = false;
-                btn.innerHTML = original;
-                showFeedback('Error de conexión con el servidor.', 'danger');
-            });
-        }
-
-        function showFeedback(msg, type) {
-            const el = document.getElementById('password-feedback');
-            el.className = 'mt-3 small alert alert-' + type + ' py-2 px-3 mb-0';
-            el.innerText = msg;
-            el.classList.remove('d-none');
-        }
-
-        function togglePassword(inputId, btn) {
-            const input = document.getElementById(inputId);
-            const isPassword = input.type === 'password';
-            input.type = isPassword ? 'text' : 'password';
-            btn.innerHTML = isPassword ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
-        }
-    </script>
+    <script src="account.js"></script>
 </body>
 
 </html>

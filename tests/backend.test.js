@@ -4,13 +4,17 @@ const bcrypt = require('bcryptjs');
 process.env.JWT_SECRET = 'test-only-secret-not-for-production';
 process.env.GOOGLE_SHEET_ID = 'test-sheet';
 
-let users, permissions, operations, sheetRows, missingSheets, sheetFailure, calendarFailure;
+let activationCodes, users, permissions, operations, sheetRows, missingSheets, sheetFailure, calendarFailure;
 let nextId = 10;
 const db = {
   async get(sql, params = []) {
     operations.push({ sql, params });
     if (sql.includes('COUNT')) return { c: 1 };
-    if (sql.includes('activation_codes')) return { id: 1 };
+    if (sql.includes('activation_codes')) {
+      if (sql.includes('WHERE code = ?')) return activationCodes.find(c => c.code === params[0] && (sql.includes('used = 0') ? c.used === 0 : c.used_by === params[1] && c.used === 1)) || null;
+      if (sql.includes('WHERE used_by = ?')) return activationCodes.find(c => c.used_by === params[0] && c.used === 1) || null;
+      return null;
+    }
     if (sql.includes('FROM users')) {
       return sql.includes('email') && sql.includes('WHERE LOWER(email)')
         ? [...users.values()].find(u => u.email === params[0]) || null
@@ -30,6 +34,11 @@ const db = {
     if (sql.includes('INSERT INTO role_permissions')) {
       const key = params[0] + ':' + params[1];
       if (!permissions.has(key) || sql.includes('DO UPDATE')) permissions.set(key, params[2]);
+    }
+    if (sql.includes('UPDATE users SET name')) {
+      const user = users.get(Number(params[2]));
+      user.name = params[0]; user.email = params[1]; user.token_version++;
+      return { rows: [{ ...user }] };
     }
     if (sql.includes('UPDATE users SET password')) {
       const user = users.get(Number(params[1]));
@@ -101,6 +110,7 @@ before(async () => {
 after(() => new Promise(resolve => server.close(resolve)));
 beforeEach(() => {
   users = new Map([[1, { id: 1, name: 'Admin', email: 'admin@example.test', role: 'admin', token_version: 0, password: bcrypt.hashSync('old-password', 4) }]]);
+  activationCodes = [{id:1,code:'123456',used:0,used_by:null}];
   permissions = new Map(); operations = []; missingSheets = []; sheetFailure = false; calendarFailure = false;
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
   sheetRows = {
@@ -298,4 +308,39 @@ test('clearing notifications requires authentication and only clears the current
   assert.deepEqual(operation.params, [1]);
   assert.match(operation.sql, /WHERE user_id = \?/);
   assert.ok(!operations.some(op => op.sql.startsWith('DELETE FROM notifications')));
+});
+
+
+test('profile changes require the account code and cannot change role or another account', async () => {
+  activationCodes.push({id:2,code:'654321',used:1,used_by:1},{id:3,code:'111111',used:1,used_by:999});
+  const original = signAccessToken(users.get(1));
+  for (const activationCode of [undefined, '111111', '123456']) {
+    const denied = await request('/api/auth/profile', {method:'PUT',body:{name:'New',email:'new@example.test',activationCode,currentPassword:'old-password'}});
+    assert.equal(denied.status,400);
+  }
+  const result = await request('/api/auth/profile', {method:'PUT',body:{name:'  New Name  ',email:'NEW@example.test',activationCode:'654321',role:'colaborador',id:999}});
+  assert.equal(result.status,200);assert.equal(result.data.user.name,'New Name');assert.equal(result.data.user.email,'new@example.test');assert.equal(result.data.user.role,'admin');assert.equal(result.data.user.id,1);
+  assert.equal((await request('/api/auth/me',{token:original})).status,401);
+  const me=await request('/api/auth/me',{token:result.data.token});assert.equal(me.data.hasActivationCode,true);assert.equal(me.data.activationCode,undefined);assert.equal(me.data.password,undefined);
+});
+
+test('account code changes password without the old password, and remains usable for recovery after email change', async () => {
+  activationCodes.push({id:2,code:'654321',used:1,used_by:1});
+  const changed=await request('/api/auth/change-password',{method:'POST',body:{activationCode:'654321',newPassword:'changed-password'}});
+  assert.equal(changed.status,200);
+  users.get(1).email='changed@example.test';
+  const recovered=await request('/api/auth/forgot-password',{method:'POST',body:{email:'changed@example.test',activationCode:'654321',newPassword:'recovered-password'}});
+  assert.equal(recovered.status,200);
+  assert.equal((await request('/api/auth/me',{token:changed.data.token})).status,401);
+  assert.equal(await bcrypt.compare('recovered-password',users.get(1).password),true);
+});
+
+test('profile email collision is rejected and accounts without codes use current password', async () => {
+  users.set(2,{id:2,email:'taken@example.test',role:'colaborador'});
+  const conflict=await request('/api/auth/profile',{method:'PUT',body:{name:'New',email:'taken@example.test',currentPassword:'old-password'}});
+  assert.equal(conflict.status,409);assert.equal(users.get(1).name,'Admin');
+  const invalid=await request('/api/auth/profile',{method:'PUT',body:{name:'New',email:'new@example.test',currentPassword:'wrong'}});
+  assert.equal(invalid.status,400);
+  const success=await request('/api/auth/profile',{method:'PUT',body:{name:'New',email:'new@example.test',currentPassword:'old-password'}});
+  assert.equal(success.status,200);
 });

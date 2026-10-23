@@ -212,7 +212,8 @@ router.post('/refresh', async (req, res) => {
   }
 });
 
-router.post('/forgot-password', async (req, res) => {
+const recoveryLimit = rateLimit({ limit: 8, keyFor: req => crypto.createHash('sha256').update(normalizeEmail(req.body.email)).digest('hex') });
+router.post('/forgot-password', recoveryLimit, async (req, res) => {
   try {
     const { email, activationCode, newPassword } = req.body;
 
@@ -234,7 +235,7 @@ router.post('/forgot-password', async (req, res) => {
       return res.status(400).json({ error: 'El email o el código de activación no son correctos.' });
     }
 
-    const code = await db.get('SELECT id FROM activation_codes WHERE code = ? AND used_by = ?', [activationCode, user.id]);
+    const code = await db.get('SELECT id FROM activation_codes WHERE code = ? AND used_by = ? AND used = 1', [activationCode, user.id]);
     if (!code) {
       return res.status(400).json({ error: 'El email o el código de activación no son correctos.' });
     }
@@ -450,32 +451,66 @@ router.post('/codes', authenticate, requireAdmin, async (req, res) => {
   }
 });
 
-router.post('/change-password', authenticate, async (req, res) => {
+const accountLimit = rateLimit({ limit: 10, keyFor: req => String(req.user.id) });
+
+async function verifyAccountChange(db, user, body) {
+  const linked = await db.get('SELECT id FROM activation_codes WHERE used_by = ? AND used = 1 LIMIT 1', [user.id]);
+  if (linked) {
+    if (!/^[0-9]{6}$/.test(body.activationCode || '')) return false;
+    return !!await db.get('SELECT id FROM activation_codes WHERE code = ? AND used_by = ? AND used = 1', [body.activationCode, user.id]);
+  }
+  return typeof body.currentPassword === 'string' && !!body.currentPassword && await bcrypt.compare(body.currentPassword, user.password);
+}
+
+function accountResponse(user) {
+  return { ...issueTokens(user), user: { id: user.id, name: user.name, email: user.email, role: user.role } };
+}
+
+router.put('/profile', authenticate, accountLimit, async (req, res) => {
+  const name = (req.body.name || '').trim();
+  const email = normalizeEmail(req.body.email);
+  if (!name || name.length > 120 || !email || email.length > 254) return res.status(400).json({ error: 'Ingresá un nombre de hasta 120 caracteres y un correo válido.' });
   try {
-    const { currentPassword, newPassword } = req.body;
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({ error: 'Ambas contraseñas son obligatorias.' });
-    }
-    if (newPassword.length < 6) {
-      return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 6 caracteres.' });
-    }
     const db = await getDb();
-    const user = await db.get('SELECT * FROM users WHERE id = ?', [req.user.id]);
-    if (!user) return res.status(404).json({ error: 'Usuario no encontrado.' });
-    if (!await bcrypt.compare(currentPassword, user.password)) {
-      return res.status(400).json({ error: 'La contraseña actual no es correcta.' });
-    }
-    const hashed = await bcrypt.hash(newPassword, 10);
-    const result = await db.run('UPDATE users SET password = ?, token_version = token_version + 1 WHERE id = ? RETURNING id, name, email, role, token_version', [hashed, req.user.id]);
-    const updatedUser = result.rows[0];
-
-    logAction(req.user.id, req.user.email, 'Cambio de contraseña', '', req.ip);
-
-    res.json({ message: 'Contraseña actualizada correctamente.', ...issueTokens(updatedUser),
-      user: { id: updatedUser.id, name: updatedUser.name, email: updatedUser.email, role: updatedUser.role } });
+    const outcome = await db.transaction(async tx => {
+      const user = await tx.get('SELECT * FROM users WHERE id = ? FOR UPDATE', [req.user.id]);
+      if (!user || user.token_version !== req.user.token_version) return { status: 409, error: 'La cuenta cambió. Recargá la página antes de continuar.' };
+      if (!await verifyAccountChange(tx, user, req.body)) return { status: 400, error: 'El código o la contraseña de verificación no son correctos.' };
+      const existing = await tx.get('SELECT id FROM users WHERE LOWER(email) = ?', [email]);
+      if (existing && existing.id !== user.id) return { status: 409, error: 'Ese correo ya está asociado a otra cuenta.' };
+      const result = await tx.run('UPDATE users SET name = ?, email = ?, token_version = token_version + 1 WHERE id = ? RETURNING id, name, email, role, token_version', [name, email, user.id]);
+      return { user: result.rows[0] };
+    });
+    if (outcome.error) return res.status(outcome.status).json({ error: outcome.error });
+    logAction(req.user.id, outcome.user.email, 'Actualización de perfil', 'Nombre o correo actualizado por su titular', req.ip);
+    res.json({ message: 'Perfil actualizado.', ...accountResponse(outcome.user) });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error al cambiar contraseña.' });
+    if (err.code === '23505') return res.status(409).json({ error: 'Ese correo ya está asociado a otra cuenta.' });
+    console.error('Error de perfil:', err.message);
+    res.status(500).json({ error: 'No se pudo actualizar el perfil.' });
+  }
+});
+
+router.post('/change-password', authenticate, accountLimit, async (req, res) => {
+  const { newPassword } = req.body;
+  if (!newPassword || newPassword.length < 6) return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 6 caracteres.' });
+  try {
+    const db = await getDb();
+    const hashed = await bcrypt.hash(newPassword, 10);
+    const outcome = await db.transaction(async tx => {
+      const user = await tx.get('SELECT * FROM users WHERE id = ? FOR UPDATE', [req.user.id]);
+      if (!user || user.token_version !== req.user.token_version) return { status: 409, error: 'La cuenta cambió. Recargá la página antes de continuar.' };
+      if (!await verifyAccountChange(tx, user, req.body)) return { status: 400, error: 'El código o la contraseña de verificación no son correctos.' };
+      if (await bcrypt.compare(newPassword, user.password)) return { status: 400, error: 'Elegí una contraseña distinta a la actual.' };
+      const result = await tx.run('UPDATE users SET password = ?, token_version = token_version + 1 WHERE id = ? RETURNING id, name, email, role, token_version', [hashed, user.id]);
+      return { user: result.rows[0] };
+    });
+    if (outcome.error) return res.status(outcome.status).json({ error: outcome.error });
+    logAction(req.user.id, req.user.email, 'Cambio de contraseña', 'Verificación de titularidad completada', req.ip);
+    res.json({ message: 'Contraseña actualizada.', ...accountResponse(outcome.user) });
+  } catch (err) {
+    console.error('Error de contraseña:', err.message);
+    res.status(500).json({ error: 'No se pudo cambiar la contraseña.' });
   }
 });
 
@@ -484,7 +519,8 @@ router.get('/me', authenticate, async (req, res) => {
     const db = await getDb();
     const user = await db.get('SELECT id, name, email, role, created_at as fecha FROM users WHERE id = ?', [req.user.id]);
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado.' });
-    res.json(user);
+    const code = await db.get('SELECT id FROM activation_codes WHERE used_by = ? AND used = 1 LIMIT 1', [req.user.id]);
+    res.json({ id: user.id, name: user.name, email: user.email, role: user.role, fecha: user.fecha, hasActivationCode: !!code });
   } catch (err) {
     res.status(500).json({ error: 'Error al obtener usuario.' });
   }

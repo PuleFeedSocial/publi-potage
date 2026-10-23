@@ -42,7 +42,7 @@ const PUBLIC_FILES = new Set([
   'index.html', 'login.html', 'register.html', 'dashboard.html', 'grupos.html',
   'informes.html', 'sucursales.html', 'calendario.html', 'logs.html', 'ayuda.html',
   'account-settings.html',
-  'app.js', 'theme.js', 'style.css', 'sw.js', 'manifest.json',
+  'app.js', 'account.js', 'theme.js', 'style.css', 'sw.js', 'manifest.json',
   'output/pdf/politicas-privacidad-atlas.pdf', 'output/pdf/terminos-condiciones-atlas.pdf'
 ]);
 const servePublic = express.static(__dirname, {

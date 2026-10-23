@@ -60,7 +60,7 @@
 
                 <div class="alert-custom p-2 mb-3 text-start alert-soft border rounded-3">
                     <span class="fw-semibold fs-7"><i class="bi bi-key-fill me-1"></i> Código de activación:</span>
-                    <span class="small text-muted"> Solicitá el código de 6 dígitos al administrador de la plataforma.</span>
+                    <span class="small text-muted"> Solicitá al administrador tu código de 6 dígitos. Guardalo: también verifica cambios en tu perfil y permite recuperar tu contraseña.</span>
                 </div>
 
                 <form id="register-form" onsubmit="handleRegister(event)">
@@ -106,6 +106,7 @@
                             </label>
                         </div>
                         <button type="submit" class="btn btn-action-primary w-100">Crear Cuenta</button>
+                        <div id="register-feedback" class="alert alert-danger mt-3 small" role="status" hidden></div>
                 </form>
                 <div class="auth-card-footer">
                     ¿Ya tenés cuenta? <a href="login.html">Iniciar sesión</a>

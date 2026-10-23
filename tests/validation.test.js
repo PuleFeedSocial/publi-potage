@@ -26,3 +26,14 @@ test('rate limiter rejects excess attempts without blocking other addresses', ()
   middleware({ ip: '127.0.0.2' }, res, () => passed++);
   assert.equal(passed, 3);
 });
+
+test('account rate limits follow the account across different network addresses', () => {
+  const rateLimit = require('../middleware/rate-limit');
+  const limit = rateLimit({ limit: 1, keyFor: req => req.user.id });
+  let accepted = 0, rejected;
+  const res = { set() {}, status(code) { rejected=code; return this; }, json() {} };
+  limit({ip:'one',user:{id:1}},res,()=>accepted++);
+  limit({ip:'two',user:{id:1}},res,()=>accepted++);
+  limit({ip:'two',user:{id:2}},res,()=>accepted++);
+  assert.equal(accepted,2); assert.equal(rejected,429);
+});

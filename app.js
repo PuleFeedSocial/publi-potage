@@ -844,39 +844,30 @@ function handleLogin(e) {
     .catch(() => alert('Error de conexión con el servidor.'));
 }
 
-function handleRegister(e) {
+async function handleRegister(e) {
   e.preventDefault();
+  const form = e.target;
+  const button = form.querySelector('[type="submit"]');
+  if (button.disabled || !form.reportValidity()) return;
+  const feedback = document.getElementById('register-feedback');
+  const message = text => { if (feedback) { feedback.textContent = text; feedback.hidden = !text; } else showToast(text, 'error'); };
   const name = document.getElementById('reg-name').value.trim();
   const email = document.getElementById('reg-email').value.trim();
   const password = document.getElementById('reg-password').value;
   const activationCode = document.getElementById('reg-code').value.trim();
-
-  if (!name || !email || !password || !activationCode) {
-    alert('Completá todos los campos.');
-    return;
-  }
-
-  if (!/^[0-9]{6}$/.test(activationCode)) {
-    alert('El código de activación debe tener exactamente 6 dígitos numéricos.');
-    return;
-  }
-
-  fetch(API_BASE + '/api/auth/register', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, email, password, activationCode })
-  })
-    .then(res => res.json().then(data => ({ status: res.status, body: data })))
-    .then(({ status, body }) => {
-      if (status !== 201) {
-        alert(body.error || 'Error al registrarse.');
-        return;
-      }
-      setSession(body.token, body.user, body.refreshToken);
-      alert('Cuenta creada exitosamente.');
-      window.location.href = 'dashboard.html';
-    })
-    .catch(() => alert('Error de conexión con el servidor.'));
+  if (!name || !/^[0-9]{6}$/.test(activationCode)) { message('Ingresá tu nombre y el código de 6 dígitos que te entregó el administrador.'); return; }
+  if (new TextEncoder().encode(password).length > 72) { message('La contraseña es demasiado larga. Usá hasta 72 bytes.'); return; }
+  message('');
+  const label = button.textContent; button.disabled = true; button.textContent = 'Creando cuenta…';
+  try {
+    const response = await fetch(API_BASE + '/api/auth/register', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name,email,password,activationCode}), signal:AbortSignal.timeout(20000)});
+    const body = await response.json();
+    if (response.status !== 201) { message(body.error || 'No pudimos crear tu cuenta.'); return; }
+    setSession(body.token, body.user, body.refreshToken);
+    form.reset();
+    window.location.href = 'dashboard.html';
+  } catch { message('No pudimos confirmar el registro. Revisá la conexión; si la cuenta se creó, podés iniciar sesión.'); }
+  finally { button.disabled = false; button.textContent = label; }
 }
 
 async function logout() {
