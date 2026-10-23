@@ -261,6 +261,431 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+/* ---------- CENTRO DE NOTIFICACIONES ---------- */
+let notifItems = [];
+let notifUnread = 0;
+let notifLoading = false;
+let notifPanelOpen = false;
+
+const NOTIF_ICON_FALLBACK = 'bi-bell';
+const NOTIF_ICONS = {
+  calendario_asignacion: 'bi-calendar-check',
+  calendario_general: 'bi-calendar-plus',
+  calendario_recordatorio: 'bi-alarm',
+  calendario_realizada: 'bi-check2-circle',
+  usuario_registro: 'bi-person-plus',
+  sistema: 'bi-info-circle'
+};
+
+function notifIconFor(type) {
+  return NOTIF_ICONS[type] || NOTIF_ICON_FALLBACK;
+}
+
+function notifTimeAgo(value) {
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return '';
+  const diff = Math.max(0, Date.now() - date.getTime());
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return 'Ahora';
+  if (min < 60) return 'Hace ' + min + ' min';
+  const hours = Math.floor(min / 60);
+  if (hours < 24) return 'Hace ' + hours + ' h';
+  const days = Math.floor(hours / 24);
+  if (days < 7) return 'Hace ' + days + ' d';
+  return date.toLocaleDateString('es-AR', { day: '2-digit', month: 'short' });
+}
+
+function notifItemEl(item) {
+  const el = document.createElement('button');
+  el.type = 'button';
+  el.className = 'notif-item' + (item.is_read ? '' : ' is-unread');
+
+  const icon = document.createElement('span');
+  icon.className = 'notif-item-icon';
+  icon.innerHTML = '<i class="bi ' + notifIconFor(item.type) + '"></i>';
+
+  const body = document.createElement('span');
+  body.className = 'notif-item-body';
+  const title = document.createElement('span');
+  title.className = 'notif-item-title';
+  title.textContent = item.title || 'Notificación';
+  const message = document.createElement('span');
+  message.className = 'notif-item-msg';
+  message.textContent = item.message || '';
+  const time = document.createElement('span');
+  time.className = 'notif-item-time';
+  time.textContent = notifTimeAgo(item.created_at);
+  body.append(title, message, time);
+
+  const dot = document.createElement('span');
+  dot.className = 'notif-dot';
+
+  el.append(icon, body, dot);
+  el.addEventListener('click', () => handleNotifClick(item));
+  return el;
+}
+
+function renderNotifications(unread) {
+  const badge = document.getElementById('notif-badge');
+  const label = document.getElementById('notif-unread-label');
+  const list = document.getElementById('notif-list');
+  if (!badge || !list) return;
+
+  if (unread > 0) {
+    badge.hidden = false;
+    badge.textContent = unread > 9 ? '9+' : String(unread);
+  } else {
+    badge.hidden = true;
+    badge.textContent = '0';
+  }
+  if (label) label.textContent = unread > 0 ? unread + ' sin leer' : 'Sin novedades';
+
+  list.innerHTML = '';
+  if (!notifItems.length) {
+    const empty = document.createElement('div');
+    empty.className = 'notif-empty';
+    empty.innerHTML = '<i class="bi bi-bell-slash"></i><span>No tenés notificaciones por ahora.</span>';
+    list.appendChild(empty);
+    return;
+  }
+  notifItems.forEach(item => list.appendChild(notifItemEl(item)));
+}
+
+async function loadNotifications() {
+  if (!getToken() || notifLoading) return;
+  notifLoading = true;
+  try {
+    const res = await apiFetch('/api/notificaciones');
+    if (res.status === 200 && res.body) {
+      notifItems = Array.isArray(res.body.data) ? res.body.data : [];
+      notifUnread = Number(res.body.unread) || 0;
+      renderNotifications(notifUnread);
+    }
+  } catch {
+    /* silencioso: no interrumpir la página */
+  } finally {
+    notifLoading = false;
+  }
+}
+
+function handleNotifClick(item) {
+  if (!item.is_read) {
+    item.is_read = true;
+    notifUnread = Math.max(0, notifUnread - 1);
+    renderNotifications(notifUnread);
+    apiFetch('/api/notificaciones/' + item.id + '/read', { method: 'POST', body: '{}' }).catch(() => {});
+  }
+  if (item.link) window.location.href = item.link;
+}
+
+async function markAllNotificationsRead() {
+  if (!notifItems.some(item => !item.is_read)) return;
+  notifItems.forEach(item => { item.is_read = true; });
+  notifUnread = 0;
+  renderNotifications(0);
+  try {
+    await apiFetch('/api/notificaciones/read-all', { method: 'POST', body: '{}' });
+  } catch {
+    /* silencioso */
+  }
+}
+
+/* ---------- AVISOS PUSH EN EL DISPOSITIVO ---------- */
+let pushSubscribed = false;
+let pushBusy = false;
+
+function pushSupported() {
+  return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+}
+
+function isIosNonStandalone() {
+  const ua = navigator.userAgent || '';
+  const ios = /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (!ios) return false;
+  const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+    navigator.standalone === true;
+  return !standalone;
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  const output = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) output[i] = raw.charCodeAt(i);
+  return output;
+}
+
+function sameApplicationServerKey(current, publicKey) {
+  try {
+    const a = new Uint8Array(current);
+    const b = urlBase64ToUint8Array(publicKey);
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (a[i] !== b[i]) return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function swReady(timeoutMs) {
+  return Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('service worker timeout')), timeoutMs || 6000))
+  ]);
+}
+
+function updatePushUI() {
+  const row = document.getElementById('notif-push-row');
+  const text = document.getElementById('notif-push-text');
+  const btn = document.getElementById('notif-push-btn');
+  const test = document.getElementById('notif-push-test');
+  if (!row || !text || !btn || !test) return;
+
+  row.classList.toggle('is-active', pushSubscribed);
+  test.hidden = !pushSubscribed;
+  btn.disabled = pushBusy;
+
+  if (!pushSupported()) {
+    text.textContent = 'Este navegador no admite avisos push.';
+    btn.hidden = true;
+    test.hidden = true;
+    return;
+  }
+  if (isIosNonStandalone()) {
+    text.textContent = 'En iPhone/iPad, agregá la app a la pantalla de inicio para recibir avisos.';
+    btn.hidden = true;
+    test.hidden = true;
+    return;
+  }
+  if (Notification.permission === 'denied') {
+    text.textContent = 'Bloqueaste los avisos. Habilitalos desde los ajustes del navegador.';
+    btn.hidden = true;
+    test.hidden = true;
+    return;
+  }
+  btn.hidden = false;
+  if (pushSubscribed) {
+    text.textContent = 'Avisos activados en este dispositivo.';
+    btn.textContent = 'Desactivar';
+  } else {
+    text.textContent = 'Recibí los avisos también en tu celular.';
+    btn.textContent = 'Activar';
+  }
+}
+
+async function refreshPushState() {
+  if (!pushSupported()) {
+    updatePushUI();
+    return;
+  }
+  try {
+    const reg = await swReady();
+    const sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      pushSubscribed = false;
+      updatePushUI();
+      return;
+    }
+    const keyRes = await apiFetch('/api/push/public-key');
+    const publicKey = keyRes.status === 200 && keyRes.body ? keyRes.body.publicKey : '';
+    const current = sub.options && sub.options.applicationServerKey;
+    if (publicKey && current && !sameApplicationServerKey(current, publicKey)) {
+      await sub.unsubscribe();
+      pushSubscribed = false;
+      updatePushUI();
+      return;
+    }
+    pushSubscribed = true;
+    updatePushUI();
+    apiFetch('/api/push/subscribe', {
+      method: 'POST',
+      body: JSON.stringify({ subscription: sub.toJSON() })
+    }).catch(() => {});
+  } catch {
+    pushSubscribed = false;
+    updatePushUI();
+  }
+}
+
+async function togglePushNotifications() {
+  if (pushBusy || !pushSupported()) {
+    updatePushUI();
+    return;
+  }
+  pushBusy = true;
+  updatePushUI();
+
+  let permission = Notification.permission;
+  if (!pushSubscribed && permission === 'default') {
+    try {
+      permission = await Notification.requestPermission();
+    } catch {
+      permission = 'denied';
+    }
+  }
+
+  try {
+    const reg = await swReady();
+
+    if (pushSubscribed) {
+      const sub = await reg.pushManager.getSubscription();
+      const endpoint = sub ? sub.endpoint : '';
+      if (sub) await sub.unsubscribe();
+      pushSubscribed = false;
+      if (endpoint) {
+        await apiFetch('/api/push/unsubscribe', {
+          method: 'POST',
+          body: JSON.stringify({ endpoint })
+        }).catch(() => {});
+      }
+      showToast('Avisos desactivados en este dispositivo.', 'info');
+      return;
+    }
+
+    if (permission !== 'granted') {
+      showToast('No se concedió permiso para mostrar avisos.', 'error');
+      return;
+    }
+
+    const keyRes = await apiFetch('/api/push/public-key');
+    if (keyRes.status !== 200 || !keyRes.body || !keyRes.body.publicKey) {
+      throw new Error('No se pudo obtener la clave de avisos.');
+    }
+
+    let sub = await reg.pushManager.getSubscription();
+    const current = sub && sub.options && sub.options.applicationServerKey;
+    if (sub && current && !sameApplicationServerKey(current, keyRes.body.publicKey)) {
+      await sub.unsubscribe();
+      sub = null;
+    }
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(keyRes.body.publicKey)
+      });
+    }
+
+    const saved = await apiFetch('/api/push/subscribe', {
+      method: 'POST',
+      body: JSON.stringify({ subscription: sub.toJSON() })
+    });
+    if (saved.status >= 400) throw new Error('No se pudo guardar la suscripción.');
+
+    pushSubscribed = true;
+    showToast('Avisos activados en este dispositivo.', 'success');
+  } catch (err) {
+    showToast(err && err.message ? err.message : 'No se pudieron actualizar los avisos.', 'error');
+  } finally {
+    pushBusy = false;
+    updatePushUI();
+  }
+}
+
+async function sendPushTest() {
+  try {
+    const res = await apiFetch('/api/push/test', { method: 'POST', body: '{}' });
+    if (res.status === 200) showToast('Aviso de prueba enviado.', 'success');
+    else showToast(res.body && res.body.error ? res.body.error : 'No se pudo enviar el aviso de prueba.', 'error');
+  } catch {
+    showToast('No se pudo enviar el aviso de prueba.', 'error');
+  }
+}
+
+function setNotifPanel(open) {
+  const panel = document.getElementById('notif-panel');
+  const bell = document.getElementById('notif-bell');
+  const center = document.getElementById('notif-center');
+  if (!panel || !bell) return;
+  notifPanelOpen = open;
+  panel.hidden = !open;
+  bell.setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (center) center.classList.toggle('open', open);
+  if (open) loadNotifications();
+}
+
+function initNotificationCenter() {
+  if (document.getElementById('notif-center')) return;
+  if (!getCurrentSession() || !getToken()) return;
+  const actions = document.querySelector('.top-navbar-actions');
+  if (!actions) return;
+
+  const center = document.createElement('div');
+  center.className = 'notif-center';
+  center.id = 'notif-center';
+  center.innerHTML = `
+    <button class="notif-bell" id="notif-bell" type="button" aria-label="Notificaciones" aria-expanded="false">
+      <i class="bi bi-bell"></i>
+      <span class="notif-badge" id="notif-badge" hidden>0</span>
+    </button>
+    <div class="notif-panel" id="notif-panel" hidden>
+      <div class="notif-panel-head">
+        <div class="notif-panel-heading">
+          <span class="notif-panel-title">Notificaciones</span>
+          <span class="notif-panel-subtitle" id="notif-unread-label">Sin novedades</span>
+        </div>
+        <button class="notif-mark-all" id="notif-mark-all" type="button">Marcar todas</button>
+      </div>
+      <div class="notif-list" id="notif-list"></div>
+      <div class="notif-push-row" id="notif-push-row">
+        <div class="notif-push-info">
+          <i class="bi bi-phone"></i>
+          <span id="notif-push-text">Recibí los avisos también en tu celular.</span>
+        </div>
+        <div class="notif-push-actions">
+          <button class="notif-push-btn" id="notif-push-btn" type="button">Activar</button>
+          <button class="notif-push-test" id="notif-push-test" type="button" hidden>Probar</button>
+        </div>
+      </div>
+      <div class="notif-panel-foot">
+        <a href="calendario.html"><i class="bi bi-calendar3"></i> Ir al calendario</a>
+      </div>
+    </div>`;
+  actions.prepend(center);
+  actions.classList.add('has-notif');
+
+  document.getElementById('notif-bell').addEventListener('click', (e) => {
+    e.stopPropagation();
+    setNotifPanel(!notifPanelOpen);
+  });
+  document.getElementById('notif-mark-all').addEventListener('click', (e) => {
+    e.stopPropagation();
+    markAllNotificationsRead();
+  });
+  document.getElementById('notif-push-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    togglePushNotifications();
+  });
+  document.getElementById('notif-push-test').addEventListener('click', (e) => {
+    e.stopPropagation();
+    sendPushTest();
+  });
+  document.addEventListener('click', (e) => {
+    if (!notifPanelOpen) return;
+    const el = document.getElementById('notif-center');
+    if (el && !el.contains(e.target)) setNotifPanel(false);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && notifPanelOpen) setNotifPanel(false);
+  });
+
+  loadNotifications();
+  refreshPushState();
+  if (!window._notifPollTimer) {
+    window._notifPollTimer = setInterval(() => {
+      if (!document.hidden) loadNotifications();
+    }, 60000);
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) loadNotifications();
+  });
+}
+
+document.addEventListener('DOMContentLoaded', initNotificationCenter);
+
 function showToast(mensaje, tipo) {
   tipo = tipo || 'info';
   let container = document.getElementById('toast-container');
@@ -345,8 +770,22 @@ function handleRegister(e) {
     .catch(() => alert('Error de conexión con el servidor.'));
 }
 
-function logout() {
+async function logout() {
   if (!confirm('¿Cerrar sesión?')) return;
+  try {
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      const reg = await swReady(1500);
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        await apiFetch('/api/push/unsubscribe', {
+          method: 'POST',
+          body: JSON.stringify({ endpoint: sub.endpoint })
+        }).catch(() => {});
+      }
+    }
+  } catch {
+    /* el cierre de sesión no depende de los avisos push */
+  }
   clearSession();
   window.location.href = 'index.html';
 }

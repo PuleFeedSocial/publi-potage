@@ -3,6 +3,7 @@ const router = express.Router();
 const getDb = require('../database');
 const { authenticate, requireAdmin, requirePermission } = require('../middleware/auth');
 const { logAction } = require('./logs');
+const { notifyUsers, notifyAdmins, notifyAllUsers } = require('../services/notifications');
 
 const TIPOS = ['evento', 'tarea'];
 const ESTADOS = ['pendiente', 'realizada', 'completada'];
@@ -139,6 +140,23 @@ function stripAudit(ev, isAdmin) {
   return rest;
 }
 
+async function notifyAssignChange(db, actor, oldResp, newResp, titulo, tipo, fecha) {
+  const oldId = oldResp ? String(oldResp) : null;
+  const newId = newResp ? String(parseInt(newResp)) : null;
+  if (!newId || newId === oldId || newId === String(actor.id)) return;
+  try {
+    await notifyUsers(db, [Number(newId)], {
+      type: 'calendario_asignacion',
+      title: 'Nuevo elemento asignado',
+      message: `${tipo === 'evento' ? 'Evento' : 'Tarea'}: ${titulo} · ${fecha}`,
+      link: 'calendario.html',
+      icon: 'bi-calendar-check'
+    });
+  } catch (err) {
+    console.error('Error al notificar asignación:', err.message);
+  }
+}
+
 function filterForViewer(ev, isAdmin, viewerId) {
   let out = stripAudit(ev, isAdmin);
   if (isAdmin) return out;
@@ -222,6 +240,23 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
     logAction(req.user.id, req.user.email, 'Creación en calendario',
       `${tipo}: ${titulo} (${fecha}${serieTotal > 1 ? `, ${serieTotal} repeticiones` : ''})`, req.ip);
 
+    try {
+      const serieTxt = serieTotal > 1 ? ` (${serieTotal} repeticiones)` : '';
+      if (responsableId) {
+        await notifyAssignChange(db, req.user, null, responsableId, titulo, tipo, fecha);
+      } else {
+        await notifyAllUsers(db, {
+          type: 'calendario_general',
+          title: tipo === 'evento' ? 'Nuevo evento en el calendario' : 'Nueva tarea en el calendario',
+          message: `${titulo} · ${fecha}${serieTxt}`,
+          link: 'calendario.html',
+          icon: 'bi-calendar-plus'
+        }, req.user.id);
+      }
+    } catch (notifErr) {
+      console.error('Error al notificar creación de calendario:', notifErr.message);
+    }
+
     res.status(201).json({
       message: serieTotal > 1
         ? `Elemento creado con ${serieTotal} repeticiones.`
@@ -297,6 +332,12 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
       await db.run('UPDATE calendario SET ' + sets.join(', ') + ' WHERE serie_id = ?', params);
       logAction(req.user.id, req.user.email, 'Edición en calendario (serie)',
         `serie #${existing.serie_id}: ${req.body.titulo !== undefined ? String(req.body.titulo).trim() : existing.titulo}`, req.ip);
+      if (req.body.responsable_id !== undefined) {
+        await notifyAssignChange(db, req.user, existing.responsable_id, req.body.responsable_id,
+          req.body.titulo !== undefined ? String(req.body.titulo).trim() : existing.titulo,
+          req.body.tipo !== undefined ? req.body.tipo : existing.tipo,
+          existing.fecha_iso);
+      }
       const rows = await db.all(SELECT_EVENTO + ' WHERE c.serie_id = ?' + ORDER, [existing.serie_id]);
       const isAdmin = normRole(req.user) === 'admin';
       return res.json({ message: 'Serie actualizada correctamente.', data: rows.map(r => filterForViewer(r, isAdmin, req.user.id)) });
@@ -342,6 +383,13 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
     logAction(req.user.id, req.user.email, 'Edición en calendario',
       `#${id}: ${nuevoTitulo} (${merged.fecha})`, req.ip);
 
+    if (req.body.responsable_id !== undefined) {
+      await notifyAssignChange(db, req.user, existing.responsable_id, req.body.responsable_id,
+        nuevoTitulo,
+        req.body.tipo !== undefined ? req.body.tipo : existing.tipo,
+        merged.fecha);
+    }
+
     const item = await getEvento(db, id);
     res.json({ message: 'Elemento actualizado correctamente.', item: filterForViewer(item, normRole(req.user) === 'admin', req.user.id) });
   } catch (err) {
@@ -376,6 +424,16 @@ router.patch('/:id/estado', authenticate, requirePermission('complete_calendario
 
     logAction(req.user.id, req.user.email, 'Cambio de estado en calendario',
       `#${id}: ${existing.titulo} -> ${nuevoEstado === 'realizada' ? 'Realizada' : 'Pendiente'} (por ${req.user.email})`, req.ip);
+
+    if (nuevoEstado === 'realizada' && normEstado(existing.estado) !== 'realizada') {
+      await notifyAdmins(db, {
+        type: 'calendario_realizada',
+        title: 'Tarea completada',
+        message: `${req.user.name || req.user.email} marcó como realizada: ${existing.titulo}`,
+        link: 'calendario.html',
+        icon: 'bi-check2-circle'
+      }, req.user.id);
+    }
 
     const item = await getEvento(db, id);
     res.json({

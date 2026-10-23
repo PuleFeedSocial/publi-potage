@@ -9,6 +9,7 @@ const { CATALOG, getRolePermissions, setRolePermissions, DEFAULT_ROLE_PERMISSION
 
 const router = express.Router();
 const { logAction } = require('./logs');
+const { notifyAdmins } = require('../services/notifications');
 
 const authLimit = rateLimit();
 router.use(['/login', '/register', '/forgot-password'], authLimit);
@@ -117,6 +118,14 @@ router.post('/register', async (req, res) => {
     const { token, refreshToken } = issueTokens({ id: user.id, name, email, role: 'colaborador' });
 
     logAction(user.id, email, 'Registro', 'Usuario registrado como colaborador', req.ip);
+
+    await notifyAdmins(db, {
+      type: 'usuario_registro',
+      title: 'Nuevo usuario registrado',
+      message: `${name.trim()} (${email}) se registró como colaborador.`,
+      link: 'dashboard.html',
+      icon: 'bi-person-plus'
+    });
 
     res.status(201).json({
       message: 'Cuenta creada exitosamente.',

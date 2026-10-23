@@ -10,6 +10,9 @@ const informesRoutes = require('./routes/informes');
 const zonasRoutes = require('./routes/zonas');
 const sucursalesRoutes = require('./routes/sucursales');
 const calendarioRoutes = require('./routes/calendario');
+const notificacionesRoutes = require('./routes/notificaciones');
+const pushRoutes = require('./routes/push');
+const { runDailyReminders } = require('./services/notifications');
 const { router: logsRoutes } = require('./routes/logs');
 const { authenticate, requireAdmin } = require('./middleware/auth');
 
@@ -70,6 +73,8 @@ app.use('/api/informes', informesRoutes);
 app.use('/api/zonas', zonasRoutes);
 app.use('/api/sucursales', sucursalesRoutes);
 app.use('/api/calendario', calendarioRoutes);
+app.use('/api/notificaciones', notificacionesRoutes);
+app.use('/api/push', pushRoutes);
 app.use('/api/logs', logsRoutes);
 
 async function runSeed() {
@@ -112,6 +117,22 @@ async function start() {
   const server = app.listen(PORT, () => {
     console.log(`Potage SRL Server corriendo en puerto ${PORT}`);
   });
+
+  // Recordatorios de calendario aun sin abrir la app (se deduplican por día en la base).
+  const reminderHourOk = () => {
+    const hour = Number(new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'America/Argentina/Buenos_Aires',
+      hour: '2-digit',
+      hour12: false
+    }).format(new Date()));
+    return hour >= 8 && hour < 22;
+  };
+  const reminderTick = () => {
+    if (!reminderHourOk()) return;
+    runDailyReminders(db).catch(() => {});
+  };
+  setTimeout(reminderTick, 30000).unref();
+  setInterval(reminderTick, 30 * 60 * 1000).unref();
   process.once('SIGTERM', () => {
     const deadline = setTimeout(() => process.exit(1), 30000);
     deadline.unref();

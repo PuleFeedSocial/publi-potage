@@ -1,4 +1,4 @@
-const CACHE = 'potage-v49';
+const CACHE = 'potage-v51';
 const STATIC = [
   '/dashboard.html', '/index.html', '/login.html', '/register.html',
   '/grupos.html', '/informes.html', '/logs.html', '/account-settings.html',
@@ -39,4 +39,49 @@ self.addEventListener('fetch', (e) => {
       })
       .catch(() => caches.match(e.request))
   );
+});
+
+/* ---------- Web Push ---------- */
+function absoluteUrl(value) {
+  try {
+    return new URL(value || '/dashboard.html', self.location.origin).href;
+  } catch (e) {
+    return self.location.origin + '/dashboard.html';
+  }
+}
+
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (e) {
+    data = { title: 'Publi Potage', body: event.data ? event.data.text() : '' };
+  }
+  const title = data.title || 'Publi Potage';
+  const options = {
+    body: data.body || '',
+    icon: data.icon || '/img/icon-192.png',
+    badge: data.badge || '/img/icon-192.png',
+    tag: data.tag || undefined,
+    data: { url: absoluteUrl(data.url) }
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = (event.notification.data && event.notification.data.url) || absoluteUrl();
+  event.waitUntil((async () => {
+    const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of all) {
+      if ('focus' in client) {
+        try { await client.focus(); } catch (e) {}
+        if ('navigate' in client && client.url !== target) {
+          try { await client.navigate(target); } catch (e) {}
+        }
+        return;
+      }
+    }
+    if (self.clients.openWindow) await self.clients.openWindow(target);
+  })());
 });
