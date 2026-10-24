@@ -1,4 +1,6 @@
 const CATALOG = [
+  { key: 'view_productos', label: 'Ver Productos', group: 'Productos', desc: 'Consultar productos y precios por región.' },
+  { key: 'edit_productos', label: 'Modificar Productos', group: 'Productos', desc: 'Añadir, editar y eliminar regiones, locales y precios en Google Sheets.' },
   { key: 'view_dashboard', label: 'Ver Publicaciones', group: 'Secciones', desc: 'Acceso al dashboard de publicaciones.' },
   { key: 'view_informes', label: 'Ver Informes', group: 'Secciones', desc: 'Acceso a la sección de informes.' },
   { key: 'view_grupos', label: 'Ver Grupos', group: 'Secciones', desc: 'Acceso a la sección de grupos.' },
@@ -21,6 +23,8 @@ const CATALOG = [
 
 const DEFAULT_ROLE_PERMISSIONS = {
   colaborador: {
+    view_productos: true,
+    edit_productos: false,
     view_dashboard: true,
     view_informes: true,
     view_grupos: true,

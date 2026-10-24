@@ -136,6 +136,20 @@ test('only explicitly public files can be downloaded', async () => {
   for (const path of ['/dashboard.html','/app.js','/theme.js','/style.css','/img/icon-192.png']) assert.equal((await request(path)).status, 200, path);
   assert.equal((await request('/api/seed')).status, 404);
 });
+test('products protect writes and service account details with server-side permissions', async () => {
+  assert.equal((await request('/api/productos', { token: '' })).status, 401);
+  const collaborator = { id: 55, name: 'Reader', email: 'reader@example.test', role: 'colaborador', token_version: 0 };
+  users.set(55, collaborator);
+  const token = signAccessToken(collaborator);
+  assert.equal((await request('/api/productos/conexion', { token })).status, 403);
+  for (const method of ['POST','PUT','DELETE']) assert.equal((await request('/api/productos/huevos', { token, method, body: {} })).status, 403);
+  const config = await request('/api/productos/conexion');
+  assert.equal(config.status, 200);
+  assert.deepEqual(Object.keys(config.data).sort(), ['email','spreadsheetId']);
+  assert.equal((await request('/services/products.js')).status, 404);
+  for (const path of ['/productos.html','/productos.js','/productos.css']) assert.equal((await request(path)).status, 200);
+});
+
 test('authentication rejects absent, removed and revoked sessions', async () => {
   assert.equal((await request('/api/marketing', { token: '' })).status, 401);
   const token = signAccessToken(users.get(1));

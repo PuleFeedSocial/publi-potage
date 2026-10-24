@@ -225,6 +225,7 @@ function hasPermission(key) {
 
 function applyNavPermissions() {
   const map = {
+    view_productos: 'btn-nav-productos',
     view_dashboard: 'btn-nav-dashboard',
     view_informes: 'btn-nav-informes',
     view_grupos: 'btn-nav-grupos',

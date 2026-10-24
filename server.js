@@ -41,7 +41,7 @@ app.use('/api', require('./services/validation').objectBody);
 const PUBLIC_FILES = new Set([
   'index.html', 'login.html', 'register.html', 'dashboard.html', 'grupos.html',
   'informes.html', 'sucursales.html', 'calendario.html', 'logs.html', 'ayuda.html',
-  'account-settings.html',
+  'account-settings.html', 'productos.html', 'productos.js', 'productos.css',
   'app.js', 'account.js', 'theme.js', 'style.css', 'sw.js', 'manifest.json',
   'output/pdf/politicas-privacidad-atlas.pdf', 'output/pdf/terminos-condiciones-atlas.pdf'
 ]);
@@ -71,6 +71,7 @@ app.use('/api/grupos', gruposRoutes);
 app.use('/api/historial', historialRoutes);
 app.use('/api/informes', informesRoutes);
 app.use('/api/zonas', zonasRoutes);
+app.use('/api/productos', require('./routes/productos'));
 app.use('/api/sucursales', sucursalesRoutes);
 app.use('/api/calendario', calendarioRoutes);
 app.use('/api/notificaciones', notificacionesRoutes);
