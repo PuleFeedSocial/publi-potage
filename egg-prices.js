@@ -1,5 +1,5 @@
 (function (root) {
-  const quantities = { precio_docena: 12, precio_maple: 30, precio_cajon: 900 };
+  const quantities = { precio_docena: 12, precio_maple: 30, precio_cajon: 360 };
   function calculate(source, value) {
     if (!Object.hasOwn(quantities, source)) throw new Error('Elegí docena, maple o cajón como precio base.');
     if (value === '') return Object.fromEntries(Object.keys(quantities).map(key => [key, '']));

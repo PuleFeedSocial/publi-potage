@@ -121,7 +121,7 @@ function openProductForm(kind,row=null){
     pe('pf-unidades_maple').required=special;pe('pf-unidades_maple').disabled=!special;pe('pf-presentacion_maple').readOnly=!special;
     if(!special){pe('pf-unidades_maple').value=30;pe('pf-presentacion_maple').value='Maple de 30 unidades';}
     else if(changed){pe('pf-unidades_maple').value=20;pe('pf-presentacion_maple').value='Maple de 20 unidades';}
-    note.textContent=special?'Especiales: precios independientes. No se aplica la conversión del maple estándar.':'12 huevos por docena · 30 por maple · 30 maples por cajón (900 huevos). Editá cualquiera de los tres precios: los otros se calculan al instante, con dos decimales. Si borrás el precio editado, se vacían los tres.';
+    note.textContent=special?'Especiales: precios independientes. No se aplica la conversión del maple estándar.':'12 huevos por docena · 30 por maple · 12 maples por cajón (360 huevos). Editá cualquiera de los tres precios: los otros se calculan al instante, con dos decimales. Si borrás el precio editado, se vacían los tres.';
     if(changed&&!special){const source=EggPrices.fields.find(key=>pe('pf-'+key).value!=='');if(source)calculate(source);}
   };
   pe('pf-categoria').onchange=()=>sync(true);sync();
