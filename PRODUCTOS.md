@@ -15,7 +15,11 @@ Se conservan los encabezados de la plantilla `Regiones`, `Locales`, `Precios hue
 
 Los colaboradores tienen consulta por defecto. `edit_productos` habilita altas, cambios y eliminaciones mediante los permisos de rol existentes. Las comprobaciones se realizan también en el servidor. Las regiones inactivas solo se muestran en la interfaz a quienes pueden editar.
 
-Los precios vacíos se muestran como **Sin cargar**; cero se conserva como importe real. Los especiales tienen cantidad de maple explícita y no admiten precio por docena. Las listas GENERAL y AMARILLA se mantienen diferenciadas.
+Los precios vacíos se muestran como **Sin cargar**; cero se conserva como importe real. Los especiales tienen cantidad de maple explícita y no admiten precio por docena. Solo se muestra la lista GENERAL de huevos; las filas AMARILLA se conservan en Sheets, pero no se muestran ni se ofrecen al crear productos desde la página.
+
+Los filtros permiten elegir región y local, buscar por nombre sin distinguir tildes y ordenar A–Z/Z–A dentro de cada categoría. Un local usa los precios de su región; no existen precios independientes por local en esta planilla. Cambiar de región limpia un local que ya no pertenece a ella. Limpiar filtros mantiene la región elegida y restablece local, búsqueda y orden.
+
+La gestión de regiones, locales y conexión se agrupa en un diálogo. Añadir producto abre un selector entre huevos y carnes. Los códigos se generan automáticamente y los campos técnicos permanecen ocultos en los formularios.
 
 Al eliminar se vacían las celdas del registro, sin desplazar otras filas. Una región con productos o locales no puede eliminarse; puede desactivarse. Los códigos e identidades no cambian al editar para evitar referencias rotas.
 
