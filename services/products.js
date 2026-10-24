@@ -1,5 +1,6 @@
 const { google } = require('googleapis');
 const crypto = require('crypto');
+const eggPrices = require('../egg-prices');
 const SPREADSHEET_ID = process.env.PRODUCTS_SHEET_ID || '1hFGIgLe4YgF2Iz5V7wJQcE0tS3tXlKvDtEwKduSEUtg';
 const schemas = {
   regiones: { tab: 'Regiones', fields: ['region_id','nombre_region','activa'], key: ['region_id'] },
@@ -64,6 +65,13 @@ function validate(kind, input, all) {
   if(kind==='huevos') {
     if(!['Estándar','Especial'].includes(row.categoria)||!row.presentacion_maple) throw fail('Indicá la categoría y presentación del maple.');
     if(row.categoria==='Especial'&&(row.unidades_maple===''||row.precio_docena!=='')) throw fail('Los especiales requieren cantidad de unidades y no llevan precio por docena.');
+    if(row.categoria==='Estándar' && row.lista_id==='GENERAL') {
+      row.unidades_maple=30;row.presentacion_maple='Maple de 30 unidades';
+      if(input.price_source!==undefined) {
+        try { Object.assign(row,eggPrices.calculate(input.price_source,row[input.price_source])); }
+        catch(err) { throw fail(err.message); }
+      }
+    }
   }
   return row;
 }
@@ -84,6 +92,10 @@ async function writeNow(kind,method,input,client=getClient()) {
     await client.spreadsheets.values.clear({spreadsheetId:SPREADSHEET_ID,range});return;
   }
   const row=validate(kind,input,all);
+  if(kind==='huevos'&&row.categoria==='Estándar'&&row.lista_id==='GENERAL'&&input.price_source===undefined) {
+    const changed=eggPrices.fields.some(field=>row[field]!== (current?.[field]??''));
+    if(changed&&eggPrices.fields.some(field=>row[field]!==''))throw fail('Indicá cuál de los tres precios editaste para calcular los demás.');
+  }
   if(current&&schema.key.some(k=>row[k]!==current[k]))throw fail('Los códigos y la identidad del registro no se pueden cambiar al editar.');
   if(all[kind].some(r=>r._row!==current?._row&&rowKey(schema,r)===rowKey(schema,row)))throw fail('Este registro ya existe en la región y lista seleccionadas.',409);
   const values=[schema.fields.map(f=>row[f])];

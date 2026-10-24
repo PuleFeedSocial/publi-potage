@@ -68,8 +68,6 @@ function renderProductRegion(){
   const rows=eggs.filter(r=>r.lista_id===list&&(r.categoria==='Especial')===special);if(!rows.length)continue;
   const cols=[['tipo_huevo','Tipo'],['presentacion_maple','Presentación']];
   if(!special)cols.push(['precio_docena','Docena']);cols.push(['precio_maple','Maple'],['precio_cajon','Cajón']);
-  if(rows.some(r=>r.precio_medio_cajon!==''&&r.precio_medio_cajon!=null))cols.push(['precio_medio_cajon','Medio cajón']);
-  if(!special&&(list==='GENERAL'||rows.some(r=>r.cambio_por_docena!=='')))cols.push(['cambio_por_docena','Cambio / docena']);
   root.append(productTable(`Huevos${special?' especiales':''}`,rows,cols,'huevos'));
  }
  const meats=filterProductRows(productsData.carnes,id,search,order);
@@ -102,9 +100,32 @@ function openProductForm(kind,row=null){
   if(row&&productKeys[kind].includes(key))input.disabled=true;
   if(['lista_id','local_id','producto_id'].includes(key)||(key==='region_id'&&kind==='regiones'))box.hidden=true;
   box.append(lab,input);fields.append(box);
+  if(kind==='huevos'&&['cambio_por_docena','precio_medio_cajon'].includes(key))box.hidden=true;
  }
  if(kind==='huevos'){
-  const sync=()=>{const special=pe('pf-categoria').value==='Especial';pe('pf-precio_docena').disabled=special;if(special)pe('pf-precio_docena').value='';pe('pf-unidades_maple').required=special;};pe('pf-categoria').onchange=sync;sync();
+  const note=productNode('p','','product-price-help');note.id='product-price-help';note.setAttribute('role','status');fields.append(note);
+  const calculate=source=>{
+    if(pe('pf-categoria').value!=='Estándar')return;
+    productEdit.priceSource=source;
+    try{
+      const input=pe('pf-'+source);if(input.validity.badInput)throw new Error('Ingresá un precio válido.');
+      const values=EggPrices.calculate(source,input.value===''?'':Number(input.value));
+      for(const key of EggPrices.fields)if(key!==source)pe('pf-'+key).value=values[key];
+      pe('product-form-error').textContent='';
+    }catch(error){pe('product-form-error').textContent=error.message;}
+  };
+  const sync=(changed=false)=>{
+    const special=pe('pf-categoria').value==='Especial';
+    productEdit.priceSource=undefined;
+    pe('pf-precio_docena').disabled=special;if(special)pe('pf-precio_docena').value='';
+    pe('pf-unidades_maple').required=special;pe('pf-unidades_maple').disabled=!special;pe('pf-presentacion_maple').readOnly=!special;
+    if(!special){pe('pf-unidades_maple').value=30;pe('pf-presentacion_maple').value='Maple de 30 unidades';}
+    else if(changed){pe('pf-unidades_maple').value=20;pe('pf-presentacion_maple').value='Maple de 20 unidades';}
+    note.textContent=special?'Especiales: precios independientes. No se aplica la conversión del maple estándar.':'12 huevos por docena · 30 por maple · 30 maples por cajón (900 huevos). Editá cualquiera de los tres precios: los otros se calculan al instante, con dos decimales. Si borrás el precio editado, se vacían los tres.';
+    if(changed&&!special){const source=EggPrices.fields.find(key=>pe('pf-'+key).value!=='');if(source)calculate(source);}
+  };
+  pe('pf-categoria').onchange=()=>sync(true);sync();
+  for(const key of EggPrices.fields)pe('pf-'+key).addEventListener('input',()=>calculate(key));
  }
  pe('product-dialog').showModal();
 }
@@ -114,6 +135,11 @@ async function saveProduct(remove=false){
  if(remove&&!confirm('¿Eliminar este registro de la hoja? Esta acción no se puede deshacer desde la página.'))return;
  const {kind,row}=productEdit;const payload={_row:row?._row,_revision:row?._revision};
  if(!remove)for(const [key,,type]of productFields[kind]){const value=pe('pf-'+key).value;payload[key]=type==='number'&&value!==''?Number(value):value;}
+ if(!remove&&kind==='huevos'&&payload.categoria==='Estándar'&&productEdit.priceSource!==undefined){
+  payload.price_source=productEdit.priceSource;
+  try{Object.assign(payload,EggPrices.calculate(payload.price_source,payload[payload.price_source]));}
+  catch(error){pe('product-form-error').textContent=error.message;return;}
+ }
  productsBusy=true;pe('product-form-error').textContent='Guardando…';pe('product-form-set').disabled=true;
  try{const {status,body}=await apiFetch('/api/productos/'+kind,{method:remove?'DELETE':row?'PUT':'POST',body:JSON.stringify(payload),signal:AbortSignal.timeout(30000)});if(status!==200)throw new Error(body.error||'No se pudo guardar.');
  pe('product-dialog').close();productsBusy=false;await loadProducts();

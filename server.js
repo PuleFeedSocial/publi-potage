@@ -41,7 +41,7 @@ app.use('/api', require('./services/validation').objectBody);
 const PUBLIC_FILES = new Set([
   'index.html', 'login.html', 'register.html', 'dashboard.html', 'grupos.html',
   'informes.html', 'sucursales.html', 'calendario.html', 'logs.html', 'ayuda.html',
-  'account-settings.html', 'productos.html', 'productos.js', 'productos.css',
+  'account-settings.html', 'productos.html', 'productos.js', 'productos.css', 'egg-prices.js',
   'app.js', 'account.js', 'theme.js', 'style.css', 'sw.js', 'manifest.json',
   'output/pdf/politicas-privacidad-atlas.pdf', 'output/pdf/terminos-condiciones-atlas.pdf'
 ]);
