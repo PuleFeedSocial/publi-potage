@@ -105,11 +105,10 @@ function openProductForm(kind,row=null){
  if(kind==='huevos'){
   const note=productNode('p','','product-price-help');note.id='product-price-help';note.setAttribute('role','status');fields.append(note);
   const calculate=source=>{
-    if(pe('pf-categoria').value!=='Estándar')return;
     productEdit.priceSource=source;
     try{
       const input=pe('pf-'+source);if(input.validity.badInput)throw new Error('Ingresá un precio válido.');
-      const values=EggPrices.calculate(source,input.value===''?'':Number(input.value));
+      const values=EggPrices.calculate(source,input.value===''?'':Number(input.value),pe('pf-categoria').value);
       for(const key of EggPrices.fields)if(key!==source)pe('pf-'+key).value=values[key];
       pe('product-form-error').textContent='';
     }catch(error){pe('product-form-error').textContent=error.message;}
@@ -118,14 +117,29 @@ function openProductForm(kind,row=null){
     const special=pe('pf-categoria').value==='Especial';
     productEdit.priceSource=undefined;
     pe('pf-precio_docena').disabled=special;if(special)pe('pf-precio_docena').value='';
-    pe('pf-unidades_maple').required=special;pe('pf-unidades_maple').disabled=!special;pe('pf-presentacion_maple').readOnly=!special;
+    pe('pf-unidades_maple').required=false;pe('pf-unidades_maple').disabled=true;pe('pf-presentacion_maple').readOnly=true;
     if(!special){pe('pf-unidades_maple').value=30;pe('pf-presentacion_maple').value='Maple de 30 unidades';}
-    else if(changed){pe('pf-unidades_maple').value=20;pe('pf-presentacion_maple').value='Maple de 20 unidades';}
-    note.textContent=special?'Especiales: precios independientes. No se aplica la conversión del maple estándar.':'12 huevos por docena · 30 por maple · 12 maples por cajón (360 huevos). Editá cualquiera de los tres precios: los otros se calculan al instante, con dos decimales. Si borrás el precio editado, se vacían los tres.';
-    if(changed&&!special){const source=EggPrices.fields.find(key=>pe('pf-'+key).value!=='');if(source)calculate(source);}
+    else{pe('pf-unidades_maple').value=20;pe('pf-presentacion_maple').value='Maple de 20 unidades';}
+    note.textContent=special?'20 huevos por maple · 12 maples por cajón (240 huevos). Editá maple o cajón para calcular el otro. No se vende por docena. Los resultados se redondean a centavos.':'12 huevos por docena · 30 por maple · 12 maples por cajón (360 huevos). Editá cualquiera de los tres precios: los otros se calculan al instante, con dos decimales. Si borrás el precio editado, se vacían los tres.';
+    if(changed){const source=EggPrices.fields.find(key=>!pe('pf-'+key).disabled&&pe('pf-'+key).value!=='');if(source)calculate(source);}
   };
   pe('pf-categoria').onchange=()=>sync(true);sync();
   for(const key of EggPrices.fields)pe('pf-'+key).addEventListener('input',()=>calculate(key));
+ }
+ if(kind==='carnes'){
+  const section=productNode('section',undefined,'product-price-help');
+  section.append(productNode('p','Cada presentación tiene su propio precio. Cambiar un importe no modifica los de otros tamaños o pesos.'));
+  if(row){
+   const related=productsData.carnes.filter(item=>item.region_id===row.region_id&&item.producto_id!==row.producto_id&&productText(item.producto)===productText(row.producto)&&productText(item.categoria)===productText(row.categoria));
+   if(related.length)section.append(productNode('h3','Otras presentaciones','h6'));
+   for(const item of related){const line=productNode('div',undefined,'product-management-row');line.append(productNode('span',`${item.presentacion||'Sin presentación'} · ${productMoney(item.precio)}`),productButton('Editar',()=>{pe('product-dialog').close();openProductForm('carnes',item);}));section.append(line);}
+   section.append(productButton('Añadir presentación',()=>{
+    pe('product-dialog').close();openProductForm('carnes');
+    for(const key of ['region_id','categoria','producto'])pe('pf-'+key).value=row[key];
+    pe('pf-presentacion').focus();
+   }));
+  }
+  fields.append(section);
  }
  pe('product-dialog').showModal();
 }
@@ -135,9 +149,9 @@ async function saveProduct(remove=false){
  if(remove&&!confirm('¿Eliminar este registro de la hoja? Esta acción no se puede deshacer desde la página.'))return;
  const {kind,row}=productEdit;const payload={_row:row?._row,_revision:row?._revision};
  if(!remove)for(const [key,,type]of productFields[kind]){const value=pe('pf-'+key).value;payload[key]=type==='number'&&value!==''?Number(value):value;}
- if(!remove&&kind==='huevos'&&payload.categoria==='Estándar'&&productEdit.priceSource!==undefined){
+ if(!remove&&kind==='huevos'&&productEdit.priceSource!==undefined){
   payload.price_source=productEdit.priceSource;
-  try{Object.assign(payload,EggPrices.calculate(payload.price_source,payload[payload.price_source]));}
+  try{Object.assign(payload,EggPrices.calculate(payload.price_source,payload[payload.price_source],payload.categoria));}
   catch(error){pe('product-form-error').textContent=error.message;return;}
  }
  productsBusy=true;pe('product-form-error').textContent='Guardando…';pe('product-form-set').disabled=true;

@@ -65,10 +65,10 @@ function validate(kind, input, all) {
   if(kind==='huevos') {
     if(!['Estándar','Especial'].includes(row.categoria)||!row.presentacion_maple) throw fail('Indicá la categoría y presentación del maple.');
     if(row.categoria==='Especial'&&(row.unidades_maple===''||row.precio_docena!=='')) throw fail('Los especiales requieren cantidad de unidades y no llevan precio por docena.');
-    if(row.categoria==='Estándar' && row.lista_id==='GENERAL') {
-      row.unidades_maple=30;row.presentacion_maple='Maple de 30 unidades';
+    if(row.lista_id==='GENERAL') {
+      row.unidades_maple=row.categoria==='Especial'?20:30;row.presentacion_maple=`Maple de ${row.unidades_maple} unidades`;
       if(input.price_source!==undefined) {
-        try { Object.assign(row,eggPrices.calculate(input.price_source,row[input.price_source])); }
+        try { Object.assign(row,eggPrices.calculate(input.price_source,row[input.price_source],row.categoria)); }
         catch(err) { throw fail(err.message); }
       }
     }
@@ -92,7 +92,7 @@ async function writeNow(kind,method,input,client=getClient()) {
     await client.spreadsheets.values.clear({spreadsheetId:SPREADSHEET_ID,range});return;
   }
   const row=validate(kind,input,all);
-  if(kind==='huevos'&&row.categoria==='Estándar'&&row.lista_id==='GENERAL'&&input.price_source===undefined) {
+  if(kind==='huevos'&&row.lista_id==='GENERAL'&&input.price_source===undefined) {
     const changed=eggPrices.fields.some(field=>row[field]!== (current?.[field]??''));
     if(changed&&eggPrices.fields.some(field=>row[field]!==''))throw fail('Indicá cuál de los tres precios editaste para calcular los demás.');
   }

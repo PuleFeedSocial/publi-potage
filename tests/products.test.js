@@ -18,7 +18,7 @@ test('product reads retain zero, blanks, special quantities and ignore region in
 });
 test('product update targets only its row, uses RAW and rejects stale revisions',async()=>{
  const f=fixture();const item=(await p.read(f.client)).huevos[0];
- await p.write('huevos','PUT',{...item,precio_maple:50},f.client);
+ await p.write('huevos','PUT',{...item,precio_maple:50,price_source:'precio_maple'},f.client);
  assert.equal(f.calls[0].range,"'Precios huevos'!A2:K2");assert.equal(f.calls[0].valueInputOption,'RAW');assert.equal(f.calls[0].requestBody.values[0][7],50);
  f.rows.huevos[1][7]=500;
  await assert.rejects(p.write('huevos','PUT',item,f.client),{status:409});assert.equal(f.calls.length,1);
@@ -26,7 +26,7 @@ test('product update targets only its row, uses RAW and rejects stale revisions'
 test('invalid and duplicate products cannot write to Sheets',async()=>{
  const f=fixture();const item=(await p.read(f.client)).huevos[0];
  for(const change of [{precio_maple:-1},{precio_maple:'100'},{precio_docena:10},{unidades_maple:0},{region_id:'NO-REGION'}])await assert.rejects(p.write('huevos','POST',{...item,...change},f.client));
- await assert.rejects(p.write('huevos','POST',item,f.client),{status:409});assert.equal(f.calls.length,0);
+ await assert.rejects(p.write('huevos','POST',{...item,price_source:'precio_maple'},f.client),{status:409});assert.equal(f.calls.length,0);
 });
 test('create and delete preserve other rows and prevent removal of populated regions',async()=>{
  const f=fixture();const all=await p.read(f.client);
@@ -39,4 +39,14 @@ test('modified headers, duplicate keys and invalid table names fail safely',asyn
  const f=fixture();f.rows.regiones.push(['REG-01','Duplicada','Sí']);await assert.rejects(p.read(f.client),{status:409});
  f.rows.regiones.pop();f.rows.huevos[0]=['wrong'];await assert.rejects(p.read(f.client),{status:409});
  await assert.rejects(p.write('__proto__','POST',{},f.client),{status:400});assert.equal(f.calls.length,0);
+});
+test('meat presentations keep independent prices and writes affect only the chosen row',async()=>{
+ const f=fixture();
+ f.rows.carnes.push(['REG-01','PC-01','Pollo','Cuartos traseros','5 kg',13000],['REG-01','PC-02','Pollo','Cuartos traseros','15 kg',37500]);
+ const item=(await p.read(f.client)).carnes[0];
+ await p.write('carnes','PUT',{...item,precio:14000},f.client);
+ assert.equal(f.calls.length,1);assert.equal(f.calls[0].range,"'Precios pollos y carnes'!A2:F2");
+ assert.equal(f.calls[0].requestBody.values[0][5],14000);assert.equal(f.rows.carnes[2][5],37500);
+ await p.write('carnes','POST',{region_id:'REG-01',producto_id:'PC-03',categoria:'Pollo',producto:'Cuartos traseros',presentacion:'10 kg',precio:25000},f.client);
+ assert.equal(f.calls[1].requestBody.values[0][5],25000);
 });
