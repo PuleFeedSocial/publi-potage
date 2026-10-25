@@ -6,8 +6,10 @@ const schemas = {
   regiones: { tab: 'Regiones', fields: ['region_id','nombre_region','activa'], key: ['region_id'] },
   locales: { tab: 'Locales', fields: ['local_id','nombre_local','region_id'], key: ['local_id'] },
   huevos: { tab: 'Precios huevos', fields: ['region_id','lista_id','tipo_huevo','categoria','presentacion_maple','unidades_maple','precio_docena','precio_maple','precio_medio_cajon','precio_cajon','cambio_por_docena'], key: ['region_id','lista_id','tipo_huevo'] },
-  carnes: { tab: 'Precios pollos y carnes', fields: ['region_id','producto_id','categoria','producto','presentacion','precio'], key: ['region_id','producto_id'] }
+  carnes: { tab: 'Precios pollos y carnes', fields: ['region_id','producto_id','categoria','producto','presentacion','precio'], key: ['region_id','producto_id'] },
+  regionProductos: { tab: 'Productos por región', fields: ['region_id','tipo','activo'], key: ['region_id','tipo'] }
 };
+const PRODUCT_TYPES = ['huevos','pollos','cerdos','carnes'];
 function fail(message, status=400) { return Object.assign(new Error(message), { status, publicMessage: message }); }
 function credentials() {
   try { return JSON.parse(process.env.GOOGLE_CREDENTIALS || '{}'); }
@@ -32,17 +34,19 @@ function activeValue(value){
 }
 function parse(kind, values=[]) {
   const schema=schemas[kind];
+  if (!Array.isArray(values) || !values.length) return [];
   if (!schema.fields.every((f,i)=>values[0]?.[i]===f)) throw fail(`Revisá los encabezados de la pestaña ${schema.tab}.`,409);
   const seen=new Set();
   return values.slice(1).flatMap((cells,index)=>{
     // The template contains instructions below the Regions table.
-    if (!cells[0] || (kind==='regiones' && !/^[A-Za-z0-9_-]{1,80}$/.test(String(cells[0])))) return [];
+    if (!cells || !cells[0] || (kind==='regiones' && !/^[A-Za-z0-9_-]{1,80}$/.test(String(cells[0])))) return [];
     const row=Object.fromEntries(schema.fields.map((f,i)=>[f,cells[i]??'']));
     const key=rowKey(schema,row);
     if(seen.has(key)) throw fail(`Hay registros duplicados en ${schema.tab}. Corregilos en la hoja antes de continuar.`,409);
     seen.add(key);
     const hash=revision(schema.fields.map(f=>row[f]));
     if(kind==='regiones')row.activa=activeValue(row.activa);
+    if(kind==='regionProductos')row.activo=activeValue(row.activo);
     // Recognize only the former exact 30-maple conversion, never arbitrary price differences.
     if(kind==='huevos'&&row.lista_id==='GENERAL'&&typeof row.precio_maple==='number'&&row.precio_maple>0&&Math.abs(row.precio_cajon-row.precio_maple*30)<0.011){
       row._previousCrate=row.precio_cajon;row.precio_cajon=eggPrices.calculate('precio_maple',row.precio_maple,row.categoria).precio_cajon;row._needsPriceSave=true;
@@ -51,12 +55,34 @@ function parse(kind, values=[]) {
   });
 }
 async function read(client=getClient()) {
-  const result=await client.spreadsheets.values.batchGet({spreadsheetId:SPREADSHEET_ID,ranges:Object.values(schemas).map(s=>`'${s.tab}'!A1:${String.fromCharCode(64+s.fields.length)}10000`),valueRenderOption:'UNFORMATTED_VALUE'});
-  return Object.fromEntries(Object.keys(schemas).map((k,i)=>[k,parse(k,result.data.valueRanges?.[i]?.values)]));
+  const ranges=Object.values(schemas).map(s=>`'${s.tab}'!A1:${String.fromCharCode(64+s.fields.length)}10000`);
+  let result;
+  try {
+    result=await client.spreadsheets.values.batchGet({spreadsheetId:SPREADSHEET_ID,ranges,valueRenderOption:'UNFORMATTED_VALUE'});
+  } catch (err) {
+    // Fallback for missing optional tab (Productos por región)
+    const partialRanges=ranges.slice(0,-1);
+    result=await client.spreadsheets.values.batchGet({spreadsheetId:SPREADSHEET_ID,ranges:partialRanges,valueRenderOption:'UNFORMATTED_VALUE'});
+    const valuesRanges=result.data.valueRanges||[];
+    valuesRanges.push({values:[]});
+    result={data:{valueRanges:valuesRanges}};
+  }
+  const data=Object.fromEntries(Object.keys(schemas).map((k,i)=>[k,parse(k,result.data.valueRanges?.[i]?.values)]));
+  if(!data.regionProductos)data.regionProductos=[];
+  return data;
+}
+function normalizeProductType(value){
+  const text=String(value||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  if(text==='huevos'||text==='huevo')return 'huevos';
+  if(text==='pollos'||text==='pollo')return 'pollos';
+  if(text==='cerdos'||text==='cerdo'||text==='porcinos')return 'cerdos';
+  if(text==='carnes'||text==='carne'||text==='otros')return 'carnes';
+  return null;
 }
 function validate(kind, input, all) {
   const schema=schemas[kind]; const row={};
   if(kind==='regiones')input={...input,activa:activeValue(input.activa)};
+  if(kind==='regionProductos'){input={...input,tipo:normalizeProductType(input.tipo)||String(input.tipo||'').trim().toLowerCase(),activo:activeValue(input.activo)};}
   for(const field of schema.fields) {
     const value=input[field]??'';
     if(field.startsWith('precio') || field==='cambio_por_docena' || field==='unidades_maple') {
@@ -75,6 +101,7 @@ function validate(kind, input, all) {
   if(kind==='regiones'&&(!row.nombre_region||!['Sí','No'].includes(row.activa))) throw fail('Indicá el nombre y estado de la región.');
   if(kind==='locales'&&!row.nombre_local) throw fail('Indicá el nombre de la sucursal.');
   if(kind==='carnes'&&(!row.producto||!row.categoria)) throw fail('Indicá producto y categoría.');
+  if(kind==='regionProductos'){if(!PRODUCT_TYPES.includes(row.tipo))throw fail('Tipo de producto inválido.');if(!['Sí','No'].includes(row.activo))throw fail('Indicá si está activo.');}
   if(kind==='huevos') {
     if(!['Estándar','Especial'].includes(row.categoria)||!row.presentacion_maple) throw fail('Indicá la categoría y presentación del maple.');
     if(row.categoria==='Especial'&&(row.unidades_maple===''||row.precio_docena!=='')) throw fail('Los especiales requieren cantidad de unidades y no llevan precio por docena.');
