@@ -32,6 +32,12 @@ Para huevos GENERAL de categoría Estándar, editar docena, maple o cajón calcu
 Pruebas automatizadas con Google simulado: encabezados, duplicados, cantidades, importes, referencias, revisiones, eliminación, autenticación y permisos. Verificación de navegador con datos simulados en claro/oscuro a 1440, 390 y 320 px. No se realizaron escrituras en la hoja real durante estas pruebas; la conexión de producción requiere las credenciales y permisos configurados en Render.
 ## Sucursales y corrección de precios
 
+### Tipos de producto por región
+
+Gestionar región permite activar o desactivar Huevos, Pollos, Cerdos y Carnes. Cada botón guarda su cambio inmediatamente y muestra errores dentro del diálogo. Desactivar solo afecta la visualización, sin eliminar filas ni precios. Sin configuración explícita, los tipos siguen habilitados para mantener los catálogos existentes.
+
+La pestaña opcional `Productos por región` se crea automáticamente con encabezados `region_id`, `tipo`, `activo` al primer guardado válido. Solo su ausencia confirmada se trata como configuración vacía; los fallos de permisos o conexión se propagan como errores. Las escrituras verifican versiones y se serializan como el resto del catálogo. Las categorías históricas Pollo/Cerdo y sus variantes siguen visibles, y editar una presentación conserva su categoría original.
+
 Productos permite vincular sucursales del catálogo existente (hoja `Sucursales` de `GOOGLE_SHEET_ID`) a una región de precios. En Gestionar, las asociaciones antiguas deben editarse para seleccionar la sucursal correspondiente; no se emparejan por nombre automáticamente porque pueden existir nombres repetidos. Cada sucursal pertenece a una sola región. Desvincular no elimina la sucursal del catálogo.
 
 El botón Ver precios de Sucursales abre `productos.html?sucursal=ID` con región y sucursal seleccionadas. Si no existe una asociación disponible, muestra un aviso sin ofrecer precios de otra sucursal. La identidad se deriva de empresa, ubicación y dirección, independientemente de la fila y del teléfono; después de cambiar alguno de esos tres campos, hay que volver a vincularla. Los nombres técnicos de la pestaña `Locales` y sus encabezados se conservan por compatibilidad; la interfaz usa Sucursal.

@@ -34,17 +34,21 @@ function activeValue(value){
 }
 function parse(kind, values=[]) {
   const schema=schemas[kind];
-  if (!Array.isArray(values) || !values.length) return [];
+  if (kind==='regionProductos' && (!Array.isArray(values) || !values.length)) return [];
   if (!schema.fields.every((f,i)=>values[0]?.[i]===f)) throw fail(`Revisá los encabezados de la pestaña ${schema.tab}.`,409);
   const seen=new Set();
   return values.slice(1).flatMap((cells,index)=>{
     // The template contains instructions below the Regions table.
     if (!cells || !cells[0] || (kind==='regiones' && !/^[A-Za-z0-9_-]{1,80}$/.test(String(cells[0])))) return [];
     const row=Object.fromEntries(schema.fields.map((f,i)=>[f,cells[i]??'']));
+    const hash=revision(schema.fields.map(f=>row[f]));
+    if(kind==='regionProductos'){
+      row.tipo=normalizeProductType(row.tipo);
+      if(!row.tipo)throw fail('Hay un tipo desconocido en Productos por región.',409);
+    }
     const key=rowKey(schema,row);
     if(seen.has(key)) throw fail(`Hay registros duplicados en ${schema.tab}. Corregilos en la hoja antes de continuar.`,409);
     seen.add(key);
-    const hash=revision(schema.fields.map(f=>row[f]));
     if(kind==='regiones')row.activa=activeValue(row.activa);
     if(kind==='regionProductos')row.activo=activeValue(row.activo);
     // Recognize only the former exact 30-maple conversion, never arbitrary price differences.
@@ -60,7 +64,10 @@ async function read(client=getClient()) {
   try {
     result=await client.spreadsheets.values.batchGet({spreadsheetId:SPREADSHEET_ID,ranges,valueRenderOption:'UNFORMATTED_VALUE'});
   } catch (err) {
-    // Fallback for missing optional tab (Productos por región)
+    // Only a verified missing optional tab may be treated as empty configuration.
+    if(Number(err.code||err.response?.status)!==400)throw err;
+    const metadata=await client.spreadsheets.get({spreadsheetId:SPREADSHEET_ID,fields:'sheets.properties.title'});
+    if(metadata.data.sheets?.some(s=>s.properties.title===schemas.regionProductos.tab))throw err;
     const partialRanges=ranges.slice(0,-1);
     result=await client.spreadsheets.values.batchGet({spreadsheetId:SPREADSHEET_ID,ranges:partialRanges,valueRenderOption:'UNFORMATTED_VALUE'});
     const valuesRanges=result.data.valueRanges||[];
@@ -70,6 +77,24 @@ async function read(client=getClient()) {
   const data=Object.fromEntries(Object.keys(schemas).map((k,i)=>[k,parse(k,result.data.valueRanges?.[i]?.values)]));
   if(!data.regionProductos)data.regionProductos=[];
   return data;
+}
+async function ensureRegionProductsSheet(client){
+  const schema=schemas.regionProductos;
+  const metadata=await client.spreadsheets.get({spreadsheetId:SPREADSHEET_ID,fields:'sheets.properties'});
+  const sheet=metadata.data.sheets?.find(s=>s.properties.title===schema.tab);
+  if(!sheet){
+    const sheetId=crypto.randomInt(1,2147483647);
+    await client.spreadsheets.batchUpdate({spreadsheetId:SPREADSHEET_ID,requestBody:{requests:[
+      {addSheet:{properties:{sheetId,title:schema.tab}}},
+      {updateCells:{start:{sheetId,rowIndex:0,columnIndex:0},rows:[{values:schema.fields.map(text=>({userEnteredValue:{stringValue:text}}))}],fields:'userEnteredValue'}}
+    ]}});
+    return;
+  }
+  const header=await client.spreadsheets.values.get({spreadsheetId:SPREADSHEET_ID,range:"'Productos por región'!A1:C1"});
+  if(!header.data.values?.length){
+    // read() already verified that this tab is completely empty.
+    await client.spreadsheets.values.update({spreadsheetId:SPREADSHEET_ID,range:"'Productos por región'!A1:C1",valueInputOption:'RAW',requestBody:{values:[schema.fields]}});
+  }else if(!schema.fields.every((f,i)=>header.data.values[0][i]===f))throw fail('Revisá los encabezados de Productos por región.',409);
 }
 function normalizeProductType(value){
   const text=String(value||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
@@ -128,7 +153,7 @@ async function writeNow(kind,method,input,client=getClient()) {
   if(method!=='POST'&&(!current||current._revision!==input._revision)) throw fail('Los datos cambiaron. Actualizá la página antes de guardar.',409);
   const range=current?`'${schema.tab}'!A${current._row}:${String.fromCharCode(64+schema.fields.length)}${current._row}`:null;
   if(method==='DELETE') {
-    if(kind==='regiones'&&['locales','huevos','carnes'].some(k=>all[k].some(r=>r.region_id===current.region_id)))throw fail('Esta región tiene sucursales o productos. Desactivala o eliminá primero sus registros.',409);
+    if(kind==='regiones'&&['locales','huevos','carnes','regionProductos'].some(k=>all[k].some(r=>r.region_id===current.region_id)))throw fail('Esta región tiene sucursales, productos o configuración. Desactivala para conservar sus datos.',409);
     await client.spreadsheets.values.clear({spreadsheetId:SPREADSHEET_ID,range});return;
   }
   if(kind==='locales'&&input.sucursal_id){
@@ -145,6 +170,7 @@ async function writeNow(kind,method,input,client=getClient()) {
   if(current&&schema.key.some(k=>row[k]!==current[k])&&!(kind==='locales'&&input.sucursal_id))throw fail('Los códigos y la identidad del registro no se pueden cambiar al editar.');
   if(all[kind].some(r=>r._row!==current?._row&&rowKey(schema,r)===rowKey(schema,row)))throw fail('Este registro ya existe en la región y lista seleccionadas.',409);
   const values=[schema.fields.map(f=>row[f])];
+  if(kind==='regionProductos')await ensureRegionProductsSheet(client);
   if(current) await client.spreadsheets.values.update({spreadsheetId:SPREADSHEET_ID,range,valueInputOption:'RAW',requestBody:{values}});
   else {
     // Append below existing content, including any template instructions. Never overwrite it.

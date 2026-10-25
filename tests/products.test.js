@@ -1,6 +1,37 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const p=require('../services/products');
+test('missing region configuration tab is created with headers on first valid save',async()=>{
+ const f=fixture();let exists=false;let created=0;
+ f.client.spreadsheets.get=async()=>({data:{sheets:exists?[{properties:{title:p.schemas.regionProductos.tab}}]:[]}});
+ f.client.spreadsheets.values.batchGet=async({ranges})=>{
+  if(ranges.length===5&&!exists)throw Object.assign(new Error('Missing range'),{code:400});
+  return {data:{valueRanges:Object.values(f.rows).slice(0,ranges.length).map(values=>({values}))}};
+ };
+ f.client.spreadsheets.batchUpdate=async args=>{
+  const requests=args.requestBody.requests;
+  assert.equal(requests[0].addSheet.properties.title,'Productos por región');
+  assert.deepEqual(requests[1].updateCells.rows[0].values.map(v=>v.userEnteredValue.stringValue),['region_id','tipo','activo']);
+  exists=true;created++;
+ };
+ f.client.spreadsheets.values.get=async()=>({data:{values:[p.schemas.regionProductos.fields]}});
+ assert.deepEqual((await p.read(f.client)).regionProductos,[]);assert.equal(created,0);
+ await assert.rejects(p.write('regionProductos','POST',{region_id:'bad',tipo:'pollos',activo:'No'},f.client));assert.equal(created,0);
+ await p.write('regionProductos','POST',{region_id:'REG-01',tipo:'pollos',activo:'No'},f.client);
+ assert.equal(created,1);assert.deepEqual(f.calls[0].requestBody.values,[['REG-01','pollos','No']]);
+ f.rows.regionProductos.push(['REG-01','pollos','No']);
+ const row=(await p.read(f.client)).regionProductos[0];
+ await p.write('regionProductos','PUT',{...row,activo:'Sí'},f.client);assert.equal(created,1);
+ assert.equal(f.calls[1].requestBody.values[0][2],'Sí');
+ await assert.rejects(p.write('regionProductos','PUT',{...row,_revision:'stale'},f.client),{status:409});
+});
+test('sheet permission errors never fall back to enabling all product types',async()=>{
+ const f=fixture();let calls=0;
+ f.client.spreadsheets.values.batchGet=async()=>{calls++;throw Object.assign(new Error('Denied'),{code:403});};
+ await assert.rejects(p.read(f.client),{code:403});assert.equal(calls,1);
+ assert.throws(()=>p.parse('regiones',[]),{status:409});
+ assert.throws(()=>p.parse('regionProductos',[p.schemas.regionProductos.fields,['REG-01','pollo','Sí'],['REG-01','pollos','No']]),{status:409});
+});
 test('region flags accept spreadsheet booleans and blank defaults without reactivating explicit No',()=>{
  for(const value of ['',true,'SI','sí',' Activa ',1])assert.equal(p.activeValue(value),'Sí');
  for(const value of [false,'No','FALSE',0,'inactiva'])assert.equal(p.activeValue(value),'No');

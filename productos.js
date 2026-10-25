@@ -41,42 +41,59 @@ function renderProductTypeFilters(regionId) {
   const makeBtn = (key, label) => {
     const btn = productNode('button', label, 'product-filter-tab' + (activeProductTypeFilter === key ? ' is-active' : ''));
     btn.type = 'button';
-    btn.onclick = () => { activeProductTypeFilter = key; renderProductRegion(); };
+    btn.setAttribute('aria-pressed', String(activeProductTypeFilter === key)); btn.onclick = () => { activeProductTypeFilter = key; renderProductTypeFilters(regionId); renderProductRegion(); };
     return btn;
   };
   container.append(makeBtn('all', 'Todos'));
   for (const t of enabled) container.append(makeBtn(t, PRODUCT_TYPE_LABELS[t]));
 }
-function openProductTypesDialog() {
-  if (!productsData || !canEditProducts()) return;
-  const regionId = pe('product-region').value;
-  if (!regionId) return;
-  const list = pe('product-types-list'); list.replaceChildren();
-  const cfg = getRegionProductConfig(regionId);
+let productTypesSaving = false;
+function renderRegionProductToggles(regionId) {
+  const list = pe('product-region-types'); list.replaceChildren();
+  if (!regionId || !productsData || !canEditProducts()) return;
+  const message = productNode('p', 'Los cambios se guardan al pulsar. Desactivar oculta la tabla sin borrar sus productos.', 'small text-muted');
+  message.setAttribute('role', 'status');
+  list.append(message);
   for (const type of PRODUCT_TYPE_ORDER) {
+    const active = isProductTypeEnabled(regionId, type);
     const row = productNode('div', undefined, 'product-type-toggle');
-    const label = productNode('span', PRODUCT_TYPE_LABELS[type]);
-    const active = cfg[type] === false ? false : true;
-    const btn = productNode('button', active ? 'Activo' : 'Desactivado', 'btn btn-sm ' + (active ? 'btn-outline-success' : 'btn-outline-secondary'));
-    btn.type = 'button';
-    btn.onclick = async () => {
-      if (productsBusy) return;
-      btn.disabled = true;
+    const btn = productButton(active ? 'Activo' : 'Desactivado', async () => {
+      if (productsBusy || productTypesSaving) return;
+      productTypesSaving = true;
+      list.querySelectorAll('button').forEach(b => b.disabled = true);
+      message.textContent = 'Guardando…';
       const existing = (productsData.regionProductos || []).find(r => r.region_id === regionId && r.tipo === type);
-      const payload = { region_id: regionId, tipo: type, activo: active ? 'No' : 'Sí' };
+      const payload = {region_id: regionId, tipo: type, activo: active ? 'No' : 'Sí'};
       if (existing) { payload._row = existing._row; payload._revision = existing._revision; }
       try {
-        const { status, body } = await apiFetch('/api/productos/regionProductos', { method: existing ? 'PUT' : 'POST', body: JSON.stringify(payload), signal: AbortSignal.timeout(15000) });
+        const {status, body} = await apiFetch('/api/productos/regionProductos', {method: existing ? 'PUT' : 'POST', body: JSON.stringify(payload), signal: AbortSignal.timeout(20000)});
         if (status !== 200) throw new Error(body.error || 'No se pudo guardar.');
         await loadProducts();
-        openProductTypesDialog();
-        renderProductTypeFilters(regionId);
-        renderProductRegion();
-      } catch (e) { productStatus(e.message, true); btn.disabled = false; }
-    };
-    row.append(label, btn); list.append(row);
+        if (!productsData) throw new Error('El cambio se guardó, pero no se pudo actualizar la vista. Cerrá y pulsá Actualizar.');
+        renderRegionProductToggles(regionId);
+      } catch (error) {
+        message.textContent = error.message;
+        message.className = 'small text-danger';
+      } finally {
+        productTypesSaving = false;
+        list.querySelectorAll('button').forEach(b => b.disabled = !productsData);
+      }
+    }, 'btn btn-sm ' + (active ? 'btn-outline-success' : 'btn-outline-secondary'));
+    btn.setAttribute('aria-label', PRODUCT_TYPE_LABELS[type]);
+    btn.setAttribute('aria-pressed', String(active));
+    row.append(productNode('span', PRODUCT_TYPE_LABELS[type]), btn); list.append(row);
   }
-  pe('product-types-dialog').showModal();
+}
+function productCategoryType(value) {
+  const category = productText(value).trim();
+  if (/pollo/.test(category)) return 'pollos';
+  if (/cerdo|porcino/.test(category)) return 'cerdos';
+  return 'carnes';
+}
+function filterProductRows(rows, region, search, order) {
+  const query = productText(search).trim();
+  return rows.filter(r => r.region_id === region && productText(r.tipo_huevo || r.producto).includes(query))
+    .sort((a,b) => (order === 'desc' ? -1 : 1) * String(a.tipo_huevo || a.producto).localeCompare(String(b.tipo_huevo || b.producto), 'es', {numeric:true,sensitivity:'base'}));
 }
 async function loadProducts() {
   if (productsBusy) return; productsBusy = true; pe('products-refresh').disabled = true; productStatus('Cargando productos…');
@@ -154,7 +171,7 @@ function renderProductRegion() {
   for (const type of meatTypes) {
     if (!isProductTypeEnabled(id, type)) continue;
     if (activeProductTypeFilter !== 'all' && activeProductTypeFilter !== type) continue;
-    const rows = meatsAll.filter(r => String(r.categoria).trim().toLowerCase() === type);
+    const rows = meatsAll.filter(r => productCategoryType(r.categoria) === type);
     if (!rows.length) continue;
     totalCount += rows.length;
     root.append(productTable(PRODUCT_TYPE_LABELS[type], rows, [['producto', 'Producto'], ['presentacion', 'Presentación'], ['precio', 'Precio']], 'carnes'));
@@ -187,7 +204,7 @@ function openProductForm(kind, row = null) {
   }
   for (const [key, label, type] of productFields[kind]) {
     const box = productNode('div'), lab = productNode('label', label, 'form-label'); lab.htmlFor = 'pf-' + key; let input;
-    const options = key === 'region_id' && kind !== 'regiones' ? (productsData.regiones || []).map(r => [r.region_id, r.nombre_region]) : Array.isArray(type) ? type.map(v => [v, v]) : null;
+    const options = key === 'region_id' && kind !== 'regiones' ? (productsData.regiones || []).map(r => [r.region_id, r.nombre_region]) : Array.isArray(type) ? [...new Set([...type, ...(row?.[key] ? [row[key]] : [])])].map(v => [v, v]) : null;
     if (options) { input = document.createElement('select'); for (const [v, l] of options) { const o = productNode('option', l); o.value = v; input.append(o); } }
     else { input = document.createElement('input'); input.type = type === 'number' ? 'number' : 'text'; if (type === 'number') { input.min = key === 'unidades_maple' ? '1' : '0'; input.max = key === 'unidades_maple' ? '1000' : '10000000000'; input.step = key === 'unidades_maple' ? '1' : '0.01'; } else input.maxLength = 200; }
     input.id = 'pf-' + key; input.name = key; input.className = 'form-control custom-input';
@@ -239,7 +256,7 @@ function openProductForm(kind, row = null) {
       const related = (productsData.carnes || []).filter(item => item.region_id === row.region_id && item.producto_id !== row.producto_id && productText(item.producto) === productText(row.producto) && productText(item.categoria) === productText(row.categoria));
       if (related.length) section.append(productNode('h3', 'Otras presentaciones', 'h6'));
       for (const item of related) { const line = productNode('div', undefined, 'product-management-row'); line.append(productNode('span', `${item.presentacion || 'Sin presentación'} · ${productMoney(item.precio)}`), productButton('Editar', () => { pe('product-dialog').close(); openProductForm('carnes', item); })); section.append(line); }
-      section.append(productButton('Añadir presentación', () => { pe('product-dialog').close(); openProductForm('carnes'); for (const key of ['region_id', 'categoria', 'producto']) pe('pf-' + key).value = row[key]; pe('pf-presentacion').focus(); }));
+      section.append(productButton('Añadir presentación', () => { pe('product-dialog').close(); openProductForm('carnes'); for (const key of ['region_id', 'categoria', 'producto']) { const input=pe('pf-' + key); if (input.tagName==='SELECT' && !Array.from(input.options).some(o=>o.value===row[key])) input.append(new Option(row[key],row[key])); input.value = row[key]; } pe('pf-presentacion').focus(); }));
     }
     fields.append(section);
   }
