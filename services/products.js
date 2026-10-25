@@ -24,6 +24,12 @@ function getClient() {
 }
 function revision(cells) { return crypto.createHash('sha256').update(JSON.stringify(cells)).digest('hex'); }
 function rowKey(schema, row) { return JSON.stringify(schema.key.map(k=>String(row[k]||'').trim().toLowerCase())); }
+function activeValue(value){
+ const text=String(value??'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ if(['no','false','0','inactiva','inactivo'].includes(text))return 'No';
+ if(['','si','true','1','activa','activo'].includes(text))return 'Sí';
+ return 'Revisar';
+}
 function parse(kind, values=[]) {
   const schema=schemas[kind];
   if (!schema.fields.every((f,i)=>values[0]?.[i]===f)) throw fail(`Revisá los encabezados de la pestaña ${schema.tab}.`,409);
@@ -35,7 +41,13 @@ function parse(kind, values=[]) {
     const key=rowKey(schema,row);
     if(seen.has(key)) throw fail(`Hay registros duplicados en ${schema.tab}. Corregilos en la hoja antes de continuar.`,409);
     seen.add(key);
-    return [{...row,_row:index+2,_revision:revision(schema.fields.map(f=>row[f]))}];
+    const hash=revision(schema.fields.map(f=>row[f]));
+    if(kind==='regiones')row.activa=activeValue(row.activa);
+    // Recognize only the former exact 30-maple conversion, never arbitrary price differences.
+    if(kind==='huevos'&&row.lista_id==='GENERAL'&&typeof row.precio_maple==='number'&&row.precio_maple>0&&Math.abs(row.precio_cajon-row.precio_maple*30)<0.011){
+      row._previousCrate=row.precio_cajon;row.precio_cajon=eggPrices.calculate('precio_maple',row.precio_maple,row.categoria).precio_cajon;row._needsPriceSave=true;
+    }
+    return [{...row,_row:index+2,_revision:hash}];
   });
 }
 async function read(client=getClient()) {
@@ -44,6 +56,7 @@ async function read(client=getClient()) {
 }
 function validate(kind, input, all) {
   const schema=schemas[kind]; const row={};
+  if(kind==='regiones')input={...input,activa:activeValue(input.activa)};
   for(const field of schema.fields) {
     const value=input[field]??'';
     if(field.startsWith('precio') || field==='cambio_por_docena' || field==='unidades_maple') {
@@ -60,7 +73,7 @@ function validate(kind, input, all) {
   for(const field of ['region_id','local_id','producto_id']) if(row[field]&&!/^[A-Za-z0-9_-]{1,80}$/.test(row[field])) throw fail('Los códigos admiten letras, números, guiones y guiones bajos.');
   if(kind!=='regiones'&&!all.regiones.some(r=>r.region_id===row.region_id)) throw fail('La región no existe.');
   if(kind==='regiones'&&(!row.nombre_region||!['Sí','No'].includes(row.activa))) throw fail('Indicá el nombre y estado de la región.');
-  if(kind==='locales'&&!row.nombre_local) throw fail('Indicá el nombre del local.');
+  if(kind==='locales'&&!row.nombre_local) throw fail('Indicá el nombre de la sucursal.');
   if(kind==='carnes'&&(!row.producto||!row.categoria)) throw fail('Indicá producto y categoría.');
   if(kind==='huevos') {
     if(!['Estándar','Especial'].includes(row.categoria)||!row.presentacion_maple) throw fail('Indicá la categoría y presentación del maple.');
@@ -88,15 +101,21 @@ async function writeNow(kind,method,input,client=getClient()) {
   if(method!=='POST'&&(!current||current._revision!==input._revision)) throw fail('Los datos cambiaron. Actualizá la página antes de guardar.',409);
   const range=current?`'${schema.tab}'!A${current._row}:${String.fromCharCode(64+schema.fields.length)}${current._row}`:null;
   if(method==='DELETE') {
-    if(kind==='regiones'&&['locales','huevos','carnes'].some(k=>all[k].some(r=>r.region_id===current.region_id)))throw fail('Esta región tiene locales o productos. Desactivala o eliminá primero sus registros.',409);
+    if(kind==='regiones'&&['locales','huevos','carnes'].some(k=>all[k].some(r=>r.region_id===current.region_id)))throw fail('Esta región tiene sucursales o productos. Desactivala o eliminá primero sus registros.',409);
     await client.spreadsheets.values.clear({spreadsheetId:SPREADSHEET_ID,range});return;
   }
+  if(kind==='locales'&&input.sucursal_id){
+    const branches=await require('./product-branches').read();
+    const matches=branches.filter(b=>b.id===input.sucursal_id);
+    if(matches.length!==1)throw fail('La sucursal ya no existe o está duplicada. Actualizá el catálogo.',409);
+    input={...input,local_id:matches[0].id,nombre_local:matches[0].ubicacion};
+  } else if(kind==='locales'&&method==='POST')throw fail('Seleccioná una sucursal del catálogo.');
   const row=validate(kind,input,all);
   if(kind==='huevos'&&row.lista_id==='GENERAL'&&input.price_source===undefined) {
     const changed=eggPrices.fields.some(field=>row[field]!== (current?.[field]??''));
     if(changed&&eggPrices.fields.some(field=>row[field]!==''))throw fail('Indicá cuál de los tres precios editaste para calcular los demás.');
   }
-  if(current&&schema.key.some(k=>row[k]!==current[k]))throw fail('Los códigos y la identidad del registro no se pueden cambiar al editar.');
+  if(current&&schema.key.some(k=>row[k]!==current[k])&&!(kind==='locales'&&input.sucursal_id))throw fail('Los códigos y la identidad del registro no se pueden cambiar al editar.');
   if(all[kind].some(r=>r._row!==current?._row&&rowKey(schema,r)===rowKey(schema,row)))throw fail('Este registro ya existe en la región y lista seleccionadas.',409);
   const values=[schema.fields.map(f=>row[f])];
   if(current) await client.spreadsheets.values.update({spreadsheetId:SPREADSHEET_ID,range,valueInputOption:'RAW',requestBody:{values}});
@@ -105,4 +124,4 @@ async function writeNow(kind,method,input,client=getClient()) {
     await client.spreadsheets.values.append({spreadsheetId:SPREADSHEET_ID,range:`'${schema.tab}'!A:${String.fromCharCode(64+schema.fields.length)}`,valueInputOption:'RAW',insertDataOption:'INSERT_ROWS',requestBody:{values}});
   }
 }
-module.exports={read,write,connection,schemas,parse,validate};
+module.exports={read,write,connection,schemas,parse,validate,activeValue};

@@ -60,7 +60,7 @@ function invalidateCache() { cache = null; cacheTime = 0; }
 
 function rowToSucursal(row, i) {
   const activoRaw = (row[6] || '').trim().toUpperCase();
-  return {
+  const branch = {
     rowIndex: i + 1,
     empresa: (row[0] || '').trim(),
     ubicacion: (row[1] || '').trim(),
@@ -72,6 +72,7 @@ function rowToSucursal(row, i) {
     lat: (row[7] || '').trim() || null,
     lng: (row[8] || '').trim() || null
   };
+  return {...branch,precio_id:require('../services/product-branches').branchId(branch)};
 }
 
 router.get('/', requirePermission(["view_sucursales"]), async (req, res) => {

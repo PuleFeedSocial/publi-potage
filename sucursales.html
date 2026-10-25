@@ -397,6 +397,7 @@ let _lastSucursalesSnapshot = '';
                     <td class="text-center">${zonaDisplay}</td>
                     <td class="text-center">${activoBadge}</td>
                     <td class="text-center">
+                        ${s.precio_id && hasPermission('view_productos') ? '<a class="btn btn-sm btn-outline-primary me-2" href="productos.html?sucursal=' + encodeURIComponent(s.precio_id) + '">Ver precios</a>' : ''}
                         <button class="btn btn-link text-primary p-0 mx-1" onclick="editSucursal(${s.rowIndex})" title="Editar"><i class="bi bi-pencil-fill"></i></button>
                         <button class="btn btn-link text-danger p-0 mx-1" onclick="deleteSucursal(${s.rowIndex}, decodeURIComponent('${encArg(s.ubicacion)}'))" title="Eliminar"><i class="bi bi-trash3-fill"></i></button>
                     </td>

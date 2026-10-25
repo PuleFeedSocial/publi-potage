@@ -4,7 +4,7 @@ const vm=require('node:vm');
 const fs=require('node:fs');
 const path=require('node:path');
 const script=fs.readFileSync(path.join(__dirname,'../productos.js'),'utf8');
-function context(){const c=vm.createContext({document:{addEventListener(){}}});vm.runInContext(script,c);return c;}
+function context(){const c=vm.createContext({location:{search:''},URLSearchParams,document:{addEventListener(){}}});vm.runInContext(script,c);return c;}
 test('product filters match names without accents and isolate the selected region',()=>{
  const c=context();c.rows=[{region_id:'R1',producto:'Carré de cerdo'},{region_id:'R2',producto:'Carré de cerdo'},{region_id:'R1',producto:'Pechuga',categoria:'Carré'}];
  assert.equal(vm.runInContext("filterProductRows(rows,'R1','carre','asc').length",c),1);

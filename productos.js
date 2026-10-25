@@ -1,11 +1,12 @@
 const productFields={
  regiones:[['region_id','Código de región'],['nombre_region','Nombre'],['activa','Activa',['Sí','No']]],
- locales:[['local_id','Código del local'],['nombre_local','Nombre del local'],['region_id','Región']],
+ locales:[['local_id','Código de sucursal'],['nombre_local','Nombre de sucursal'],['region_id','Región']],
  huevos:[['region_id','Región'],['lista_id','Lista'],['tipo_huevo','Tipo de huevo'],['categoria','Categoría',['Estándar','Especial']],['presentacion_maple','Presentación del maple'],['unidades_maple','Unidades por maple','number'],['precio_docena','Docena','number'],['precio_maple','Maple','number'],['precio_medio_cajon','Medio cajón','number'],['precio_cajon','Cajón','number'],['cambio_por_docena','Cambio por docena','number']],
  carnes:[['region_id','Región'],['producto_id','Código del producto'],['categoria','Categoría'],['producto','Producto'],['presentacion','Presentación'],['precio','Precio','number']]
 };
 const productKeys={regiones:['region_id'],locales:['local_id'],huevos:['region_id','lista_id','tipo_huevo'],carnes:['region_id','producto_id']};
 let productsData=null, productsBusy=false, productEdit=null;
+let productBranches=[],branchCatalogError='',requestedBranch=new URLSearchParams(location.search).get('sucursal');
 const pe=id=>document.getElementById(id);
 const canEditProducts=()=>sessionRole()==='admin'||currentPermissions?.edit_productos===true;
 function productNode(tag,text,cls){const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;}
@@ -28,20 +29,23 @@ async function loadProducts(){
 function renderProducts(){
  const select=pe('product-region'),previous=select.value;
  const regions=productsData.regiones.filter(r=>canEditProducts()||r.activa==='Sí');
- select.replaceChildren(...regions.map(r=>{const o=productNode('option',r.nombre_region+(r.activa==='Sí'?'':' · Inactiva'));o.value=r.region_id;return o;}));
+ select.replaceChildren(...regions.map(r=>{const o=productNode('option',r.nombre_region+(r.activa==='No'?' · Inactiva':r.activa==='Revisar'?' · Revisar estado':''));o.value=r.region_id;return o;}));
  if(regions.some(r=>r.region_id===previous))select.value=previous;
+ const linked=productsData.locales.find(r=>r.local_id===requestedBranch);
+ if(linked&&regions.some(r=>r.region_id===linked.region_id))select.value=linked.region_id;
  select.disabled=!regions.length;pe('product-controls').hidden=false;
  pe('product-editor-actions').hidden=!canEditProducts();
  pe('product-region-edit').disabled=!regions.length;
  pe('product-new').disabled=!regions.length;pe('product-local-add').disabled=!regions.length;
  rebuildProductLocals();
+ if(linked&&linked.region_id===select.value)pe('product-local').value=linked.local_id;
  renderProductRegion();
 }
 function rebuildProductLocals(){
  const select=pe('product-local'),previous=select.value;
- select.replaceChildren(new Option('Todos los locales',''));
+ select.replaceChildren(new Option('Todas las sucursales',''));
  const locals=productsData.locales.filter(r=>r.region_id===pe('product-region').value).sort((a,b)=>a.nombre_local.localeCompare(b.nombre_local,'es'));
- for(const local of locals)select.append(new Option(local.nombre_local,local.local_id));
+ for(const local of locals){const branch=productBranches.find(b=>b.id===local.local_id);select.append(new Option(branch?`${branch.ubicacion} · ${branch.empresa} · ${branch.direccion}`:local.nombre_local+' (sin vincular)',local.local_id));}
  if(locals.some(r=>r.local_id===previous))select.value=previous;
  select.disabled=!locals.length;
 }
@@ -49,7 +53,7 @@ function openProductManagement(){
  const root=pe('product-local-management');root.replaceChildren();
  const locals=productsData?.locales.filter(r=>r.region_id===pe('product-region').value)||[];
  for(const local of locals){const row=productNode('div',undefined,'product-management-row');row.append(productNode('span',local.nombre_local),productButton('Editar / eliminar',()=>openProductForm('locales',local)));root.append(row);}
- if(!locals.length)root.append(productNode('p','No hay locales cargados para esta región.','text-muted'));
+ if(!locals.length)root.append(productNode('p','No hay sucursales cargadas para esta región.','text-muted'));
  pe('product-editor-actions').hidden=!productsData||!canEditProducts();
  pe('product-management').showModal();
 }
@@ -60,8 +64,12 @@ function renderProductRegion(){
  const locals=pe('product-locals');locals.replaceChildren();
  const regionLocals=productsData.locales.filter(r=>r.region_id===id);
  const selectedLocal=regionLocals.find(r=>r.local_id===pe('product-local').value);
- locals.textContent=selectedLocal?`${selectedLocal.nombre_local} · Precios de la región ${region.nombre_region}`:regionLocals.length?`Locales incluidos: ${regionLocals.map(r=>r.nombre_local).join(', ')}`:'No hay locales incluidos todavía.';
+ const branch=productBranches.find(b=>b.id===selectedLocal?.local_id);
+ locals.textContent=selectedLocal?`${branch?[branch.ubicacion,branch.empresa,branch.direccion,branch.contacto].filter(Boolean).join(' · '):selectedLocal.nombre_local} · Precios de la región ${region?.nombre_region||''}`:regionLocals.length?`Sucursales incluidas: ${regionLocals.map(r=>r.nombre_local).join(', ')}`:'No hay sucursales incluidas todavía.';
  const root=pe('product-tables');root.replaceChildren();if(!region)return;
+ if(requestedBranch&&!regionLocals.some(r=>r.local_id===requestedBranch)){
+  pe('region-title').textContent='Sucursal sin región de precios disponible';locals.textContent='Vinculá esta sucursal a una región activa desde Gestionar, o elegí una región para consultar su catálogo.';pe('product-results').textContent='';root.append(productNode('p','No se muestran precios de otra sucursal.','product-empty'));return;
+ }
  const search=pe('product-search').value,order=pe('product-order').value;
  const eggs=filterProductRows(productsData.huevos.filter(r=>String(r.lista_id).trim().toUpperCase()==='GENERAL'),id,search,order);
  for(const list of [...new Set(eggs.map(r=>r.lista_id))])for(const special of [false,true]){
@@ -73,7 +81,9 @@ function renderProductRegion(){
  const meats=filterProductRows(productsData.carnes,id,search,order);
  for(const category of [...new Set(meats.map(r=>r.categoria))])root.append(productTable(category,meats.filter(r=>r.categoria===category),[['producto','Producto'],['presentacion','Presentación'],['precio','Precio']],'carnes'));
  if(!root.children.length)root.append(productNode('p',search?'No hay productos que coincidan con la búsqueda.':'Esta región todavía no tiene productos.','product-empty'));
- pe('product-results').textContent=`${eggs.length+meats.length} productos · Precios compartidos por los locales de esta región`;
+ pe('product-results').textContent=`${eggs.length+meats.length} productos · Precios compartidos por las sucursales de esta región`;
+ const pending=eggs.filter(row=>row._needsPriceSave).length;
+ if(pending)pe('product-results').textContent+=` · ${pending} precios anteriores corregidos a 12 maples. Editá y guardá para actualizar la hoja.`;
 }
 function productTable(title,rows,cols,kind){
  const section=productNode('section',undefined,'product-section');section.append(productNode('h3',title));
@@ -81,13 +91,13 @@ function productTable(title,rows,cols,kind){
  const table=productNode('table',undefined,'table mb-0');const head=document.createElement('thead'),tr=document.createElement('tr');
  for(const [,label]of cols){const th=productNode('th',label);th.scope='col';tr.append(th);}if(canEditProducts()){const th=productNode('th','Acciones');th.scope='col';tr.append(th);}head.append(tr);table.append(head);
  const body=document.createElement('tbody');for(const row of rows){const tr=document.createElement('tr');for(const [field,label]of cols){let text=field.startsWith('precio')||field==='cambio_por_docena'?productMoney(row[field]):row[field]||'—';if(field==='presentacion_maple'&&row.unidades_maple&&!String(text).includes(String(row.unidades_maple)))text+=` (${row.unidades_maple} un.)`;const td=productNode('td',text);td.dataset.label=label;tr.append(td);}
- if(canEditProducts()){const td=document.createElement('td');td.dataset.label='Acciones';td.append(productButton('Editar',()=>openProductForm(kind,row)));tr.append(td);}body.append(tr);}table.append(body);wrap.append(table);section.append(wrap);return section;
+ if(canEditProducts()){const td=document.createElement('td');td.dataset.label='Acciones';td.append(productButton(row._needsPriceSave?'Guardar corrección':'Editar',()=>openProductForm(kind,row)));tr.append(td);}body.append(tr);}table.append(body);wrap.append(table);section.append(wrap);return section;
 }
 function openProductForm(kind,row=null){
  if(productsBusy||!canEditProducts()||!productsData)return;
  for(const id of ['product-management','product-create'])pe(id).close();
- productEdit={kind,row};pe('product-form').reset();pe('product-form-error').textContent='';pe('product-form-title').textContent=(row?'Editar ':'Añadir ')+({regiones:'región',locales:'local',huevos:'huevos',carnes:'producto'}[kind]);
- pe('product-delete').hidden=!row;const fields=pe('product-fields');fields.replaceChildren();
+ productEdit={kind,row};pe('product-form').reset();pe('product-form-error').textContent='';pe('product-form-title').textContent=(row?'Editar ':'Añadir ')+({regiones:'región',locales:'sucursal',huevos:'huevos',carnes:'producto'}[kind]);
+ pe('product-delete').hidden=!row;pe('product-delete').textContent=kind==='locales'?'Desvincular sucursal':'Eliminar';const fields=pe('product-fields');fields.replaceChildren();
  for(const [key,label,type]of productFields[kind]){
   const box=productNode('div'),lab=productNode('label',label,'form-label');lab.htmlFor='pf-'+key;let input;
   const options=key==='region_id'&&kind!=='regiones'?productsData.regiones.map(r=>[r.region_id,r.nombre_region]):Array.isArray(type)?type.map(v=>[v,v]):null;
@@ -101,6 +111,14 @@ function openProductForm(kind,row=null){
   if(['lista_id','local_id','producto_id'].includes(key)||(key==='region_id'&&kind==='regiones'))box.hidden=true;
   box.append(lab,input);fields.append(box);
   if(kind==='huevos'&&['cambio_por_docena','precio_medio_cajon'].includes(key))box.hidden=true;
+  if(kind==='locales'&&key==='nombre_local'){box.hidden=true;input.required=false;}
+ }
+ if(kind==='locales'){
+  const box=productNode('div');const label=productNode('label','Sucursal existente','form-label');label.htmlFor='pf-sucursal';const select=document.createElement('select');select.id='pf-sucursal';select.className='form-select custom-input';select.required=true;select.append(new Option('Seleccioná una sucursal',''));
+  for(const branch of productBranches)select.append(new Option(`${branch.ubicacion} · ${branch.empresa} · ${branch.direccion}${branch.activo?'':' (inactiva)'}`,branch.id));
+  select.value=row?.local_id||requestedBranch||'';
+  const syncBranch=()=>{const branch=productBranches.find(b=>b.id===select.value);if(branch){pe('pf-local_id').value=branch.id;pe('pf-nombre_local').value=branch.ubicacion;}};select.onchange=syncBranch;syncBranch();box.append(label,select);fields.prepend(box);
+  if(branchCatalogError)fields.append(productNode('p',branchCatalogError,'product-price-help'));
  }
  if(kind==='huevos'){
   const note=productNode('p','','product-price-help');note.id='product-price-help';note.setAttribute('role','status');fields.append(note);
@@ -124,6 +142,7 @@ function openProductForm(kind,row=null){
     if(changed){const source=EggPrices.fields.find(key=>!pe('pf-'+key).disabled&&pe('pf-'+key).value!=='');if(source)calculate(source);}
   };
   pe('pf-categoria').onchange=()=>sync(true);sync();
+  if(row?._needsPriceSave){calculate('precio_maple');pe('product-form-error').textContent='Corrección de la regla anterior: cajón = maple × 12. Guardá para actualizar Google Sheets.';}
   for(const key of EggPrices.fields)pe('pf-'+key).addEventListener('input',()=>calculate(key));
  }
  if(kind==='carnes'){
@@ -149,6 +168,7 @@ async function saveProduct(remove=false){
  if(remove&&!confirm('¿Eliminar este registro de la hoja? Esta acción no se puede deshacer desde la página.'))return;
  const {kind,row}=productEdit;const payload={_row:row?._row,_revision:row?._revision};
  if(!remove)for(const [key,,type]of productFields[kind]){const value=pe('pf-'+key).value;payload[key]=type==='number'&&value!==''?Number(value):value;}
+ if(!remove&&kind==='locales')payload.sucursal_id=pe('pf-sucursal').value;
  if(!remove&&kind==='huevos'&&productEdit.priceSource!==undefined){
   payload.price_source=productEdit.priceSource;
   try{Object.assign(payload,EggPrices.calculate(payload.price_source,payload[payload.price_source],payload.categoria));}
@@ -164,15 +184,17 @@ document.addEventListener('DOMContentLoaded',async()=>{
  const user=getCurrentSession();if(!user){location.href='login.html';return;}guardPage('view_productos');
  for(const id of ['display-user-name','nav-user-name'])pe(id).textContent=user.name||'Cuenta';for(const id of ['display-avatar','nav-avatar'])pe(id).textContent=(user.name||'?').slice(0,2).toUpperCase();pe('display-user-role').textContent=user.role;
  for(const id of ['gestion-label','gestion-items'])pe(id).hidden=sessionRole()!=='admin';
- pe('products-refresh').onclick=loadProducts;pe('product-region').onchange=()=>{rebuildProductLocals();renderProductRegion();};pe('product-local').onchange=renderProductRegion;pe('product-order').onchange=renderProductRegion;
+ pe('products-refresh').onclick=loadProducts;pe('product-region').onchange=()=>{requestedBranch=null;rebuildProductLocals();renderProductRegion();};pe('product-local').onchange=()=>{requestedBranch=null;renderProductRegion();};pe('product-order').onchange=renderProductRegion;
  let searchTimer;pe('product-search').oninput=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(renderProductRegion,150);};
- pe('product-clear').onclick=()=>{pe('product-local').value='';pe('product-search').value='';pe('product-order').value='asc';renderProductRegion();};
+ pe('product-clear').onclick=()=>{requestedBranch=null;pe('product-local').value='';pe('product-search').value='';pe('product-order').value='asc';renderProductRegion();};
  pe('product-manage').onclick=openProductManagement;pe('product-new').onclick=()=>pe('product-create').showModal();
  pe('product-create-eggs').onclick=()=>openProductForm('huevos');pe('product-create-meat').onclick=()=>openProductForm('carnes');
  document.querySelectorAll('[data-close-dialog]').forEach(button=>button.onclick=()=>pe(button.dataset.closeDialog).close());
  pe('product-region-add').onclick=()=>openProductForm('regiones');pe('product-region-edit').onclick=()=>openProductForm('regiones',productsData.regiones.find(r=>r.region_id===pe('product-region').value));pe('product-local-add').onclick=()=>openProductForm('locales');
  pe('product-cancel').onclick=()=>pe('product-dialog').close();pe('product-dialog').addEventListener('cancel',e=>{if(productsBusy)e.preventDefault();});pe('product-form').onsubmit=e=>{e.preventDefault();saveProduct();};pe('product-delete').onclick=()=>saveProduct(true);
- await loadMyPermissions();pe('product-manage').hidden=!canEditProducts();pe('product-new').hidden=!canEditProducts();await loadProducts();
+ await loadMyPermissions();pe('product-manage').hidden=!canEditProducts();pe('product-new').hidden=!canEditProducts();
+ try{const {status,body}=await apiFetch('/api/productos/sucursales',{signal:AbortSignal.timeout(15000)});if(status!==200)throw Error();productBranches=body.data||[];}catch{branchCatalogError='No pudimos cargar Sucursales. Actualizá la página para reintentar. Los precios siguen disponibles.';}
+ await loadProducts();
  if(sessionRole()==='admin'){
   pe('product-connection').hidden=false;
   try{const {status,body}=await apiFetch('/api/productos/conexion');if(status!==200)throw Error();pe('product-service-email').textContent=body.email||'Falta configurar GOOGLE_CREDENTIALS en Render.';}catch{pe('product-service-email').textContent='No pudimos consultar la cuenta de servicio.';}
