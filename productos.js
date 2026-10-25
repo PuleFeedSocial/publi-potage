@@ -36,11 +36,12 @@ function renderProductTypeFilters(regionId) {
   const types = PRODUCT_TYPE_ORDER;
   const enabled = types.filter(t => isProductTypeEnabled(regionId, t));
   if (enabled.length <= 1) { container.style.display = 'none'; activeProductTypeFilter = 'all'; return; }
+  if (activeProductTypeFilter !== 'all' && !enabled.includes(activeProductTypeFilter)) activeProductTypeFilter = 'all';
   container.style.display = 'flex';
   const makeBtn = (key, label) => {
     const btn = productNode('button', label, 'product-filter-tab' + (activeProductTypeFilter === key ? ' is-active' : ''));
     btn.type = 'button';
-    btn.onclick = () => { activeProductTypeFilter = key; renderProductTypeFilters(regionId); renderProductRegion(); };
+    btn.onclick = () => { activeProductTypeFilter = key; renderProductRegion(); };
     return btn;
   };
   container.append(makeBtn('all', 'Todos'));
@@ -97,9 +98,9 @@ function renderProducts() {
   pe('product-editor-actions').hidden = !canEditProducts();
   pe('product-region-edit').disabled = !regions.length;
   pe('product-new').disabled = !regions.length; pe('product-local-add').disabled = !regions.length;
-  if (pe('product-types')) { pe('product-types').hidden = !canEditProducts() || !regions.length; }
   rebuildProductLocals();
   if (linked && linked.region_id === select.value) pe('product-local').value = linked.local_id;
+  activeProductTypeFilter = 'all';
   renderProductTypeFilters(select.value);
   renderProductRegion();
 }
@@ -112,11 +113,14 @@ function rebuildProductLocals() {
   select.disabled = !locals.length;
 }
 function openProductManagement() {
+  if (!productsData) return;
+  const regionId = pe('product-region').value;
   const root = pe('product-local-management'); root.replaceChildren();
-  const locals = (productsData?.locales || []).filter(r => r.region_id === pe('product-region').value);
-  for (const local of locals) { const row = productNode('div', undefined, 'product-management-row'); row.append(productNode('span', local.nombre_local), productButton('Editar / eliminar', () => openProductForm('locales', local))); root.append(row); }
+  const locals = (productsData?.locales || []).filter(r => r.region_id === regionId);
+  for (const local of locals) { const row = productNode('div', undefined, 'product-management-row'); row.append(productNode('span', local.nombre_local), productButton('Editar / eliminar', () => { pe('product-management').close(); openProductForm('locales', local); })); root.append(row); }
   if (!locals.length) root.append(productNode('p', 'No hay sucursales cargadas para esta región.', 'text-muted'));
-  pe('product-editor-actions').hidden = !productsData || !canEditProducts();
+  pe('product-editor-actions').hidden = !canEditProducts();
+  renderRegionProductToggles(regionId);
   pe('product-management').showModal();
 }
 function renderProductRegion() {
@@ -277,7 +281,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   let searchTimer; pe('product-search').oninput = () => { clearTimeout(searchTimer); searchTimer = setTimeout(renderProductRegion, 150); };
   pe('product-clear').onclick = () => { requestedBranch = null; pe('product-local').value = ''; pe('product-search').value = ''; pe('product-order').value = 'asc'; activeProductTypeFilter = 'all'; renderProductTypeFilters(pe('product-region').value); renderProductRegion(); };
   if (pe('product-manage')) pe('product-manage').onclick = openProductManagement;
-  if (pe('product-types')) pe('product-types').onclick = openProductTypesDialog;
   if (pe('product-new')) pe('product-new').onclick = () => pe('product-create').showModal();
   if (pe('product-create-eggs')) pe('product-create-eggs').onclick = () => openProductForm('huevos');
   if (pe('product-create-meat')) pe('product-create-meat').onclick = () => openProductForm('carnes');
@@ -291,7 +294,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (pe('product-delete')) pe('product-delete').onclick = () => saveProduct(true);
   await loadMyPermissions();
   if (pe('product-manage')) pe('product-manage').hidden = !canEditProducts();
-  if (pe('product-types')) pe('product-types').hidden = !canEditProducts();
   if (pe('product-new')) pe('product-new').hidden = !canEditProducts();
   try { const { status, body } = await apiFetch('/api/productos/sucursales', { signal: AbortSignal.timeout(15000) }); if (status !== 200) throw Error(); productBranches = body.data || []; } catch { branchCatalogError = 'No pudimos cargar Sucursales. Actualizá la página para reintentar. Los precios siguen disponibles.'; }
   await loadProducts();
