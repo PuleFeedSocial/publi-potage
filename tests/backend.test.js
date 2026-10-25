@@ -142,12 +142,15 @@ test('products protect writes and service account details with server-side permi
   users.set(55, collaborator);
   const token = signAccessToken(collaborator);
   assert.equal((await request('/api/productos/conexion', { token })).status, 403);
-  for (const method of ['POST','PUT','DELETE']) assert.equal((await request('/api/productos/huevos', { token, method, body: {} })).status, 403);
+  for (const method of ['POST','PUT','DELETE']) {
+    assert.equal((await request('/api/productos/huevos', { token, method, body: {} })).status, 403);
+    assert.equal((await request('/api/productos/region-config', { token, method, body: {} })).status, 403);
+  }
   const config = await request('/api/productos/conexion');
   assert.equal(config.status, 200);
   assert.deepEqual(Object.keys(config.data).sort(), ['email','spreadsheetId']);
   assert.equal((await request('/services/products.js')).status, 404);
-  for (const path of ['/productos.html','/productos.js','/productos.css']) assert.equal((await request(path)).status, 200);
+  for (const path of ['/productos.html','/productos.js','/productos.css','/regiones.html','/regiones.js']) assert.equal((await request(path)).status, 200);
 });
 
 test('authentication rejects absent, removed and revoked sessions', async () => {

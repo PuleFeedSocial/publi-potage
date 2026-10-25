@@ -1,11 +1,8 @@
 const productFields = {
-  regiones: [['region_id', 'Código de región'], ['nombre_region', 'Nombre'], ['activa', 'Activa', ['Sí', 'No']]],
-  locales: [['local_id', 'Código de sucursal'], ['nombre_local', 'Nombre de sucursal'], ['region_id', 'Región']],
   huevos: [['region_id', 'Región'], ['lista_id', 'Lista'], ['tipo_huevo', 'Tipo de huevo'], ['categoria', 'Categoría', ['Estándar', 'Especial']], ['presentacion_maple', 'Presentación del maple'], ['unidades_maple', 'Unidades por maple', 'number'], ['precio_docena', 'Docena', 'number'], ['precio_maple', 'Maple', 'number'], ['precio_medio_cajon', 'Medio cajón', 'number'], ['precio_cajon', 'Cajón', 'number'], ['cambio_por_docena', 'Cambio por docena', 'number']],
   carnes: [['region_id', 'Región'], ['producto_id', 'Código del producto'], ['categoria', 'Categoría', ['Pollos', 'Cerdos', 'Carnes']], ['producto', 'Producto'], ['presentacion', 'Presentación'], ['precio', 'Precio', 'number']],
-  regionProductos: [['region_id', 'Región'], ['tipo', 'Tipo', ['huevos', 'pollos', 'cerdos', 'carnes']], ['activo', 'Activo', ['Sí', 'No']]]
 };
-const productKeys = { regiones: ['region_id'], locales: ['local_id'], huevos: ['region_id', 'lista_id', 'tipo_huevo'], carnes: ['region_id', 'producto_id'], regionProductos: ['region_id', 'tipo'] };
+const productKeys = { huevos: ['region_id', 'lista_id', 'tipo_huevo'], carnes: ['region_id', 'producto_id'] };
 let productsData = null, productsBusy = false, productEdit = null;
 let productBranches = [], branchCatalogError = '', requestedBranch = new URLSearchParams(location.search).get('sucursal');
 let activeProductTypeFilter = 'all';
@@ -47,43 +44,6 @@ function renderProductTypeFilters(regionId) {
   container.append(makeBtn('all', 'Todos'));
   for (const t of enabled) container.append(makeBtn(t, PRODUCT_TYPE_LABELS[t]));
 }
-let productTypesSaving = false;
-function renderRegionProductToggles(regionId) {
-  const list = pe('product-region-types'); list.replaceChildren();
-  if (!regionId || !productsData || !canEditProducts()) return;
-  const message = productNode('p', 'Los cambios se guardan al pulsar. Desactivar oculta la tabla sin borrar sus productos.', 'small text-muted');
-  message.setAttribute('role', 'status');
-  list.append(message);
-  for (const type of PRODUCT_TYPE_ORDER) {
-    const active = isProductTypeEnabled(regionId, type);
-    const row = productNode('div', undefined, 'product-type-toggle');
-    const btn = productButton(active ? 'Activo' : 'Desactivado', async () => {
-      if (productsBusy || productTypesSaving) return;
-      productTypesSaving = true;
-      list.querySelectorAll('button').forEach(b => b.disabled = true);
-      message.textContent = 'Guardando…';
-      const existing = (productsData.regionProductos || []).find(r => r.region_id === regionId && r.tipo === type);
-      const payload = {region_id: regionId, tipo: type, activo: active ? 'No' : 'Sí'};
-      if (existing) { payload._row = existing._row; payload._revision = existing._revision; }
-      try {
-        const {status, body} = await apiFetch('/api/productos/regionProductos', {method: existing ? 'PUT' : 'POST', body: JSON.stringify(payload), signal: AbortSignal.timeout(20000)});
-        if (status !== 200) throw new Error(body.error || 'No se pudo guardar.');
-        await loadProducts();
-        if (!productsData) throw new Error('El cambio se guardó, pero no se pudo actualizar la vista. Cerrá y pulsá Actualizar.');
-        renderRegionProductToggles(regionId);
-      } catch (error) {
-        message.textContent = error.message;
-        message.className = 'small text-danger';
-      } finally {
-        productTypesSaving = false;
-        list.querySelectorAll('button').forEach(b => b.disabled = !productsData);
-      }
-    }, 'btn btn-sm ' + (active ? 'btn-outline-success' : 'btn-outline-secondary'));
-    btn.setAttribute('aria-label', PRODUCT_TYPE_LABELS[type]);
-    btn.setAttribute('aria-pressed', String(active));
-    row.append(productNode('span', PRODUCT_TYPE_LABELS[type]), btn); list.append(row);
-  }
-}
 function productCategoryType(value) {
   const category = productText(value).trim();
   if (/pollo/.test(category)) return 'pollos';
@@ -105,16 +65,16 @@ async function loadProducts() {
   finally { productsBusy = false; pe('products-refresh').disabled = false; }
 }
 function renderProducts() {
-  const select = pe('product-region'), previous = select.value;
+  const select = pe('product-region'), previous = select.value || new URLSearchParams(location.search).get('region');
   const regions = (productsData.regiones || []).filter(r => canEditProducts() || r.activa === 'Sí');
   select.replaceChildren(...regions.map(r => { const o = productNode('option', r.nombre_region + (r.activa === 'No' ? ' · Inactiva' : r.activa === 'Revisar' ? ' · Revisar estado' : '')); o.value = r.region_id; return o; }));
-  if (regions.some(r => r.region_id === previous)) select.value = previous;
+  if (regions.some(r => r.region_id === previous)) select.value = previous; else if (new URLSearchParams(location.search).has('region')) select.selectedIndex = -1;
   const linked = (productsData.locales || []).find(r => r.local_id === requestedBranch);
   if (linked && regions.some(r => r.region_id === linked.region_id)) select.value = linked.region_id;
   select.disabled = !regions.length; pe('product-controls').hidden = false;
-  pe('product-editor-actions').hidden = !canEditProducts();
-  pe('product-region-edit').disabled = !regions.length;
-  pe('product-new').disabled = !regions.length; pe('product-local-add').disabled = !regions.length;
+
+
+  pe('product-new').disabled = !regions.length;
   rebuildProductLocals();
   if (linked && linked.region_id === select.value) pe('product-local').value = linked.local_id;
   activeProductTypeFilter = 'all';
@@ -128,17 +88,6 @@ function rebuildProductLocals() {
   for (const local of locals) { const branch = productBranches.find(b => b.id === local.local_id); select.append(new Option(branch ? `${branch.ubicacion} · ${branch.empresa} · ${branch.direccion}` : local.nombre_local + ' (sin vincular)', local.local_id)); }
   if (locals.some(r => r.local_id === previous)) select.value = previous;
   select.disabled = !locals.length;
-}
-function openProductManagement() {
-  if (!productsData) return;
-  const regionId = pe('product-region').value;
-  const root = pe('product-local-management'); root.replaceChildren();
-  const locals = (productsData?.locales || []).filter(r => r.region_id === regionId);
-  for (const local of locals) { const row = productNode('div', undefined, 'product-management-row'); row.append(productNode('span', local.nombre_local), productButton('Editar / eliminar', () => { pe('product-management').close(); openProductForm('locales', local); })); root.append(row); }
-  if (!locals.length) root.append(productNode('p', 'No hay sucursales cargadas para esta región.', 'text-muted'));
-  pe('product-editor-actions').hidden = !canEditProducts();
-  renderRegionProductToggles(regionId);
-  pe('product-management').showModal();
 }
 function renderProductRegion() {
   if (!productsData) return;
@@ -190,18 +139,11 @@ function productTable(title, rows, cols, kind) {
     if (canEditProducts()) { const td = document.createElement('td'); td.dataset.label = 'Acciones'; td.append(productButton(row._needsPriceSave ? 'Guardar corrección' : 'Editar', () => openProductForm(kind, row))); tr.append(td); } body.append(tr); } table.append(body); wrap.append(table); section.append(wrap); return section;
 }
 function openProductForm(kind, row = null) {
-  if (productsBusy || !canEditProducts() || !productsData) return;
-  for (const id of ['product-management', 'product-create']) pe(id).close();
+  if (productsBusy || !canEditProducts() || !productsData || !['huevos','carnes'].includes(kind)) return;
+  pe('product-create').close();
   productEdit = { kind, row }; pe('product-form').reset(); pe('product-form-error').textContent = ''; pe('product-form-title').textContent = (row ? 'Editar ' : 'Añadir ') + ({ regiones: 'región', locales: 'sucursal', huevos: 'huevos', carnes: 'producto', regionProductos: 'productos por región' }[kind] || kind);
-  pe('product-delete').hidden = !row; pe('product-delete').textContent = kind === 'locales' ? 'Desvincular sucursal' : (kind === 'regionProductos' ? 'Eliminar' : 'Eliminar');
+  pe('product-delete').hidden = !row; pe('product-delete').textContent = 'Eliminar';
   const fields = pe('product-fields'); fields.replaceChildren();
-  if (kind === 'regionProductos') {
-    const box = productNode('div'); const lab = productNode('label', 'Región', 'form-label'); lab.htmlFor = 'pf-region_id'; const sel = document.createElement('select'); sel.id = 'pf-region_id'; sel.className = 'form-select custom-input'; for (const r of (productsData.regiones || [])) { const o = productNode('option', r.nombre_region); o.value = r.region_id; sel.append(o); } sel.value = row?.region_id || pe('product-region').value; sel.disabled = !!row; box.append(lab, sel); fields.append(box);
-    for (const [key, label, type] of [['tipo', 'Tipo', ['huevos', 'pollos', 'cerdos', 'carnes']], ['activo', 'Activo', ['Sí', 'No']]]) {
-      const b = productNode('div'); const l = productNode('label', label, 'form-label'); l.htmlFor = 'pf-' + key; let input = document.createElement('select'); for (const v of type) { const o = productNode('option', v === 'huevos' ? 'Huevos' : v === 'pollos' ? 'Pollos' : v === 'cerdos' ? 'Cerdos' : 'Carnes'); o.value = v; input.append(o); } input.id = 'pf-' + key; input.name = key; input.className = 'form-select custom-input'; input.value = row?.[key] || (key === 'activo' ? 'Sí' : 'huevos'); if (row && key === 'tipo') input.disabled = true; b.append(l, input); fields.append(b);
-    }
-    pe('product-dialog').showModal(); return;
-  }
   for (const [key, label, type] of productFields[kind]) {
     const box = productNode('div'), lab = productNode('label', label, 'form-label'); lab.htmlFor = 'pf-' + key; let input;
     const options = key === 'region_id' && kind !== 'regiones' ? (productsData.regiones || []).map(r => [r.region_id, r.nombre_region]) : Array.isArray(type) ? [...new Set([...type, ...(row?.[key] ? [row[key]] : [])])].map(v => [v, v]) : null;
@@ -215,14 +157,6 @@ function openProductForm(kind, row = null) {
     if (['lista_id', 'local_id', 'producto_id'].includes(key) || (key === 'region_id' && kind === 'regiones')) box.hidden = true;
     box.append(lab, input); fields.append(box);
     if (kind === 'huevos' && ['cambio_por_docena', 'precio_medio_cajon'].includes(key)) box.hidden = true;
-    if (kind === 'locales' && key === 'nombre_local') { box.hidden = true; input.required = false; }
-  }
-  if (kind === 'locales') {
-    const box = productNode('div'); const label = productNode('label', 'Sucursal existente', 'form-label'); label.htmlFor = 'pf-sucursal'; const select = document.createElement('select'); select.id = 'pf-sucursal'; select.className = 'form-select custom-input'; select.required = true; select.append(new Option('Seleccioná una sucursal', ''));
-    for (const branch of productBranches) select.append(new Option(`${branch.ubicacion} · ${branch.empresa} · ${branch.direccion}${branch.activo ? '' : ' (inactiva)'}`, branch.id));
-    select.value = row?.local_id || requestedBranch || '';
-    const syncBranch = () => { const branch = productBranches.find(b => b.id === select.value); if (branch) { pe('pf-local_id').value = branch.id; if (pe('pf-nombre_local')) pe('pf-nombre_local').value = branch.ubicacion; } }; select.onchange = syncBranch; syncBranch(); box.append(label, select); fields.prepend(box);
-    if (branchCatalogError) fields.append(productNode('p', branchCatalogError, 'product-price-help'));
   }
   if (kind === 'huevos') {
     const note = productNode('p', '', 'product-price-help'); note.id = 'product-price-help'; note.setAttribute('role', 'status'); fields.append(note);
@@ -269,9 +203,7 @@ async function saveProduct(remove = false) {
   const { kind, row } = productEdit; const payload = { _row: row?._row, _revision: row?._revision };
   if (!remove) {
     for (const [key,, type] of (productFields[kind] || [])) { const el = pe('pf-' + key); if (!el) continue; const value = el.value; payload[key] = type === 'number' && value !== '' ? Number(value) : value; }
-    if (kind === 'regionProductos') { payload.region_id = pe('pf-region_id')?.value || payload.region_id; }
   }
-  if (!remove && kind === 'locales') payload.sucursal_id = pe('pf-sucursal').value;
   if (!remove && kind === 'huevos' && productEdit.priceSource !== undefined) {
     payload.price_source = productEdit.priceSource;
     try { Object.assign(payload, EggPrices.calculate(payload.price_source, payload[payload.price_source], payload.categoria)); }
@@ -297,25 +229,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   pe('product-order').onchange = renderProductRegion;
   let searchTimer; pe('product-search').oninput = () => { clearTimeout(searchTimer); searchTimer = setTimeout(renderProductRegion, 150); };
   pe('product-clear').onclick = () => { requestedBranch = null; pe('product-local').value = ''; pe('product-search').value = ''; pe('product-order').value = 'asc'; activeProductTypeFilter = 'all'; renderProductTypeFilters(pe('product-region').value); renderProductRegion(); };
-  if (pe('product-manage')) pe('product-manage').onclick = openProductManagement;
+
   if (pe('product-new')) pe('product-new').onclick = () => pe('product-create').showModal();
   if (pe('product-create-eggs')) pe('product-create-eggs').onclick = () => openProductForm('huevos');
   if (pe('product-create-meat')) pe('product-create-meat').onclick = () => openProductForm('carnes');
   document.querySelectorAll('[data-close-dialog]').forEach(button => button.onclick = () => pe(button.dataset.closeDialog).close());
-  if (pe('product-region-add')) pe('product-region-add').onclick = () => openProductForm('regiones');
-  if (pe('product-region-edit')) pe('product-region-edit').onclick = () => openProductForm('regiones', (productsData?.regiones || []).find(r => r.region_id === pe('product-region').value));
-  if (pe('product-local-add')) pe('product-local-add').onclick = () => openProductForm('locales');
   if (pe('product-cancel')) pe('product-cancel').onclick = () => pe('product-dialog').close();
   if (pe('product-dialog')) pe('product-dialog').addEventListener('cancel', e => { if (productsBusy) e.preventDefault(); });
   if (pe('product-form')) pe('product-form').onsubmit = e => { e.preventDefault(); saveProduct(); };
   if (pe('product-delete')) pe('product-delete').onclick = () => saveProduct(true);
   await loadMyPermissions();
-  if (pe('product-manage')) pe('product-manage').hidden = !canEditProducts();
   if (pe('product-new')) pe('product-new').hidden = !canEditProducts();
   try { const { status, body } = await apiFetch('/api/productos/sucursales', { signal: AbortSignal.timeout(15000) }); if (status !== 200) throw Error(); productBranches = body.data || []; } catch { branchCatalogError = 'No pudimos cargar Sucursales. Actualizá la página para reintentar. Los precios siguen disponibles.'; }
   await loadProducts();
-  if (sessionRole() === 'admin') {
-    if (pe('product-connection')) pe('product-connection').hidden = false;
-    try { const { status, body } = await apiFetch('/api/productos/conexion'); if (status !== 200) throw Error(); if (pe('product-service-email')) pe('product-service-email').textContent = body.email || 'Falta configurar GOOGLE_CREDENTIALS en Render.'; } catch { if (pe('product-service-email')) pe('product-service-email').textContent = 'No pudimos consultar la cuenta de servicio.'; }
-  }
 });

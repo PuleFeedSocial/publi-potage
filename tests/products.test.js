@@ -1,6 +1,41 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const p=require('../services/products');
+test('region editor saves fields and switches atomically and detects concurrent configuration edits',async()=>{
+ const f=fixture(),batches=[];
+ f.client.spreadsheets.get=async()=>({data:{sheets:Object.values(p.schemas).map((s,i)=>({properties:{title:s.tab,sheetId:i}}))}});
+ f.client.spreadsheets.batchUpdate=async args=>batches.push(args.requestBody.requests);
+ const row=(await p.read(f.client)).regiones[0];
+ const payload={...row,nombre_region:'Costa',tipos:{huevos:true,pollos:false,cerdos:false,carnes:true},sucursales:[]};
+ await p.saveRegion('PUT',payload,f.client);
+ assert.equal(batches.length,1);
+ const writes=batches[0].filter(r=>r.appendCells).map(r=>r.appendCells.rows[0].values.map(c=>c.userEnteredValue.stringValue));
+ assert.deepEqual(writes,[['REG-01','huevos','Sí'],['REG-01','pollos','No'],['REG-01','cerdos','No'],['REG-01','carnes','Sí']]);
+ assert.equal(batches[0].find(r=>r.updateCells?.start.sheetId===0).updateCells.rows[0].values[1].userEnteredValue.stringValue,'Costa');
+ f.rows.regionProductos.push(['REG-01','pollos','No']);
+ await assert.rejects(p.saveRegion('PUT',payload,f.client),{status:409});assert.equal(batches.length,1);
+});
+test('region deletion protects products and clears only region configuration and branch links',async()=>{
+ const f=fixture(),batches=[];
+ f.client.spreadsheets.get=async()=>({data:{sheets:Object.values(p.schemas).map((s,i)=>({properties:{title:s.tab,sheetId:i}}))}});
+ f.client.spreadsheets.batchUpdate=async args=>batches.push(args.requestBody.requests);
+ await assert.rejects(p.saveRegion('DELETE',(await p.read(f.client)).regiones[0],f.client),{status:409});
+ f.rows.huevos.length=1;f.rows.regionProductos.push(['REG-01','huevos','Sí']);f.rows.locales.push(['SUC-1','Centro','REG-01']);
+ await p.saveRegion('DELETE',(await p.read(f.client)).regiones[0],f.client);
+ assert.equal(batches.length,1);assert.equal(batches[0].length,3);
+ assert.deepEqual(batches[0].map(r=>r.repeatCell.range.sheetId),[0,4,1]);
+});
+test('new region validates branch ownership and creates optional config in the same batch',async(t)=>{
+ const f=fixture(),batches=[];t.mock.method(require('../services/product-branches'),'read',async()=>[{id:'SUC-1',ubicacion:'Centro'}]);
+ f.client.spreadsheets.get=async()=>({data:{sheets:Object.values(p.schemas).slice(0,4).map((s,i)=>({properties:{title:s.tab,sheetId:i}}))}});
+ f.client.spreadsheets.batchUpdate=async args=>batches.push(args.requestBody.requests);
+ const payload={region_id:'REG-NEW',nombre_region:'Nueva',activa:'Sí',tipos:{huevos:false,pollos:true,cerdos:false,carnes:false},sucursales:['SUC-1']};
+ f.rows.locales.push(['SUC-1','Centro','REG-01']);
+ await assert.rejects(p.saveRegion('POST',payload,f.client),{status:409});assert.equal(batches.length,0);
+ f.rows.locales.length=1;await p.saveRegion('POST',payload,f.client);
+ assert.equal(batches.length,1);assert.equal(batches[0][0].addSheet.properties.title,'Productos por región');
+ assert.equal(batches[0].filter(r=>r.appendCells).length,6);
+});
 test('missing region configuration tab is created with headers on first valid save',async()=>{
  const f=fixture();let exists=false;let created=0;
  f.client.spreadsheets.get=async()=>({data:{sheets:exists?[{properties:{title:p.schemas.regionProductos.tab}}]:[]}});

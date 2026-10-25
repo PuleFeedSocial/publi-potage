@@ -14,7 +14,6 @@ test('region product configuration preserves defaults and historical categories'
  for(const category of ['Pollo','Pollos','Trozados de pollo','Congelados de pollo']){c.category=category;assert.equal(vm.runInContext('productCategoryType(category)',c),'pollos');}
  for(const category of ['Cerdo','Cerdos','Porcinos']){c.category=category;assert.equal(vm.runInContext('productCategoryType(category)',c),'cerdos');}
  assert.equal(vm.runInContext("productCategoryType('Vacuna')",c),'carnes');
- assert.equal(vm.runInContext('typeof renderRegionProductToggles',c),'function');
 });
 test('product filters match names without accents and isolate the selected region',()=>{
  const c=context();c.rows=[{region_id:'R1',producto:'Carré de cerdo'},{region_id:'R2',producto:'Carré de cerdo'},{region_id:'R1',producto:'Pechuga',categoria:'Carré'}];

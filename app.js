@@ -225,7 +225,7 @@ function hasPermission(key) {
 
 function applyNavPermissions() {
   const map = {
-    view_productos: 'btn-nav-productos',
+    view_productos: ['btn-nav-productos','btn-nav-regiones'],
     view_dashboard: 'btn-nav-dashboard',
     view_informes: 'btn-nav-informes',
     view_grupos: 'btn-nav-grupos',
@@ -233,8 +233,10 @@ function applyNavPermissions() {
     view_sucursales: 'btn-nav-sucursales'
   };
   Object.keys(map).forEach(perm => {
-    const el = document.getElementById(map[perm]);
-    if (el) el.style.display = hasPermission(perm) ? '' : 'none';
+    for(const id of [map[perm]].flat()){
+      const el = document.getElementById(id);
+      if (el) el.style.display = hasPermission(perm) ? '' : 'none';
+    }
   });
 }
 

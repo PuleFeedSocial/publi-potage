@@ -76,7 +76,63 @@ async function read(client=getClient()) {
   }
   const data=Object.fromEntries(Object.keys(schemas).map((k,i)=>[k,parse(k,result.data.valueRanges?.[i]?.values)]));
   if(!data.regionProductos)data.regionProductos=[];
+  for(const region of data.regiones)region._configRevision=regionRevision(data,region.region_id);
   return data;
+}
+function regionRevision(all,id){
+  return revision(['regiones','regionProductos','locales'].map(kind=>all[kind].filter(r=>r.region_id===id).map(r=>[r._row,r._revision])));
+}
+function saveRegion(method,input,client){
+  const task=queue.then(()=>saveRegionNow(method,input,client));queue=task.catch(()=>{});return task;
+}
+async function saveRegionNow(method,input,client=getClient()){
+  const all=await read(client),current=all.regiones.find(r=>r.region_id===input.region_id);
+  if(method==='POST'&&all.regiones.some(r=>String(r.region_id).toLowerCase()===String(input.region_id).toLowerCase()))throw fail('Esta región ya existe.',409);
+  if(method!=='POST'&&(!current||input._configRevision!==current._configRevision))throw fail('La región cambió. Actualizá los datos antes de guardar.',409);
+  const configs=all.regionProductos.filter(r=>r.region_id===input.region_id),links=all.locales.filter(r=>r.region_id===input.region_id);
+  let region,selected=[];
+  if(method==='DELETE'){
+    if(['huevos','carnes'].some(k=>all[k].some(r=>r.region_id===input.region_id)))throw fail('La región tiene productos. Desactivala o eliminá sus productos antes de borrar la región.',409);
+  }else{
+    region=validate('regiones',input,all);
+    if(!input.tipos||!PRODUCT_TYPES.every(t=>typeof input.tipos[t]==='boolean'))throw fail('Elegí los tipos de productos de la región.');
+    if(!Array.isArray(input.sucursales)||input.sucursales.length>500||input.sucursales.some(id=>typeof id!=='string')||new Set(input.sucursales).size!==input.sucursales.length)throw fail('Revisá la selección de sucursales.');
+    // Only consult the directory when assigning a new branch. Existing links remain usable if it is temporarily unavailable.
+    const newIds=input.sucursales.filter(id=>!links.some(r=>r.local_id===id));
+    const directory=newIds.length?await require('./product-branches').read():[];
+    selected=input.sucursales.map(id=>{
+      if(all.locales.some(r=>r.local_id===id&&r.region_id!==input.region_id))throw fail('Una sucursal seleccionada ya pertenece a otra región. Actualizá los datos.',409);
+      const old=links.find(r=>r.local_id===id);if(old)return old;
+      const matches=directory.filter(b=>b.id===id);if(matches.length!==1)throw fail('Una sucursal ya no existe o está duplicada. Actualizá los datos.',409);
+      return validate('locales',{local_id:id,nombre_local:matches[0].ubicacion,region_id:region.region_id},{...all,regiones:[...all.regiones,region]});
+    });
+  }
+  const metadata=await client.spreadsheets.get({spreadsheetId:SPREADSHEET_ID,fields:'sheets.properties'});
+  const ids=Object.fromEntries((metadata.data.sheets||[]).map(s=>[s.properties.title,s.properties.sheetId]));
+  const requests=[];
+  const cells=values=>({values:values.map(v=>({userEnteredValue:{stringValue:String(v)}}))});
+  for(const kind of ['regiones','locales'])if(ids[schemas[kind].tab]===undefined)throw fail('Faltan pestañas del catálogo.',409);
+  if(method!=='DELETE'&&ids[schemas.regionProductos.tab]===undefined){
+    const sheetId=crypto.randomInt(1,2147483647);ids[schemas.regionProductos.tab]=sheetId;
+    requests.push({addSheet:{properties:{sheetId,title:schemas.regionProductos.tab}}});
+    requests.push({updateCells:{start:{sheetId,rowIndex:0,columnIndex:0},rows:[cells(schemas.regionProductos.fields)],fields:'userEnteredValue'}});
+  }else if(method!=='DELETE'&&!all.regionProductos.length){
+    requests.push({updateCells:{start:{sheetId:ids[schemas.regionProductos.tab],rowIndex:0,columnIndex:0},rows:[cells(schemas.regionProductos.fields)],fields:'userEnteredValue'}});
+  }
+  const put=(kind,row,old)=>{
+    const sheetId=ids[schemas[kind].tab],rows=[cells(schemas[kind].fields.map(f=>row[f]))];
+    requests.push(old?{updateCells:{start:{sheetId,rowIndex:old._row-1,columnIndex:0},rows,fields:'userEnteredValue'}}:{appendCells:{sheetId,rows,fields:'userEnteredValue'}});
+  };
+  const clear=(kind,row)=>requests.push({repeatCell:{range:{sheetId:ids[schemas[kind].tab],startRowIndex:row._row-1,endRowIndex:row._row,startColumnIndex:0,endColumnIndex:schemas[kind].fields.length},cell:{},fields:'userEnteredValue'}});
+  if(method==='DELETE'){
+    clear('regiones',current);configs.forEach(r=>clear('regionProductos',r));links.forEach(r=>clear('locales',r));
+  }else{
+    put('regiones',region,current);
+    for(const tipo of PRODUCT_TYPES)put('regionProductos',{region_id:region.region_id,tipo,activo:input.tipos[tipo]?'Sí':'No'},configs.find(r=>r.tipo===tipo));
+    for(const row of selected)if(!links.some(r=>r.local_id===row.local_id))put('locales',row);
+    for(const row of links)if(!selected.some(r=>r.local_id===row.local_id))clear('locales',row);
+  }
+  await client.spreadsheets.batchUpdate({spreadsheetId:SPREADSHEET_ID,requestBody:{requests}});
 }
 async function ensureRegionProductsSheet(client){
   const schema=schemas.regionProductos;
@@ -177,4 +233,4 @@ async function writeNow(kind,method,input,client=getClient()) {
     await client.spreadsheets.values.append({spreadsheetId:SPREADSHEET_ID,range:`'${schema.tab}'!A:${String.fromCharCode(64+schema.fields.length)}`,valueInputOption:'RAW',insertDataOption:'INSERT_ROWS',requestBody:{values}});
   }
 }
-module.exports={read,write,connection,schemas,parse,validate,activeValue};
+module.exports={read,write,saveRegion,connection,schemas,parse,validate,activeValue};
