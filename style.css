@@ -167,6 +167,17 @@ body.sidebar-open .main-content {
     min-height: 0;
 }
 
+.sidebar-nav-group > summary { cursor: pointer; list-style: none; }
+.sidebar-nav-group > summary::-webkit-details-marker { display: none; }
+.sidebar-nav-group > summary.is-current { color: var(--text-main); font-weight: 600; }
+.nav-group-chevron { margin-left: auto; font-size: .7rem; transition: transform .15s ease; }
+.sidebar-nav-group[open] > summary .nav-group-chevron { transform: rotate(180deg); }
+.sidebar-submenu { margin: 4px 0 8px 12px; border-left: 1px solid var(--border-color); }
+.sidebar-submenu .menu-item { width: 100%; text-align: left; }
+.sidebar-submenu button.menu-item { border: 0; background: transparent; font-family: inherit; }
+.sidebar-submenu button.menu-item:hover, .sidebar-submenu button.menu-item.active { background: var(--bg-subtle); }
+.sidebar-nav-group[hidden] { display: none; }
+
 .menu-item {
     display: flex;
     align-items: center;

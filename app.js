@@ -238,7 +238,24 @@ function applyNavPermissions() {
       if (el) el.style.display = hasPermission(perm) ? '' : 'none';
     }
   });
+  syncSidebarGroups();
 }
+
+function syncSidebarGroups() {
+  document.querySelectorAll('.sidebar-nav-group').forEach(group => {
+    const links = Array.from(group.querySelectorAll('.sidebar-submenu .menu-item'));
+    const visible = links.filter(link => link.style.display !== 'none');
+    group.hidden = !visible.length;
+    const active = visible.some(link => link.classList.contains('active'));
+    group.querySelector('summary').classList.toggle('is-current', active);
+    if (active) group.open = true;
+    links.forEach(link => {
+      if (link.classList.contains('active')) link.setAttribute('aria-current', 'page');
+      else link.removeAttribute('aria-current');
+    });
+  });
+}
+document.addEventListener('DOMContentLoaded', syncSidebarGroups);
 
 function guardPage(perm) {
   if (!getCurrentSession()) { window.location.href = 'index.html'; return; }
@@ -931,6 +948,7 @@ function switchView(viewName) {
   document.getElementById('btn-nav-dashboard').classList.toggle('active', viewName === 'dashboard');
   document.getElementById('btn-nav-users').classList.toggle('active', viewName === 'users');
   document.getElementById('btn-nav-zonas').classList.toggle('active', viewName === 'zonas');
+  syncSidebarGroups();
   document.getElementById('view-dashboard').classList.toggle('d-none', viewName !== 'dashboard');
   document.getElementById('view-users').classList.toggle('d-none', viewName !== 'users');
   document.getElementById('view-zonas').classList.toggle('d-none', viewName !== 'zonas');
@@ -3279,13 +3297,13 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     overlay.addEventListener('click', close);
     sidebar.addEventListener('click', event => {
-      if (event.target.closest('.menu-item')) close();
+      if (event.target.closest('.menu-item') && !event.target.closest('summary')) close();
     });
     document.addEventListener('keydown', event => {
       if (!mobile.matches || !sidebar.classList.contains('open')) return;
       if (event.key === 'Escape') { event.preventDefault(); close(); }
       if (event.key !== 'Tab') return;
-      const items = [...sidebar.querySelectorAll('a[href], button, [tabindex="0"]')]
+      const items = [...sidebar.querySelectorAll('a[href], button, summary, [tabindex="0"]')]
         .filter(el => !el.disabled && el.getClientRects().length);
       const first = items[0], last = items.at(-1);
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
