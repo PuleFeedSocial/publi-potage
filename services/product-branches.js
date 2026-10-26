@@ -11,7 +11,7 @@ async function read(){
   if(!['Empresa','Ubicacion','Direccion'].every((h,i)=>rows[0]?.[i]===h))throw new Error('Encabezados de sucursales inválidos.');
   return rows.slice(1).filter(r=>r[0]&&r[0]!=='__DELETED__').map(r=>{
     const b={empresa:r[0]||'',ubicacion:r[1]||'',direccion:r[2]||'',contacto:r[3]||'',activo:!['FALSE','0','INACTIVO'].includes(String(r[6]).trim().toUpperCase())};
-    return {...b,zona:String(r[5]||'').trim(),id:branchId(b)};
+    return {...b,horario:String(r[4]||'').trim(),zona:String(r[5]||'').trim(),id:branchId(b)};
   });
 }
 module.exports={read,branchId};
