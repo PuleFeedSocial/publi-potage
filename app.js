@@ -958,8 +958,8 @@ function switchView(viewName) {
     title.innerText = 'Dashboard Publicaciones';
     subtitle.innerText = 'Rendimiento en tiempo real de cuentas de Facebook';
   } else if (viewName === 'zonas') {
-    title.innerText = 'Dashboard Zonas';
-    subtitle.innerText = 'Métricas agrupadas por zona geográfica';
+    title.innerText = 'Sucursales de redes';
+    subtitle.innerText = 'Seguimiento de marketing con los nombres históricos de tus zonas';
     loadZonas();
     renderZonasDashboard();
     } else {
@@ -3048,7 +3048,7 @@ function refreshZonasEditControls() {
   const can = canEditZonas();
   const addBox = document.getElementById('zona-add-box');
   if (addBox) addBox.style.display = can ? '' : 'none';
-  const container = document.getElementById('zonas-list');
+  const container = document.getElementById('view-zonas');
   if (container) container.querySelectorAll('[data-zona-control]').forEach(el => {
     el.style.display = can ? '' : 'none';
   });
@@ -3069,7 +3069,7 @@ function renderZonas() {
       : '<span class="badge-estatus est-eliminada">Inactivo</span>';
     return `
     <div class="d-flex justify-content-between align-items-center py-1 border-bottom border-light">
-      <span class="small" ${activo ? '' : 'style="opacity:.55;text-decoration:line-through;"'}>${escHtml(z.nombre)}</span>
+      <span class="small" ${activo ? '' : 'style="opacity:.55;"'}>${escHtml(z.nombre)}<small class="d-block text-muted">${escHtml(z.sucursal_nombre || 'Sin vincular al catálogo')}</small></span>
       <div class="d-flex gap-2 align-items-center">
         ${badge}
         <button class="btn btn-sm btn-link text-primary p-0" data-zona-control onclick="openZonaModal(${z.id})" style="${can ? '' : 'display:none'}" title="Cambiar estado de la zona">
@@ -3085,12 +3085,40 @@ function renderZonas() {
 }
 
 let zonaEditId = null;
+let zonaDirectoryVersion = 0;
+
+async function loadZonaBranches(z) {
+  const version=++zonaDirectoryVersion,select=document.getElementById('zona-sucursal');
+  select.replaceChildren(new Option('Sin vínculo con el catálogo',''));
+  if(z?.sucursal_id)select.add(new Option(z.sucursal_nombre || 'Asociación existente',z.sucursal_id));
+  select.value=z?.sucursal_id||'';select.disabled=true;
+  document.getElementById('zona-link-status').textContent='Cargando catálogo…';
+  try {
+    const {status,body}=await apiFetch('/api/zonas/sucursales',{signal:AbortSignal.timeout(15000)});
+    if(version!==zonaDirectoryVersion)return;
+    if(status!==200)throw Error(body.error||'No se pudo cargar el catálogo.');
+    const occupied=new Set(zonasData.filter(row=>Number(row.id)!==zonaEditId).map(row=>row.sucursal_id));
+    for(const b of body.data){
+      if(b.id===z?.sucursal_id)continue;
+      const option=new Option([b.empresa,b.ubicacion,b.direccion,b.contacto].filter(Boolean).join(' · ')+(occupied.has(b.id)?' — ya vinculada':''),b.id);
+      option.disabled=occupied.has(b.id);option.dataset.name=b.ubicacion;select.add(option);
+    }
+    select.disabled=false;
+    document.getElementById('zona-link-status').textContent=z?.sucursal_id&&!body.data.some(b=>b.id===z.sucursal_id)?'La sucursal vinculada cambió o se eliminó del catálogo. Elegí su registro actual para renovar el vínculo. El historial se conserva.':'El vínculo no modifica precios, publicaciones ni grupos. El estado de redes es independiente del catálogo.';
+  } catch(error) {
+    if(version===zonaDirectoryVersion)document.getElementById('zona-link-status').textContent=error.message+' Podés guardar el estado sin modificar el vínculo.';
+  }
+}
 
 function openZonaModal(id) {
-  const z = (zonasData || []).find(x => Number(x.id) === Number(id));
+  if (!canEditZonas()) return;
+  const z = id == null ? {nombre:'',activo:true} : (zonasData || []).find(x => Number(x.id) === Number(id));
   if (!z) return;
-  zonaEditId = Number(id);
-  document.getElementById('zona-modal-nombre').innerText = z.nombre;
+  zonaEditId = id == null ? null : Number(id);
+  const name=document.getElementById('zona-modal-nombre');name.value=z.nombre;name.readOnly=id!=null;
+  document.getElementById('zona-estado').disabled=id==null;
+  document.getElementById('zona-sucursal').onchange=function(){if(zonaEditId===null&&this.selectedOptions[0]?.dataset.name)name.value=this.selectedOptions[0].dataset.name;};
+  loadZonaBranches(z);
   document.getElementById('zona-estado').value = (z.activo === false) ? 'inactivo' : 'activo';
   const modalEl = document.getElementById('zonaModal');
   if (!modalEl) return;
@@ -3099,14 +3127,18 @@ function openZonaModal(id) {
 }
 
 function saveZona() {
-  if (zonaEditId === null) return;
+  if (!canEditZonas()) return;
+  const nombre=document.getElementById('zona-modal-nombre').value.trim();
+  if(!nombre||nombre.length>120){showToast('Ingresá un nombre de hasta 120 caracteres.','error');return;}
   const activo = document.getElementById('zona-estado').value === 'activo';
   const zona = (zonasData || []).find(x => Number(x.id) === Number(zonaEditId));
-  apiFetch('/api/zonas/' + zonaEditId, {
-    method: 'PUT',
-    body: JSON.stringify({ nombre: (zona && zona.nombre) || '', activo })
+  const select=document.getElementById('zona-sucursal');
+  const payload={nombre,activo};if(!select.disabled)payload.sucursal_id=select.value||null;
+  apiFetch('/api/zonas' + (zonaEditId===null?'':'/'+zonaEditId), {
+    method: zonaEditId===null?'POST':'PUT',
+    body: JSON.stringify(payload)
   }).then(({ status, body }) => {
-    if (status !== 200) { showToast(body.error || 'Error al guardar la zona.', 'error'); return; }
+    if (status !== 200 && status !== 201) { showToast(body.error || 'Error al guardar la sucursal de redes.', 'error'); return; }
     const modalEl = document.getElementById('zonaModal');
     const modal = bootstrap.Modal.getInstance(modalEl);
     if (modal) modal.hide();

@@ -50,7 +50,7 @@
                 </a>
 <button type="button" class="menu-item submenu-item" id="btn-nav-zonas" onclick="switchView('zonas')" style="cursor:pointer;">
                     <i class="bi bi-geo-alt-fill"></i>
-                    <span>Zonas</span>
+                    <span>Sucursales de redes</span>
                 </button></div></details><details class="sidebar-nav-group" id="nav-interno"><summary class="menu-item"><i class="bi bi-building" aria-hidden="true"></i><span>Interno</span><i class="bi bi-chevron-down nav-group-chevron" aria-hidden="true"></i></summary><div class="sidebar-submenu"><a href="productos.html" class="menu-item submenu-item" id="btn-nav-productos"><i class="bi bi-box-seam"></i><span>Productos</span></a>
 <a href="regiones.html" class="menu-item submenu-item" id="btn-nav-regiones"><i class="bi bi-globe-americas"></i><span>Regiones</span></a>
 <a href="sucursales.html" class="menu-item submenu-item" id="btn-nav-sucursales">
@@ -458,7 +458,7 @@
                 <div class="card data-table-card">
                     <div class="card-header-clean d-flex justify-content-between align-items-center">
                         <div>
-                            <h5 class="table-card-title">Resumen por Zona</h5>
+                            <h5 class="table-card-title">Resumen por sucursal de redes</h5>
                             <p class="text-muted small mb-0">Todas las zonas configuradas, incluidas las inactivas. Métricas de publicaciones activas en el período seleccionado; grupos totales por zona.</p>
                         </div>
                     </div>
@@ -484,11 +484,11 @@
                 <div class="card data-table-card mt-4">
                     <div class="card-header-clean">
                         <div>
-                            <h5 class="table-card-title">Zonas Configuradas</h5>
-                            <span class="text-muted small">Zonas disponibles en el sistema</span>
+                            <h5 class="table-card-title">Sucursales de redes</h5>
+                            <span class="text-muted small">El estado activo/inactivo indica si trabajás sus redes; no cambia el catálogo general.</span>
                         </div>
                     </div>
-                    <div class="card-body" id="zonas-list"></div>
+                    <div class="card-body" id="zonas-list"></div><div class="card-footer"><button type="button" class="btn btn-sm btn-outline-primary" data-zona-control style="display:none" onclick="openZonaModal()">Añadir desde el catálogo</button></div>
                 </div>
 
             </div>
@@ -825,14 +825,14 @@
             <div class="modal-content custom-modal">
                 <div class="modal-header border-0 pb-0">
                     <h5 class="modal-title fw-semibold text-dark">
-                        <i class="bi bi-pencil-square me-2"></i>Estado de la zona
+                        <i class="bi bi-pencil-square me-2"></i>Gestionar sucursal de redes
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
                 <div class="modal-body pt-3">
                     <div class="mb-3">
                         <label class="form-label small fw-medium text-secondary">Zona</label>
-                        <div class="form-control" id="zona-modal-nombre"></div>
+                        <input class="form-control custom-input" id="zona-modal-nombre" maxlength="120"><small class="text-muted">Nombre histórico en redes. Se conserva al vincular una sucursal.</small>
                     </div>
                     <div class="mb-3">
                         <label class="form-label small fw-medium text-secondary">Estado</label>
@@ -841,7 +841,7 @@
                             <option value="inactivo">Inactivo</option>
                         </select>
                     </div>
-                    <p class="small text-muted mb-0">
+                    <div class="mb-3"><label for="zona-sucursal" class="form-label">Sucursal del catálogo</label><select id="zona-sucursal" class="form-select custom-input"></select><p id="zona-link-status" class="small text-muted mt-2" role="status"></p></div><p class="small text-muted mb-0">
                         <i class="bi bi-info-circle me-1"></i>Si la zona está <strong>Inactiva</strong>, sus grupos no se cuentan en las estadísticas ni en los informes (los datos de la planilla no se modifican).
                     </p>
                 </div>

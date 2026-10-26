@@ -83,6 +83,9 @@ async function initializeDb() {
 
   // Migración: zonas preexistentes sin estado
   await pool.query(`ALTER TABLE zonas ADD COLUMN IF NOT EXISTS activo BOOLEAN NOT NULL DEFAULT TRUE`);
+  await pool.query(`ALTER TABLE zonas ADD COLUMN IF NOT EXISTS sucursal_id TEXT`);
+  await pool.query(`ALTER TABLE zonas ADD COLUMN IF NOT EXISTS sucursal_nombre TEXT`);
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS zonas_sucursal_unique ON zonas (sucursal_id) WHERE sucursal_id IS NOT NULL`);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS calendario (

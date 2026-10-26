@@ -361,3 +361,37 @@ test('profile email collision is rejected and accounts without codes use current
   const success=await request('/api/auth/profile',{method:'PUT',body:{name:'New',email:'new@example.test',currentPassword:'old-password'}});
   assert.equal(success.status,200);
 });
+
+test('marketing links preserve historical keys and independent activity, including Sheets outage', async t => {
+  const directory=require('../services/product-branches');
+  const branch={empresa:'Potage',ubicacion:'Merlo',direccion:'Calle 1',contacto:'123',activo:false};branch.id=directory.branchId(branch);
+  let outage=false;
+  t.mock.method(directory,'read',async()=>{if(outage)throw Error('offline');return [branch];});
+  const originalGet=db.get;
+  let existing={nombre:'Merlo histórico',sucursal_id:null,sucursal_nombre:null};
+  t.mock.method(db,'get',async(sql,params)=>sql.includes('FROM zonas')?existing:originalGet.call(db,sql,params));
+  assert.equal((await request('/api/zonas/sucursales')).status,200);
+  let result=await request('/api/zonas/1',{method:'PUT',body:{nombre:existing.nombre,activo:false,sucursal_id:branch.id}});
+  assert.equal(result.status,200);
+  let write=operations.findLast(o=>o.sql.startsWith('UPDATE zonas'));
+  assert.equal(write.params[0],false);assert.equal(write.params[1],branch.id);assert.ok(!/(?:SET|,)\s*nombre\s*=/.test(write.sql));
+  assert.equal((await request('/api/zonas/1',{method:'PUT',body:{nombre:'Renombrada',activo:true}})).status,409);
+  existing={...existing,sucursal_id:branch.id,sucursal_nombre:write.params[2]};outage=true;
+  assert.equal((await request('/api/zonas/1',{method:'PUT',body:{nombre:existing.nombre,activo:true}})).status,200);
+  assert.equal(operations.findLast(o=>o.sql.startsWith('UPDATE zonas')).params[1],branch.id);
+  assert.equal((await request('/api/zonas',{method:'POST',body:{nombre:'Nueva',sucursal_id:branch.id}})).status,503);
+  assert.equal((await request('/api/zonas/1',{method:'PUT',body:{nombre:existing.nombre,activo:true,sucursal_id:null}})).status,200);
+  assert.equal(operations.findLast(o=>o.sql.startsWith('UPDATE zonas')).params[1],null);
+});
+
+test('marketing branch links reject unknown branches and enforce unique association', async t=>{
+  const directory=require('../services/product-branches');
+  t.mock.method(directory,'read',async()=>[]);
+  assert.equal((await request('/api/zonas',{method:'POST',body:{nombre:'Nueva',sucursal_id:'SUC-'+'a'.repeat(24)}})).status,409);
+  const branch={empresa:'Potage',ubicacion:'Centro',direccion:'Calle 1'};branch.id=directory.branchId(branch);
+  t.mock.method(directory,'read',async()=>[branch]);
+  const run=db.run;t.mock.method(db,'run',async(sql,params)=>{if(sql.includes('INSERT INTO zonas'))throw Object.assign(Error('duplicate'),{code:'23505'});return run.call(db,sql,params);});
+  assert.equal((await request('/api/zonas',{method:'POST',body:{nombre:'Otra',sucursal_id:branch.id}})).status,409);
+  const reader={id:55,name:'Reader',email:'reader@test',role:'colaborador',token_version:0};users.set(55,reader);
+  assert.equal((await request('/api/zonas/sucursales',{token:signAccessToken(reader)})).status,403);
+});
