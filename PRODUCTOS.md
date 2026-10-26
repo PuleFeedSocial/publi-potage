@@ -56,6 +56,11 @@ Los huevos estándar usan 30 unidades/maple y 12 maples/cajón; especiales, 20 u
 
 Productos muestra siete presentaciones: Pollo 20 kg; Supremas 15 y 5 kg; Cuartos traseros 15 y 5 kg; Alas 15 y 5 kg. Los precios son independientes. Las presentaciones faltantes aparecen como Sin cargar y permiten cargar su precio. No se copian precios de una región a otra ni de la imagen de ejemplo.
 
-Los registros anteriores fuera de esta lista se conservan en Google Sheets, pero no se incluyen en la tabla de pollos ni en Copiar texto. Se reconocen nombres históricos como Pechuga/Suprema y categorías Trozados de pollo. Si dos filas corresponden a la misma presentación, hay que resolver el duplicado antes de publicar; el servidor impide crear nuevas duplicaciones de estas presentaciones.
+Los registros anteriores fuera de esta lista se conservan en Google Sheets, pero no se incluyen en la tabla de pollos ni en Copiar texto. Se reconocen nombres de Suprema y categorías Trozados de pollo. Pechuga es un producto distinto y no se equipara a Suprema. Si dos filas corresponden a la misma presentación, hay que resolver el duplicado antes de publicar; el servidor impide crear nuevas duplicaciones de estas presentaciones.
 
 En Generar imagen, seleccionar Pollos para usar la plantilla propia, sin mezclar huevos. La imagen requiere siete precios válidos y usa las sucursales activas vinculadas a la región. La plantilla original no aporta precios ni direcciones al resultado: se redibujan desde los datos actuales. Huevos conserva su propia plantilla y selector de filas.
+
+
+## Hoja legible (26/10/2026)
+
+La misma hoja de producción mantiene sus pestañas y posiciones de columnas. El lector admite tanto encabezados técnicos antiguos como los nombres en español de sheet-labels.js. Se verificó la lectura con datos reales después del cambio. La pestaña LEER PRIMERO documenta la edición, reglas de precios y códigos de región. Las columnas técnicas y registros antiguos están ocultos, no eliminados; hay respaldos ocultos del estado previo. No se agregaron fórmulas que escriban sobre precios ni otra base que haya que sincronizar.
