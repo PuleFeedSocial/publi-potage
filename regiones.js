@@ -35,6 +35,30 @@ function regionCheckbox(id,label,checked,isSwitch=false){
  const box=rn('div',undefined,'form-check '+(isSwitch?'form-switch ':'')+'my-3');const input=rn('input');input.type='checkbox';input.id=id;input.className='form-check-input';input.checked=checked;if(isSwitch)input.setAttribute('role','switch');
  const lab=rn('label',label,'form-check-label');lab.htmlFor=id;box.append(input,lab);return {box,input};
 }
+function filterRegionBranches(){
+ const company=re('region-branch-company').value,zone=re('region-branch-zone').value;
+ const query=regionText(re('region-branch-search').value).trim(),digits=query.replace(/\D/g,'');
+ let visible=0,selected=0;
+ const rows=Array.from(re('region-branches').children);
+ for(const row of rows){
+  const phoneMatch=digits.length>=3&&/^[\d\s+().-]+$/.test(query)&&row.dataset.phone.includes(digits);
+  row.hidden=!!((company&&row.dataset.company!==company)||(zone&&row.dataset.zone!==zone)||(query&&!row.dataset.search.includes(query)&&!phoneMatch));
+  if(!row.hidden)visible++;
+  if(row.querySelector('input').checked)selected++;
+ }
+ re('region-branch-count').textContent=`${visible} de ${rows.length} sucursales · ${selected} seleccionadas`;
+ re('region-branch-empty').hidden=visible>0;
+}
+function resetRegionBranchFilters(){
+ for(const id of ['region-branch-company','region-branch-zone','region-branch-search'])re(id).value='';
+ filterRegionBranches();
+}
+function populateRegionBranchFilter(id,values,placeholder){
+ const select=re(id);select.replaceChildren(new Option(placeholder,''));
+ const unique=new Map();
+ for(const value of values){const label=String(value||'').trim();if(label)unique.set(regionText(label),label);}
+ for(const [value,label]of [...unique].sort((a,b)=>a[1].localeCompare(b[1],'es')))select.add(new Option(label,value));
+}
 function openRegion(region=null){
  if(regionsBusy||!regionsData||!regionCanEdit())return;
  regionEditing=region;re('region-form').reset();re('region-error').textContent='';re('region-fields').disabled=false;
@@ -46,9 +70,19 @@ function openRegion(region=null){
  for(const old of selected)if(!choices.some(b=>b.id===old.local_id))choices.push({id:old.local_id,ubicacion:old.nombre_local,legacy:true});
  choices.sort((a,b)=>a.ubicacion.localeCompare(b.ubicacion,'es')).forEach((branch,index)=>{
   const owner=regionsData.locales.find(r=>r.local_id===branch.id&&r.region_id!==region?.region_id);
-  const label=[branch.ubicacion,branch.empresa,branch.direccion,branch.contacto].filter(Boolean).join(' · ')+(branch.legacy?' (asociación anterior)':'')+(owner?' — asignada a '+(regionsData.regiones.find(r=>r.region_id===owner.region_id)?.nombre_region||owner.region_id):'');
-  const {box,input}=regionCheckbox('region-branch-'+index,label,selected.some(r=>r.local_id===branch.id));input.dataset.branchId=branch.id;input.disabled=!!owner;list.append(box);
+  const {box,input}=regionCheckbox('region-branch-'+index,'',selected.some(r=>r.local_id===branch.id));
+  box.className='region-branch-row';input.dataset.branchId=branch.id;input.disabled=!!owner;
+  const label=box.querySelector('label');label.append(rn('strong',branch.ubicacion||'Sucursal sin nombre'));
+  for(const detail of [[branch.empresa,branch.zona].filter(Boolean).join(' · '),branch.direccion,branch.contacto])if(detail)label.append(rn('span',detail));
+  if(branch.legacy)label.append(rn('span','Asociación anterior','region-branch-note'));
+  if(owner)label.append(rn('span','Asignada a '+(regionsData.regiones.find(r=>r.region_id===owner.region_id)?.nombre_region||owner.region_id),'region-branch-note'));
+  box.dataset.company=regionText(String(branch.empresa||'').trim());box.dataset.zone=regionText(String(branch.zona||'').trim());
+  box.dataset.search=regionText([branch.ubicacion,branch.direccion,branch.contacto].filter(Boolean).join(' '));
+  box.dataset.phone=String(branch.contacto||'').replace(/\D/g,'');input.onchange=filterRegionBranches;list.append(box);
  });
+ populateRegionBranchFilter('region-branch-company',choices.map(b=>b.empresa),'Todas las empresas');
+ populateRegionBranchFilter('region-branch-zone',choices.map(b=>b.zona),'Todas las zonas');
+ resetRegionBranchFilters();
  re('region-branches-status').textContent=regionDirectoryError||'Cada sucursal puede pertenecer a una región. Desmarcarla no elimina la sucursal del sistema.';
  re('region-dialog').showModal();
 }
@@ -71,6 +105,8 @@ document.addEventListener('DOMContentLoaded',async()=>{
  for(const id of ['display-avatar','nav-avatar'])re(id).textContent=(user.name||'?').slice(0,2).toUpperCase();
  re('display-user-role').textContent=user.role;for(const id of ['gestion-label','gestion-items'])re(id).hidden=sessionRole()!=='admin';
  re('regions-refresh').onclick=async()=>{await loadRegionDirectory();await loadRegions();};re('regions-search').oninput=()=>{if(regionsData)renderRegions();};re('regions-add').onclick=()=>openRegion();
+ for(const id of ['region-branch-company','region-branch-zone'])re(id).onchange=filterRegionBranches;
+ re('region-branch-search').oninput=filterRegionBranches;re('region-branch-clear').onclick=resetRegionBranchFilters;
  re('region-form').onsubmit=e=>{e.preventDefault();saveRegionForm();};re('region-delete').onclick=()=>saveRegionForm(true);re('region-cancel').onclick=()=>re('region-dialog').close();re('region-dialog').addEventListener('cancel',e=>{if(regionsBusy)e.preventDefault();});
  await loadMyPermissions();re('regions-add').hidden=!regionCanEdit();await loadRegionDirectory();await loadRegions();
 });
