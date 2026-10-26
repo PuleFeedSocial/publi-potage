@@ -27,6 +27,12 @@ Las escrituras usan RAW para no interpretar texto como fórmulas. Antes de modif
 
 ## Verificación
 
+### Imágenes para redes
+
+Productos → Generar imagen consulta precios actuales antes de preparar un PNG de 1880 × 1576. Las plantillas suministradas se conservan como JPG originales; el navegador dibuja las celdas variables sin alterar esos archivos. AMBA usa el diseño beige con B1/B2/B3 y Costa el amarillo con B1/B2/B3 y C1/C2/C3 por defecto. Cada fila es seleccionable. Solo se admiten huevos estándar de la lista GENERAL de la región seleccionada. Los especiales y las carnes requieren otras plantillas.
+
+La descarga se bloquea si faltan filas, hay productos repetidos, precios incompletos o incompatibles con 12 maples por cajón, o si la región/huevos están desactivados. Actualizar precios consulta de nuevo la hoja. Las direcciones, teléfonos, fotos y logos permanecen fijos en la plantilla y no dependen del filtro de sucursal. No se publica automáticamente ni se modifica la hoja.
+
 Para huevos GENERAL de categoría Estándar, editar docena, maple o cajón calcula los otros dos precios. Se usan 12, 30 y 360 huevos respectivamente. El último campo editado es la base, y cada resultado se redondea directamente a centavos desde esa base. El servidor recalcula antes de guardar los valores numéricos en Sheets. Vaciar el campo base vacía los tres; cero es un precio válido. Los especiales calculan maple y cajón con 20 y 240 huevos respectivamente; no tienen precio por docena. Pollos y carnes conservan precios independientes por presentación, incluyendo descuentos por cantidad. Al editar una carne se muestran otras presentaciones del mismo producto y región, y se puede añadir otra conservando el nombre y la categoría, con un código nuevo y precio vacío. Las ediciones hechas directamente en Google Sheets no disparan este cálculo; se realiza al guardar desde Productos. La columna histórica cambio_por_docena se conserva en la hoja, pero queda oculta en la tabla y el formulario.
 
 Pruebas automatizadas con Google simulado: encabezados, duplicados, cantidades, importes, referencias, revisiones, eliminación, autenticación y permisos. Verificación de navegador con datos simulados en claro/oscuro a 1440, 390 y 320 px. No se realizaron escrituras en la hoja real durante estas pruebas; la conexión de producción requiere las credenciales y permisos configurados en Render.

@@ -24,6 +24,7 @@ async function refreshPriceArtwork(){
  finally{if(version===artworkVersion)ae('artwork-refresh').disabled=false;}
 }
 function buildArtworkSelections(){
+ artworkVersion++;artworkReady=false;ae('artwork-download').disabled=true;
  const template=PriceArtwork.templates[ae('artwork-template').value],root=ae('artwork-selections');root.replaceChildren();
  if(!template||!artworkData){artworkReady=false;ae('artwork-preview').hidden=true;ae('artwork-download').disabled=true;ae('artwork-status').textContent='Elegí una plantilla para esta región.';return;}
  const options=PriceArtwork.candidates(artworkData,artworkRegion);
@@ -55,8 +56,9 @@ async function renderPriceArtwork(){
    for(let column=0;column<3;column++){
     const [x,width]=columns[group+column];
     // Preserve the supplied artwork; replace only the variable cell interiors at render time.
-    const pixel=ctx.getImageData(Math.round((x+width/2)*2),Math.round((y+5)*2),1,1).data;
-    ctx.fillStyle='rgb('+pixel[0]+','+pixel[1]+','+pixel[2]+')';ctx.fillRect(x+8,y+6,width-16,height-12);
+    const pixel=ctx.getImageData(Math.round((x+30)*2),Math.round((y+12)*2),1,1).data;
+    const inset=templateKey==='amba'?28:8;
+    ctx.fillStyle='rgb('+pixel[0]+','+pixel[1]+','+pixel[2]+')';ctx.fillRect(x+inset,y+8,width-inset*2,height-16);
     ctx.fillStyle='#38240e';ctx.textAlign='center';ctx.textBaseline='middle';let size=24;ctx.font='700 '+size+'px Arial';
     while(ctx.measureText(texts[column]).width>width-18&&size>9){size--;ctx.font='700 '+size+'px Arial';}
     ctx.fillText(texts[column],x+width/2,y+height/2+1);

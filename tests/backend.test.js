@@ -150,7 +150,7 @@ test('products protect writes and service account details with server-side permi
   assert.equal(config.status, 200);
   assert.deepEqual(Object.keys(config.data).sort(), ['email','spreadsheetId']);
   assert.equal((await request('/services/products.js')).status, 404);
-  for (const path of ['/productos.html','/productos.js','/productos.css','/regiones.html','/regiones.js']) assert.equal((await request(path)).status, 200);
+  for (const path of ['/productos.html','/productos.js','/productos.css','/regiones.html','/regiones.js','/price-artwork.js','/price-artwork-ui.js','/img/precios/amba.jpg','/img/precios/costa.jpg']) assert.equal((await request(path)).status, 200);
 });
 
 test('authentication rejects absent, removed and revoked sessions', async () => {
