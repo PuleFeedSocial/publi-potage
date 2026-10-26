@@ -1,0 +1,225 @@
+.gen-layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: var(--space-6);
+    align-items: start;
+}
+
+.gen-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.gen-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+
+.gen-card-header {
+    padding: var(--space-4) var(--space-5);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.gen-card-title {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    margin: 0;
+    color: var(--text-main);
+}
+
+.gen-card-body {
+    padding: var(--space-4) var(--space-5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.gen-upload {
+    display: block;
+    cursor: pointer;
+}
+
+.gen-upload-inner {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-md);
+    background: var(--bg-subtle);
+    transition: var(--transition);
+}
+
+.gen-upload-inner:hover {
+    border-color: var(--accent-color);
+    background: var(--bg-card);
+}
+
+.gen-upload-inner i {
+    font-size: 1.25rem;
+    color: var(--text-muted);
+}
+
+.gen-upload-title {
+    font-weight: 500;
+    font-size: var(--font-size-base);
+}
+
+.gen-upload-subtitle {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+.gen-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.gen-label {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.gen-list {
+    max-height: 420px;
+    overflow: auto;
+}
+
+.gen-price-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    cursor: grab;
+    font-size: var(--font-size-sm);
+}
+
+.gen-price-item:active {
+    cursor: grabbing;
+}
+
+.gen-price-name {
+    color: var(--text-main);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.gen-price-value {
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+}
+
+.gen-empty {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    text-align: center;
+    padding: var(--space-4);
+}
+
+.gen-canvas-wrap {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.gen-canvas-toolbar {
+    padding: var(--space-3) var(--space-5);
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-subtle);
+}
+
+.gen-canvas-info {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+}
+
+.gen-canvas-container {
+    padding: var(--space-6);
+    overflow: auto;
+    background: radial-gradient(circle at top, rgba(148, 163, 184, 0.08), transparent 60%);
+}
+
+.gen-canvas {
+    position: relative;
+    margin: 0 auto;
+    max-width: 100%;
+    box-shadow: var(--shadow-hover);
+    background: #fff;
+}
+
+.gen-template {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    user-select: none;
+    pointer-events: none;
+}
+
+#price-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.gen-price-label {
+    position: absolute;
+    pointer-events: auto;
+    cursor: move;
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(15, 23, 42, 0.01);
+    user-select: none;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.gen-price-label.dragging {
+    cursor: grabbing;
+    background: rgba(37, 99, 235, 0.08);
+}
+
+.gen-price-label .label-name {
+    font-weight: 500;
+}
+
+.gen-price-label .label-value {
+    font-weight: 600;
+}
+
+.gen-price-label .label-remove {
+    margin-left: var(--space-2);
+    border: none;
+    background: transparent;
+    color: var(--danger-color);
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 0 4px;
+}
+
+@media (max-width: 1100px) {
+    .gen-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .gen-canvas-container {
+        padding: var(--space-4);
+    }
+}

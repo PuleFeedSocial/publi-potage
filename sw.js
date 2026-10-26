@@ -1,9 +1,10 @@
-const CACHE = 'potage-v64';
+const CACHE = 'potage-v65';
 const STATIC = [
   '/dashboard.html', '/index.html', '/login.html', '/register.html',
   '/grupos.html', '/informes.html', '/logs.html', '/account-settings.html',
   '/sucursales.html', '/ayuda.html', '/calendario.html',
   '/productos.html', '/productos.js', '/productos.css', '/egg-prices.js', '/regiones.html', '/regiones.js',
+  '/price-artwork.js', '/price-artwork-ui.js', '/img/precios/amba.jpg', '/img/precios/costa.jpg',
   '/app.js', '/account.js', '/theme.js', '/style.css', '/manifest.json', '/sw.js'
 ];
 
