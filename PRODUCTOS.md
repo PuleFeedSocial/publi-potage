@@ -51,3 +51,11 @@ El botón Ver precios de Sucursales abre `productos.html?sucursal=ID` con regió
 Las regiones aceptan Sí/No, booleanos, 1/0 y Activa/Inactiva; un estado vacío usa Activa. Un No explícito se conserva. Los valores desconocidos requieren revisión.
 
 Los huevos estándar usan 30 unidades/maple y 12 maples/cajón; especiales, 20 unidades/maple y 12 maples/cajón. Al leer, se reconoce la conversión antigua exacta cajón = maple × 30 y se muestra corregida a × 12. El botón Guardar corrección abre la edición para persistirla en Sheets, conservando la comprobación de versión original. La lectura no modifica la hoja ni sus fórmulas. Pollos y carnes mantienen precios independientes por presentación.
+
+## Catálogo e imagen de pollos
+
+Productos muestra siete presentaciones: Pollo 20 kg; Supremas 15 y 5 kg; Cuartos traseros 15 y 5 kg; Alas 15 y 5 kg. Los precios son independientes. Las presentaciones faltantes aparecen como Sin cargar y permiten cargar su precio. No se copian precios de una región a otra ni de la imagen de ejemplo.
+
+Los registros anteriores fuera de esta lista se conservan en Google Sheets, pero no se incluyen en la tabla de pollos ni en Copiar texto. Se reconocen nombres históricos como Pechuga/Suprema y categorías Trozados de pollo. Si dos filas corresponden a la misma presentación, hay que resolver el duplicado antes de publicar; el servidor impide crear nuevas duplicaciones de estas presentaciones.
+
+En Generar imagen, seleccionar Pollos para usar la plantilla propia, sin mezclar huevos. La imagen requiere siete precios válidos y usa las sucursales activas vinculadas a la región. La plantilla original no aporta precios ni direcciones al resultado: se redibujan desde los datos actuales. Huevos conserva su propia plantilla y selector de filas.

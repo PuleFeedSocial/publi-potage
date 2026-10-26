@@ -22,7 +22,7 @@ async function openPriceArtwork(){
  if(productsBusy)return;
  artworkRegion=pe('product-region').value;
  if(!artworkRegion){productStatus('Seleccioná una región para generar su imagen.',true);return;}
- ae('artwork-template').value='costa';
+ ae('artwork-template').value=activeProductTypeFilter==='pollos'?'pollos':'costa';
  ae('artwork-dialog').showModal();await refreshPriceArtwork();
 }
 async function refreshPriceArtwork(){
@@ -43,7 +43,9 @@ async function refreshPriceArtwork(){
  finally{if(version===artworkVersion)ae('artwork-refresh').disabled=false;}
 }
 function buildArtworkSelections(){
+ ae('artwork-description').textContent=ae('artwork-template').value==='pollos'?'Pollos: 7 presentaciones, sin mezclar con huevos. Incluye dirección y contacto de las sucursales activas de la región. Cada presentación mantiene su precio independiente.':'Elegí los huevos estándar que se publicarán; podés dejar filas sin producto. Incluye dirección y contacto de las sucursales activas de la región. Maple de 30 huevos · cajón de 12 maples.';
  artworkVersion++;artworkReady=false;ae('artwork-download').disabled=true;
+ if(ae('artwork-template').value==='pollos'){ae('artwork-selections').replaceChildren();renderChickenArtwork();return;}
  const template=PriceArtwork.templates[ae('artwork-template').value],root=ae('artwork-selections');root.replaceChildren();
  if(!template||!artworkData){artworkReady=false;ae('artwork-preview').hidden=true;ae('artwork-download').disabled=true;ae('artwork-status').textContent='Elegí una plantilla para esta región.';return;}
  const options=PriceArtwork.candidates(artworkData,artworkRegion);
@@ -102,7 +104,31 @@ document.addEventListener('DOMContentLoaded',()=>{
  ae('artwork-download').onclick=()=>{
   if(!artworkReady||!artworkImage)return;
   const region=artworkData.regiones.find(r=>r.region_id===artworkRegion);
-  const name='precios-'+String(region.nombre_region).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9_-]/g,'-')+'-'+new Date().toISOString().slice(0,10)+'.png';
+  const name='precios-'+(ae('artwork-template').value==='pollos'?'pollos-':'huevos-')+String(region.nombre_region).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9_-]/g,'-')+'-'+new Date().toISOString().slice(0,10)+'.png';
   artworkImage.toBlob(blob=>{if(!blob)return;const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),30000);},'image/png');
  };
 });
+
+async function renderChickenArtwork(){
+ const version=++artworkVersion;artworkReady=false;ae('artwork-download').disabled=true;ae('artwork-preview').hidden=true;
+ try{
+  const rows=ChickenCatalog.publish(artworkData,artworkRegion);
+  ae('artwork-status').textContent='Preparando imagen de pollos…';
+  const img=new Image();img.src='img/precios/pollos.png';await img.decode();if(version!==artworkVersion)return;
+  const canvas=ae('artwork-preview');canvas.width=1880;canvas.height=1576;let ctx=canvas.getContext('2d');
+  const footer=artworkFooter(ctx,artworkData.regiones.find(r=>r.region_id===artworkRegion).nombre_region,artworkBranches);
+  canvas.height=footer.height*2;ctx=canvas.getContext('2d');ctx.scale(2,2);ctx.drawImage(img,0,0,940,703);
+  // The template supplies only the artwork. All labels, prices and branch details are rendered from current data.
+  ctx.fillStyle='#ffdaa0';ctx.fillRect(435,150,395,465);ctx.fillRect(0,620,940,footer.height-620);
+  ctx.strokeStyle='#d88951';ctx.lineWidth=1;ctx.fillStyle='#392719';ctx.textBaseline='middle';
+  ctx.font='700 13px Arial';ctx.textAlign='center';ctx.fillText('PRECIO',758,165);
+  const line=y=>{ctx.beginPath();ctx.moveTo(440,y);ctx.lineTo(825,y);ctx.stroke();};line(180);
+  rows.forEach((row,index)=>{
+   const y=180+index*58;ctx.textAlign='left';let size=23;const label=row.producto+' x '+row.presentacion;ctx.font=size+'px Georgia';while(ctx.measureText(label).width>250&&size>14){size--;ctx.font=size+'px Georgia';}ctx.fillText(label,446,y+29);
+   const price='$'+row.precio.toLocaleString('es-AR',{maximumFractionDigits:2});size=24;ctx.font=size+'px Georgia';while(ctx.measureText(price).width>119&&size>13){size--;ctx.font=size+'px Georgia';}ctx.fillText(price,708,y+29);line(y+58);
+  });
+  ctx.beginPath();ctx.moveTo(698,180);ctx.lineTo(698,586);ctx.stroke();
+  ctx.textAlign='left';ctx.textBaseline='top';for(const line of footer.lines){ctx.font=line.font;ctx.fillStyle='#a84219';ctx.fillText(line.text,30,line.y);}
+  canvas.hidden=false;artworkImage=canvas;artworkReady=true;ae('artwork-download').disabled=false;ae('artwork-status').textContent='Pollos · 7 presentaciones · Precios consultados a las '+artworkLoadedAt+'.';
+ }catch(error){if(version===artworkVersion)ae('artwork-status').textContent=error.message;}
+}

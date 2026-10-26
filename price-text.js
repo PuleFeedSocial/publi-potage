@@ -1,4 +1,5 @@
 (function(root){
+ const chicken=typeof module!=='undefined'&&module.exports?require('./chicken-catalog'):root.ChickenCatalog;
  const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
  const blank=v=>v==null||v==='';
  function money(v){if(typeof v!=='number'||!Number.isFinite(v)||v<0||v>1e10)throw Error('Hay precios inválidos. Revisalos antes de publicar.');return '$'+v.toLocaleString('es-AR',{maximumFractionDigits:2});}
@@ -18,7 +19,8 @@
    const color=/^B(?:\d|\s|$)|^blanco/i.test(code)?' (Blancos)':/^C(?:\d|\s|$)|^color/i.test(code)?' (Colorados)':'';
    blocks.push(`🥚 Huevos ${code}${color}\n🔸 Maple (${units} unidades): ${maple}\n🔸 Cajón (12 maples): ${crate}`);
   }
-  for(const category of ['pollos','cerdos','carnes'])if(enabled(category))for(const item of (data.carnes||[]).filter(row=>match(row)&&(/pollo/.test(norm(row.categoria))?'pollos':/cerdo|porcino/.test(norm(row.categoria))?'cerdos':'carnes')===category).sort(sort)){
+  for(const category of ['pollos','cerdos','carnes'])if(enabled(category))for(const item of (category==='pollos'?chicken.rows(data,region).filter(r=>!r._missing):(data.carnes||[])).filter(row=>match(row)&&(/pollo/.test(norm(row.categoria))?'pollos':/cerdo|porcino/.test(norm(row.categoria))?'cerdos':'carnes')===category).sort(sort)){
+   if(item._ambiguous)throw Error('Hay presentaciones de pollo duplicadas. Revisá la hoja antes de publicar.');
    if(blank(item.precio)){omitted++;continue;}
    blocks.push(`${category==='pollos'?'🍗':category==='cerdos'?'🐷':'🥩'} ${item.producto}\n🔸 ${item.presentacion||'Precio'}: ${money(item.precio)}`);
   }

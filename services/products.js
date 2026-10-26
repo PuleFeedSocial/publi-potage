@@ -219,6 +219,10 @@ async function writeNow(kind,method,input,client=getClient()) {
     input={...input,local_id:matches[0].id,nombre_local:matches[0].ubicacion};
   } else if(kind==='locales'&&method==='POST')throw fail('Seleccioná una sucursal del catálogo.');
   const row=validate(kind,input,all);
+  if(kind==='carnes'){
+    const catalog=require('../chicken-catalog'),key=catalog.key(row);
+    if(key&&all.carnes.some(r=>r._row!==current?._row&&r.region_id===row.region_id&&catalog.key(r)===key))throw fail('Esta presentación de pollo ya tiene un precio en la región. Editá el existente.',409);
+  }
   if(kind==='huevos'&&row.lista_id==='GENERAL'&&input.price_source===undefined) {
     const changed=eggPrices.fields.some(field=>row[field]!== (current?.[field]??''));
     if(changed&&eggPrices.fields.some(field=>row[field]!==''))throw fail('Indicá cuál de los tres precios editaste para calcular los demás.');

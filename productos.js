@@ -120,7 +120,7 @@ function renderProductRegion() {
   for (const type of meatTypes) {
     if (!isProductTypeEnabled(id, type)) continue;
     if (activeProductTypeFilter !== 'all' && activeProductTypeFilter !== type) continue;
-    const rows = meatsAll.filter(r => productCategoryType(r.categoria) === type);
+    const rows = type === 'pollos' ? ChickenCatalog.rows(productsData,id).filter(r=>productText(r.producto).includes(query)).sort((a,b)=>(order==='desc'?-1:1)*a.producto.localeCompare(b.producto,'es',{numeric:true})) : meatsAll.filter(r => productCategoryType(r.categoria) === type);
     if (!rows.length) continue;
     totalCount += rows.length;
     root.append(productTable(PRODUCT_TYPE_LABELS[type], rows, [['producto', 'Producto'], ['presentacion', 'Presentación'], ['precio', 'Precio']], 'carnes'));
@@ -136,10 +136,11 @@ function productTable(title, rows, cols, kind) {
   const table = productNode('table', undefined, 'table mb-0'); const head = document.createElement('thead'), tr = document.createElement('tr');
   for (const [, label] of cols) { const th = productNode('th', label); th.scope = 'col'; tr.append(th); } if (canEditProducts()) { const th = productNode('th', 'Acciones'); th.scope = 'col'; tr.append(th); } head.append(tr); table.append(head);
   const body = document.createElement('tbody'); for (const row of rows) { const tr = document.createElement('tr'); for (const [field, label] of cols) { let text = field.startsWith('precio') || field === 'cambio_por_docena' ? productMoney(row[field]) : row[field] || '—'; if (field === 'presentacion_maple' && row.unidades_maple && !String(text).includes(String(row.unidades_maple))) text += ` (${row.unidades_maple} un.)`; const td = productNode('td', text); td.dataset.label = label; tr.append(td); }
-    if (canEditProducts()) { const td = document.createElement('td'); td.dataset.label = 'Acciones'; td.append(productButton(row._needsPriceSave ? 'Guardar corrección' : 'Editar', () => openProductForm(kind, row))); tr.append(td); } body.append(tr); } table.append(body); wrap.append(table); section.append(wrap); return section;
+    if (canEditProducts()) { const td = document.createElement('td'); td.dataset.label = 'Acciones'; if(row._ambiguous)td.textContent='Revisar duplicados en hoja';else td.append(productButton(row._missing ? 'Cargar precio' : row._needsPriceSave ? 'Guardar corrección' : 'Editar', () => openProductForm(kind, row))); tr.append(td); } body.append(tr); } table.append(body); wrap.append(table); section.append(wrap); return section;
 }
 function openProductForm(kind, row = null) {
   if (productsBusy || !canEditProducts() || !productsData || !['huevos','carnes'].includes(kind)) return;
+  const seed=row?._missing?row:null;if(seed)row=null;
   pe('product-create').close();
   productEdit = { kind, row }; pe('product-form').reset(); pe('product-form-error').textContent = ''; pe('product-form-title').textContent = (row ? 'Editar ' : 'Añadir ') + ({ regiones: 'región', locales: 'sucursal', huevos: 'huevos', carnes: 'producto', regionProductos: 'productos por región' }[kind] || kind);
   pe('product-delete').hidden = !row; pe('product-delete').textContent = 'Eliminar';
@@ -150,7 +151,7 @@ function openProductForm(kind, row = null) {
     if (options) { input = document.createElement('select'); for (const [v, l] of options) { const o = productNode('option', l); o.value = v; input.append(o); } }
     else { input = document.createElement('input'); input.type = type === 'number' ? 'number' : 'text'; if (type === 'number') { input.min = key === 'unidades_maple' ? '1' : '0'; input.max = key === 'unidades_maple' ? '1000' : '10000000000'; input.step = key === 'unidades_maple' ? '1' : '0.01'; } else input.maxLength = 200; }
     input.id = 'pf-' + key; input.name = key; input.className = 'form-control custom-input';
-    input.value = row?.[key] ?? (key === 'region_id' && kind !== 'regiones' ? pe('product-region').value : key === 'activa' ? 'Sí' : key === 'categoria' && kind === 'huevos' ? 'Estándar' : key === 'categoria' && kind === 'carnes' ? 'Pollos' : key === 'lista_id' ? 'GENERAL' : '');
+    input.value = row?.[key] ?? seed?.[key] ?? (key === 'region_id' && kind !== 'regiones' ? pe('product-region').value : key === 'activa' ? 'Sí' : key === 'categoria' && kind === 'huevos' ? 'Estándar' : key === 'categoria' && kind === 'carnes' ? 'Pollos' : key === 'lista_id' ? 'GENERAL' : '');
     if (!row && ((kind === 'regiones' && key === 'region_id') || key === 'local_id' || key === 'producto_id')) input.value = ({ region_id: 'REG', local_id: 'LOC', producto_id: 'PC' }[key]) + '-' + crypto.randomUUID().slice(0, 8).toUpperCase();
     input.required = (productKeys[kind] || []).includes(key) || ['nombre_region', 'nombre_local', 'producto', 'categoria', 'presentacion_maple'].includes(key);
     if (row && (productKeys[kind] || []).includes(key)) input.disabled = true;
@@ -184,10 +185,15 @@ function openProductForm(kind, row = null) {
     for (const key of EggPrices.fields) pe('pf-' + key).addEventListener('input', () => calculate(key));
   }
   if (kind === 'carnes') {
+    const catalogBox=productNode('div');const catalogLabel=productNode('label','Presentación de pollo','form-label');catalogLabel.htmlFor='pf-chicken';const catalogSelect=productNode('select',undefined,'form-select custom-input');catalogSelect.id='pf-chicken';
+    for(const c of ChickenCatalog.catalog){const option=productNode('option',c.producto+' x '+c.presentacion);option.value=c.key;catalogSelect.append(option);}catalogBox.append(catalogLabel,catalogSelect);fields.prepend(catalogBox);
+    catalogSelect.value=ChickenCatalog.key(row||seed||{})||ChickenCatalog.catalog[0].key;
+    const syncChicken=()=>{const chicken=productCategoryType(pe('pf-categoria').value)==='pollos';catalogBox.hidden=!chicken;pe('pf-producto').readOnly=chicken;pe('pf-presentacion').readOnly=chicken;if(chicken){const c=ChickenCatalog.catalog.find(c=>c.key===catalogSelect.value);pe('pf-producto').value=c.producto;pe('pf-presentacion').value=c.presentacion;}};
+    catalogSelect.onchange=syncChicken;pe('pf-categoria').onchange=syncChicken;syncChicken();
     const section = productNode('section', undefined, 'product-price-help');
     section.append(productNode('p', 'Precios independientes por presentación. Podés agrupar por Pollos/Cerdos/Carnes.'));
     if (row) {
-      const related = (productsData.carnes || []).filter(item => item.region_id === row.region_id && item.producto_id !== row.producto_id && productText(item.producto) === productText(row.producto) && productText(item.categoria) === productText(row.categoria));
+      const related = (productsData.carnes || []).filter(item => item.region_id === row.region_id && item.producto_id !== row.producto_id && (productCategoryType(item.categoria)!=='pollos'||ChickenCatalog.key(item)) && productText(item.producto) === productText(row.producto) && productText(item.categoria) === productText(row.categoria));
       if (related.length) section.append(productNode('h3', 'Otras presentaciones', 'h6'));
       for (const item of related) { const line = productNode('div', undefined, 'product-management-row'); line.append(productNode('span', `${item.presentacion || 'Sin presentación'} · ${productMoney(item.precio)}`), productButton('Editar', () => { pe('product-dialog').close(); openProductForm('carnes', item); })); section.append(line); }
       section.append(productButton('Añadir presentación', () => { pe('product-dialog').close(); openProductForm('carnes'); for (const key of ['region_id', 'categoria', 'producto']) { const input=pe('pf-' + key); if (input.tagName==='SELECT' && !Array.from(input.options).some(o=>o.value===row[key])) input.append(new Option(row[key],row[key])); input.value = row[key]; } pe('pf-presentacion').focus(); }));
