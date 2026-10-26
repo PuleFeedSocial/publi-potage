@@ -1,20 +1,39 @@
-let artworkData=null,artworkRegion='',artworkImage=null,artworkVersion=0,artworkReady=false,artworkLoadedAt='';
+let artworkData=null,artworkRegion='',artworkImage=null,artworkVersion=0,artworkReady=false,artworkLoadedAt='',artworkBranches=[];
 const ae=id=>document.getElementById(id);
+function artworkFooter(ctx,region,branches){
+ const lines=[];let y=660;
+ function add(text,font,lineHeight){
+  ctx.font=font;let line='';
+  for(const word of String(text).trim().split(/\s+/)){
+   const candidate=line?line+' '+word:word;
+   if(ctx.measureText(candidate).width<=580){line=candidate;continue;}
+   if(line){lines.push({text:line,font,y});y+=lineHeight;line='';}
+   for(const char of word){if(ctx.measureText(line+char).width>580){lines.push({text:line,font,y});y+=lineHeight;line='';}line+=char;}
+  }
+  if(line){lines.push({text:line,font,y});y+=lineHeight;}
+ }
+ add(region,'700 25px Arial',30);y+=12;
+ for(const branch of branches){add(branch.ubicacion,'700 20px Arial',25);add(branch.direccion,'18px Arial',23);add('Contacto: '+branch.contacto,'18px Arial',23);y+=14;}
+ const height=Math.max(788,y+20);
+ if(height>8000)throw Error('La región tiene demasiados datos para una sola imagen.');
+ return {lines,height};
+}
 async function openPriceArtwork(){
  if(productsBusy)return;
  artworkRegion=pe('product-region').value;
  if(!artworkRegion){productStatus('Seleccioná una región para generar su imagen.',true);return;}
- const name=productText(productsData?.regiones.find(r=>r.region_id===artworkRegion)?.nombre_region);
- ae('artwork-template').value=name.includes('amba')?'amba':name.includes('costa')?'costa':'';
+ ae('artwork-template').value='costa';
  ae('artwork-dialog').showModal();await refreshPriceArtwork();
 }
 async function refreshPriceArtwork(){
- const version=++artworkVersion;artworkReady=false;artworkData=null;
+ const version=++artworkVersion;artworkReady=false;artworkData=null;artworkBranches=[];
  ae('artwork-download').disabled=true;ae('artwork-refresh').disabled=true;ae('artwork-preview').hidden=true;ae('artwork-status').textContent='Consultando precios actuales…';ae('artwork-selections').replaceChildren();
  try{
-  const {status,body}=await apiFetch('/api/productos',{signal:AbortSignal.timeout(20000)});
+  const [{status,body},directory]=await Promise.all([apiFetch('/api/productos',{signal:AbortSignal.timeout(20000)}),apiFetch('/api/productos/sucursales',{signal:AbortSignal.timeout(20000)})]);
   if(version!==artworkVersion)return;
   if(status!==200)throw Error(body.error||'No se pudieron actualizar los precios.');
+  if(directory.status!==200)throw Error('No se pudieron actualizar las direcciones y contactos. Volvé a intentar.');
+  artworkBranches=PriceArtwork.branches(body,artworkRegion,directory.body.data||[]);
   artworkData=body;artworkLoadedAt=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   const region=body.regiones.find(r=>r.region_id===artworkRegion);
   ae('artwork-region-name').textContent=region?.nombre_region||'Región no disponible';
@@ -31,7 +50,7 @@ function buildArtworkSelections(){
  template.defaults.forEach((key,index)=>{
   const box=document.createElement('div'),label=document.createElement('label'),select=document.createElement('select');
   label.htmlFor='artwork-row-'+index;label.className='form-label';label.textContent=(index<3?'Blancos':'Colorados')+' · fila '+(index%3+1);
-  select.id=label.htmlFor;select.className='form-select custom-input';select.append(new Option('Seleccionar producto',''));
+  select.id=label.htmlFor;select.className='form-select custom-input';select.append(new Option('No mostrar producto',''));
   options.forEach(r=>select.append(new Option(r.tipo_huevo,r.tipo_huevo)));
   const matches=options.filter(r=>PriceArtwork.normal(r.tipo_huevo)===key);if(matches.length===1)select.value=matches[0].tipo_huevo;
   select.onchange=renderPriceArtwork;box.append(label,select);root.append(box);
@@ -42,11 +61,18 @@ async function renderPriceArtwork(){
  const version=++artworkVersion;artworkReady=false;ae('artwork-download').disabled=true;ae('artwork-preview').hidden=true;
  const templateKey=ae('artwork-template').value,template=PriceArtwork.templates[templateKey];if(!template||!artworkData)return;
  const keys=Array.from(ae('artwork-selections').querySelectorAll('select')).map(el=>el.value);
- let selected,error='';try{selected=PriceArtwork.rows(artworkData,artworkRegion,keys);}catch(e){error=e.message;selected=keys.map(key=>PriceArtwork.candidates(artworkData,artworkRegion).find(r=>r.tipo_huevo===key));}
+ let selected,error='';try{selected=PriceArtwork.rows(artworkData,artworkRegion,keys,{allowEmpty:true});}catch(e){error=e.message;selected=keys.map(key=>PriceArtwork.candidates(artworkData,artworkRegion).find(r=>r.tipo_huevo===key));}
  ae('artwork-status').textContent='Preparando vista previa…';
  try{
   const img=new Image();img.src=template.image;await img.decode();if(version!==artworkVersion)return;
-  const canvas=ae('artwork-preview');canvas.width=1880;canvas.height=1576;const ctx=canvas.getContext('2d');ctx.scale(2,2);ctx.drawImage(img,0,0,940,788);
+  const canvas=ae('artwork-preview');canvas.width=1880;canvas.height=1576;let ctx=canvas.getContext('2d');
+  const footer=artworkFooter(ctx,artworkData.regiones.find(r=>r.region_id===artworkRegion).nombre_region,artworkBranches);
+  canvas.height=footer.height*2;ctx=canvas.getContext('2d');ctx.scale(2,2);ctx.drawImage(img,0,0,940,788);
+  // Remove the complete original footer, including the fixed Alfonsín address.
+  const yellow=ctx.getImageData(10,1280,1,1).data;ctx.fillStyle='rgb('+yellow[0]+','+yellow[1]+','+yellow[2]+')';ctx.fillRect(0,640,940,footer.height-640);
+  ctx.drawImage(img,600,650,325,125,650,660,260,100);
+  ctx.textAlign='left';ctx.textBaseline='top';
+  for(const line of footer.lines){ctx.font=line.font;ctx.fillStyle='#a84219';ctx.fillText(line.text,30,line.y);}
   const columns=templateKey==='amba'?[[172,182],[374,182],[587,182]]:[[40,126],[181,126],[322,137],[496,126],[637,126],[778,137]];
   const ys=templateKey==='amba'?[417,482,547]:[415,488,560];const height=templateKey==='amba'?50:58;
   const money=value=>typeof value==='number'&&Number.isFinite(value)&&value>=0?'$'+value.toLocaleString('es-AR',{maximumFractionDigits:2}):'—';
