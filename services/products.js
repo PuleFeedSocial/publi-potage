@@ -1,6 +1,8 @@
 const { google } = require('googleapis');
 const crypto = require('crypto');
 const eggPrices = require('../egg-prices');
+const sheetLabels = require('../sheet-labels');
+function validHeaders(kind,header=[]){return schemas[kind].fields.every((field,i)=>header[i]===field||header[i]===sheetLabels[kind][i]);}
 const SPREADSHEET_ID = process.env.PRODUCTS_SHEET_ID || '1hFGIgLe4YgF2Iz5V7wJQcE0tS3tXlKvDtEwKduSEUtg';
 const schemas = {
   regiones: { tab: 'Regiones', fields: ['region_id','nombre_region','activa'], key: ['region_id'] },
@@ -35,7 +37,7 @@ function activeValue(value){
 function parse(kind, values=[]) {
   const schema=schemas[kind];
   if (kind==='regionProductos' && (!Array.isArray(values) || !values.length)) return [];
-  if (!schema.fields.every((f,i)=>values[0]?.[i]===f)) throw fail(`Revisá los encabezados de la pestaña ${schema.tab}.`,409);
+  if (!validHeaders(kind,values[0])) throw fail(`Revisá los encabezados de la pestaña ${schema.tab}.`,409);
   const seen=new Set();
   return values.slice(1).flatMap((cells,index)=>{
     // The template contains instructions below the Regions table.
@@ -150,7 +152,7 @@ async function ensureRegionProductsSheet(client){
   if(!header.data.values?.length){
     // read() already verified that this tab is completely empty.
     await client.spreadsheets.values.update({spreadsheetId:SPREADSHEET_ID,range:"'Productos por región'!A1:C1",valueInputOption:'RAW',requestBody:{values:[schema.fields]}});
-  }else if(!schema.fields.every((f,i)=>header.data.values[0][i]===f))throw fail('Revisá los encabezados de Productos por región.',409);
+  }else if(!validHeaders('regionProductos',header.data.values[0]))throw fail('Revisá los encabezados de Productos por región.',409);
 }
 function normalizeProductType(value){
   const text=String(value||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');

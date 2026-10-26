@@ -146,3 +146,13 @@ test('meat presentations keep independent prices and writes affect only the chos
  await p.write('carnes','POST',{region_id:'REG-01',producto_id:'PC-03',categoria:'Pollo',producto:'Cuartos traseros',presentacion:'10 kg',precio:25000},f.client);
  assert.equal(f.calls[1].requestBody.values[0][5],25000);
 });
+
+test('human-readable and legacy headers both preserve row values and revisions',()=>{
+ const labels=require('../sheet-labels');for(const kind of Object.keys(p.schemas)){
+ const headers=p.schemas[kind].fields;
+ assert.deepEqual(p.parse(kind,[labels[kind]]),p.parse(kind,[headers]));
+ }
+ const row=['REG-02','PC-008','Pollos','Supremas','5 kg',29300];
+ assert.deepEqual(p.parse('carnes',[labels.carnes,row]),p.parse('carnes',[p.schemas.carnes.fields,row]));
+ assert.throws(()=>p.parse('carnes',[['wrong',...labels.carnes.slice(1)],row]),/encabezados/);
+});
