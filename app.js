@@ -959,7 +959,7 @@ function switchView(viewName) {
     subtitle.innerText = 'Rendimiento en tiempo real de cuentas de Facebook';
   } else if (viewName === 'zonas') {
     title.innerText = 'Sucursales de redes';
-    subtitle.innerText = 'Seguimiento de marketing con los nombres históricos de tus zonas';
+    subtitle.innerText = 'Seguimiento de marketing por sucursal, conservando el historial de marketing';
     loadZonas();
     renderZonasDashboard();
     } else {
@@ -1663,7 +1663,7 @@ function saveBulkMarketing() {
 
   const fecha = isoToDate(rawFecha);
   const zona = document.getElementById('bulk-zona').value;
-  if (!zona) return alert('Seleccioná una zona.');
+  if (!zona) return alert('Seleccioná una sucursal.');
 
   const baseData = {
     fecha,
@@ -1948,7 +1948,7 @@ function saveMarketingRow() {
     estatus: document.getElementById('mk-estatus').value
   };
   if (!data.fecha || !data.grupo) return alert('Fecha y Grupo son obligatorios.');
-  if (document.getElementById('mk-zona').value === '__otro__' && !data.zona) return alert('Escribí el nombre de la zona.');
+  if (document.getElementById('mk-zona').value === '__otro__' && !data.zona) return alert('Escribí el nombre de la sucursal.');
   const isNewGrupo = document.getElementById('mk-grupo').value === '__otro__' && data.grupo;
 
   const fechaActualizacion = todayStr();
@@ -2051,7 +2051,7 @@ function openDetailModal(rowData) {
       const zArg = encArg(row.zona);
       zonaChartHtml = `
       <hr class="my-3">
-      <h6 class="fw-semibold text-muted mb-2"><i class="bi bi-geo-alt me-1"></i>Métricas de zona: ${escHtml(row.zona)}</h6>
+      <h6 class="fw-semibold text-muted mb-2"><i class="bi bi-geo-alt me-1"></i>Métricas de sucursal: ${escHtml(row.zona)}</h6>
       <div class="btn-group btn-group-sm mb-2 w-100" role="group">
         <button type="button" class="btn btn-outline-secondary chart-zona-metric active" data-metric="pubs" onclick="renderZonaChart('${zArg}','pubs')">Publicaciones</button>
         <button type="button" class="btn btn-outline-secondary chart-zona-metric" data-metric="vis" onclick="renderZonaChart('${zArg}','vis')">Visualizaciones</button>
@@ -2073,7 +2073,7 @@ function openDetailModal(rowData) {
       <div class="col-6 col-md-4"><div class="text-muted small">Interacciones</div><div class="fw-medium">${row.interacciones}</div></div>
       <div class="col-6 col-md-4"><div class="text-muted small">Comentarios</div><div class="fw-medium">${row.comentarios}</div></div>
       <div class="col-6 col-md-4"><div class="text-muted small">Mensajes</div><div class="fw-medium">${row.mensajes}</div></div>
-      <div class="col-6 col-md-4"><div class="text-muted small">Zona</div><div class="fw-medium">${escHtml(row.zona || '—')}</div></div>
+      <div class="col-6 col-md-4"><div class="text-muted small">Sucursal</div><div class="fw-medium">${escHtml(row.zona || '—')}</div></div>
       <div class="col-6 col-md-4"><div class="text-muted small">Estatus</div><div class="fw-medium"><span class="badge-estatus est-${escHtml((row.estatus||'SIN DEFINIR').toLowerCase().replace(/ /g,'-'))}">${escHtml(row.estatus || 'SIN DEFINIR')}</span></div></div>
     </div>
     ${histHtml}${chartHtml}${zonaChartHtml}`;
@@ -2821,7 +2821,7 @@ function loadPermissionsPanel() {
 const permGroupMeta = {
   Secciones: { icon: 'bi-grid-1x2-fill', label: 'Acceso a Secciones' },
   Publicaciones: { icon: 'bi-megaphone-fill', label: 'Publicaciones' },
-  'Grupos y Zonas': { icon: 'bi-diagram-3-fill', label: 'Grupos y Zonas' },
+  'Grupos y Zonas': { icon: 'bi-diagram-3-fill', label: 'Grupos y Sucursales' },
   Sucursales: { icon: 'bi-buildings-fill', label: 'Sucursales' },
   Informes: { icon: 'bi-file-earmark-bar-graph-fill', label: 'Informes' },
   Calendario: { icon: 'bi-calendar3-fill', label: 'Calendario' }
@@ -3058,7 +3058,7 @@ function renderZonas() {
   const container = document.getElementById('zonas-list');
   if (!container) return;
   if (!zonasData.length) {
-    container.innerHTML = '<div class="text-muted small py-2">No hay zonas configuradas.</div>';
+    container.innerHTML = '<div class="text-muted small py-2">No hay sucursales de redes configuradas.</div>';
     return;
   }
   const can = canEditZonas();
@@ -3072,10 +3072,10 @@ function renderZonas() {
       <span class="small" ${activo ? '' : 'style="opacity:.55;"'}>${escHtml(z.nombre)}<small class="d-block text-muted">${escHtml(z.sucursal_nombre || 'Sin vincular al catálogo')}</small></span>
       <div class="d-flex gap-2 align-items-center">
         ${badge}
-        <button class="btn btn-sm btn-link text-primary p-0" data-zona-control onclick="openZonaModal(${z.id})" style="${can ? '' : 'display:none'}" title="Cambiar estado de la zona">
+        <button class="btn btn-sm btn-link text-primary p-0" data-zona-control onclick="openZonaModal(${z.id})" style="${can ? '' : 'display:none'}" title="Cambiar estado de la sucursal de redes">
           <i class="bi bi-pencil-fill"></i>
         </button>
-        <button class="btn btn-sm btn-link text-danger p-0" data-zona-control onclick="deleteZona(${z.id})" style="${can ? '' : 'display:none'}" title="Eliminar zona">
+        <button class="btn btn-sm btn-link text-danger p-0" data-zona-control onclick="deleteZona(${z.id})" style="${can ? '' : 'display:none'}" title="Eliminar sucursal de redes">
           <i class="bi bi-x-circle"></i>
         </button>
       </div>
@@ -3143,36 +3143,36 @@ function saveZona() {
     const modal = bootstrap.Modal.getInstance(modalEl);
     if (modal) modal.hide();
     loadZonas();
-    showToast('Zona actualizada correctamente.', 'success');
+    showToast('Sucursal de redes actualizada correctamente.', 'success');
   });
 }
 
 function addZona() {
   const input = document.getElementById('zona-nombre-input');
   const nombre = input ? input.value.trim() : '';
-  if (!nombre) return alert('Escribí el nombre de la zona.');
+  if (!nombre) return alert('Escribí el nombre de la sucursal.');
   apiFetch('/api/zonas', {
     method: 'POST',
     body: JSON.stringify({ nombre })
   }).then(({ status, body }) => {
-    if (status !== 201) return alert(body.error || 'Error al crear zona.');
+    if (status !== 201) return alert(body.error || 'Error al crear sucursal de redes.');
     input.value = '';
     loadZonas();
-    showToast('Zona creada', 'success');
+    showToast('Sucursal de redes creada', 'success');
   });
 }
 
 function deleteZona(id) {
-  if (!confirm('⚠️ ADVERTENCIA: Eliminar esta zona la quitará de la lista de zonas disponibles, pero NO eliminará los grupos ni publicaciones que la usan. Esos grupos seguirán mostrando esta zona en sus filas.\n\n¿Eliminar esta zona de la lista?')) return;
+  if (!confirm('⚠️ ADVERTENCIA: Eliminar esta sucursal de redes la quitará de la lista de sucursales de redes disponibles, pero NO eliminará los grupos ni publicaciones que la usan. Esos grupos seguirán mostrando esta sucursal en sus filas.\n\n¿Eliminar esta sucursal de redes de la lista?')) return;
   apiFetch('/api/zonas/' + id, { method: 'DELETE' })
     .then(({ status, body }) => {
       if (status !== 200) { alert(body.error || 'Error al eliminar.'); return; }
       loadZonas();
-      showToast('Zona eliminada', 'success');
+      showToast('Sucursal de redes eliminada', 'success');
     });
 }
 
-// Agrega a la lista de zonas configuradas las zonas que aparecen en los datos
+// Agrega a la lista de zonas configuradas las sucursales que aparecen en los datos
 // (publicaciones y grupos) y todavía no figuran en la tabla.
 function syncZonas() {
   if (!canEditZonas()) return;
@@ -3190,7 +3190,7 @@ function syncZonas() {
   const existing = new Set((zonasData || []).map(z => normFilterVal(z.nombre)));
   const missing = [...names.values()].filter(n => !existing.has(normFilterVal(n)));
   if (!missing.length) {
-    showToast('Todas las zonas ya están sincronizadas.', 'success');
+    showToast('Todas las sucursales ya están sincronizadas.', 'success');
     return;
   }
 
@@ -3209,7 +3209,7 @@ function syncZonas() {
   chain.finally(() => {
     if (btn) { btn.disabled = false; btn.innerHTML = original; }
     loadZonas();
-    showToast(added + ' zona(s) sincronizada(s).', added > 0 ? 'success' : 'error');
+    showToast(added + ' sucursal(es) sincronizada(s).', added > 0 ? 'success' : 'error');
   });
 }
 

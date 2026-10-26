@@ -4,14 +4,14 @@ const CATALOG = [
   { key: 'view_dashboard', label: 'Ver Publicaciones', group: 'Secciones', desc: 'Acceso al dashboard de publicaciones.' },
   { key: 'view_informes', label: 'Ver Informes', group: 'Secciones', desc: 'Acceso a la sección de informes.' },
   { key: 'view_grupos', label: 'Ver Grupos', group: 'Secciones', desc: 'Acceso a la sección de grupos.' },
-  { key: 'view_zonas', label: 'Ver Zonas', group: 'Secciones', desc: 'Acceso al panel de zonas.' },
+  { key: 'view_zonas', label: 'Ver Sucursales de redes', group: 'Secciones', desc: 'Acceso al panel de sucursales de redes.' },
   { key: 'view_sucursales', label: 'Ver Sucursales', group: 'Secciones', desc: 'Acceso a la sección de sucursales.' },
 
   { key: 'edit_marketing', label: 'Crear / editar / eliminar publicaciones', group: 'Publicaciones', desc: 'Alta, edición y borrado de publicaciones.' },
   { key: 'sync_marketing', label: 'Sincronizar publicaciones desde Google Sheets', group: 'Publicaciones', desc: 'Traer los últimos datos de la planilla.' },
 
   { key: 'edit_grupos', label: 'Crear / editar / eliminar grupos', group: 'Grupos y Zonas', desc: 'Alta, edición y borrado de grupos.' },
-  { key: 'edit_zonas', label: 'Crear / editar / eliminar zonas', group: 'Grupos y Zonas', desc: 'Alta, edición, borrado y cambio de estado (Activo/Inactivo) de zonas.' },
+  { key: 'edit_zonas', label: 'Crear / editar / eliminar sucursales de redes', group: 'Grupos y Zonas', desc: 'Alta, edición, borrado y cambio de estado (Activo/Inactivo) de sucursales de redes.' },
 
   { key: 'edit_sucursales', label: 'Crear / editar / eliminar sucursales', group: 'Sucursales', desc: 'Alta, edición y borrado de sucursales.' },
 

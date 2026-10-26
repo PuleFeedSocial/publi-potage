@@ -108,7 +108,7 @@
                     </button>
                     <div class="page-context">
                         <h1 class="page-title">Gestión de Grupos</h1>
-                        <p class="page-subtitle text-muted">Administrá los grupos, enlaces y zonas desde la hoja Grupos
+                        <p class="page-subtitle text-muted">Administrá los grupos, enlaces y sucursales desde la hoja Grupos
                             de Google Sheets</p>
                     </div>
                 </div>
@@ -161,7 +161,7 @@
                         <div class="d-flex align-items-center gap-2">
                             <select id="grupos-filter-zona" class="form-select form-select-sm custom-input"
                                 style="width:auto;min-width:140px" onchange="saveGruposFilters();renderGruposPage()">
-                                <option value="">Todas las zonas</option>
+                                <option value="">Todas las sucursales</option>
                             </select>
                             <select id="grupos-sort" class="form-select form-select-sm custom-input"
                                 style="width:auto;min-width:200px" onchange="saveGruposFilters();renderGruposPage()">
@@ -183,7 +183,7 @@
                                 <tr>
                                     <th>Nombre del Grupo</th>
                                     <th>Enlace</th>
-                                    <th>Zona</th>
+                                    <th>Sucursal</th>
                                     <th class="text-center">Fec. Ingreso</th>
                                     <th class="text-center">Pubs</th>
                                     <th class="text-center">Activo</th>
@@ -230,7 +230,7 @@
                                 placeholder="Enlace o &quot;Sin Link&quot;">
                         </div>
                         <div class="mb-3">
-                            <label class="form-label small fw-medium text-secondary">Zona</label>
+                            <label class="form-label small fw-medium text-secondary">Sucursal</label>
                             <select id="grupo-page-zona" class="form-select custom-input">
                                 <option value="">Seleccionar...</option>
                                 <option value="Todos">Todos</option>
@@ -406,7 +406,7 @@
                     const zonas = [...new Set([...gruposPageData.map(g => g.zona).filter(Boolean), ...(window.zonasData || []).map(z => z.nombre).filter(Boolean)])].sort();
                     const selZona = document.getElementById('grupos-filter-zona');
                     const currentZona = selZona.value;
-                    selZona.innerHTML = '<option value="">Todas las zonas</option>';
+                    selZona.innerHTML = '<option value="">Todas las sucursales</option>';
                     zonas.forEach(z => { const o = document.createElement('option'); o.value = z; o.textContent = z; selZona.appendChild(o); });
                     selZona.value = currentZona;
                     renderGruposPage();

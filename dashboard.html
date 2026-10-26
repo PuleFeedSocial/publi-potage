@@ -221,7 +221,7 @@
                                 </select>
                             </div>
                             <div class="col-6 col-md-2">
-                                <label class="form-label small mb-1 text-secondary">Zona</label>
+                                <label class="form-label small mb-1 text-secondary">Sucursal</label>
                                 <select class="form-select form-select-sm" id="filter-zona" onchange="refreshGruposByZona()">
                                     <option value="">Todas</option>
                                 </select>
@@ -243,7 +243,7 @@
                             <div class="col-6 col-md-2">
                                 <label class="form-label small mb-1 text-secondary">Buscar</label>
                                 <input type="text" class="form-control form-control-sm" id="filter-search"
-                                    placeholder="Grupo, zona o estatus" oninput="applyFilters()">
+                                    placeholder="Grupo, sucursal o estatus" oninput="applyFilters()">
                             </div>
                             <div class="col-6 col-md-1 d-flex align-items-end">
                                 <button class="btn btn-sm btn-outline-secondary w-100" onclick="clearFilters()">
@@ -283,7 +283,7 @@
                                     <th class="text-center">Interacciones</th>
                                     <th class="text-center">Comentarios</th>
                                     <th class="text-center">Mensajes</th>
-                                    <th>Zona</th>
+                                    <th>Sucursal</th>
                                     <th class="text-center">Estatus</th>
                                 </tr>
                             </thead>
@@ -394,15 +394,15 @@
 
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div>
-                        <h5 class="fw-semibold mb-1">Panel de Zonas</h5>
-                        <span class="text-muted small">Métricas agrupadas por zona geográfica</span>
+                        <h5 class="fw-semibold mb-1">Panel de Sucursales de redes</h5>
+                        <span class="text-muted small">Métricas agrupadas por sucursal de redes</span>
                     </div>
                     <div class="d-flex gap-2 align-items-center" id="zona-add-box">
-                        <input type="text" id="zona-nombre-input" class="form-control form-control-sm custom-input" placeholder="Nueva zona..." style="max-width:180px">
+                        <input type="text" id="zona-nombre-input" class="form-control form-control-sm custom-input" placeholder="Nueva sucursal..." style="max-width:180px">
                         <button class="btn btn-sm btn-action-primary" onclick="addZona()">
                             <i class="bi bi-plus-circle me-1"></i>Agregar
                         </button>
-                        <button class="btn btn-sm btn-outline-secondary" id="btn-sync-zonas" onclick="syncZonas()" title="Agregar las zonas que aparecen en los datos y aún no están en la lista">
+                        <button class="btn btn-sm btn-outline-secondary" id="btn-sync-zonas" onclick="syncZonas()" title="Agregar las sucursales que aparecen en los datos y aún no están en la lista">
                             <i class="bi bi-arrow-repeat me-1"></i>Sincronizar
                         </button>
                     </div>
@@ -413,7 +413,7 @@
                     <div class="card-body py-2">
                         <div class="row g-2 align-items-end">
                             <div class="col-6 col-md-2">
-                                <label class="form-label small mb-1 text-secondary">Zona</label>
+                                <label class="form-label small mb-1 text-secondary">Sucursal</label>
                                 <select class="form-select form-select-sm" id="filter-zona-zonas" onchange="renderZonasDashboard()">
                                     <option value="">Todas</option>
                                 </select>
@@ -438,17 +438,17 @@
                 <div class="row g-3 g-md-4 mb-4">
                     <div class="col-md-6">
                         <div class="chart-container-card">
-                            <h5 class="chart-card-title">Publicaciones por Zona</h5>
+                            <h5 class="chart-card-title">Publicaciones por Sucursal</h5>
                             <div class="chart-wrapper">
-                                <canvas id="chartZonasPubs" role="img" aria-label="Publicaciones por zona"></canvas>
+                                <canvas id="chartZonasPubs" role="img" aria-label="Publicaciones por sucursal"></canvas>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="chart-container-card">
-                            <h5 class="chart-card-title">Interacciones por Zona</h5>
+                            <h5 class="chart-card-title">Interacciones por Sucursal</h5>
                             <div class="chart-wrapper">
-                                <canvas id="chartZonasInts" role="img" aria-label="Interacciones por zona"></canvas>
+                                <canvas id="chartZonasInts" role="img" aria-label="Interacciones por sucursal"></canvas>
                             </div>
                         </div>
                     </div>
@@ -459,14 +459,14 @@
                     <div class="card-header-clean d-flex justify-content-between align-items-center">
                         <div>
                             <h5 class="table-card-title">Resumen por sucursal de redes</h5>
-                            <p class="text-muted small mb-0">Todas las zonas configuradas, incluidas las inactivas. Métricas de publicaciones activas en el período seleccionado; grupos totales por zona.</p>
+                            <p class="text-muted small mb-0">Todas las sucursales configuradas, incluidas las inactivas. Métricas de publicaciones activas en el período seleccionado; grupos totales por sucursal.</p>
                         </div>
                     </div>
                     <div class="table-responsive">
                         <table class="table custom-table mb-0">
                             <thead>
                                 <tr>
-                                    <th>Zona</th>
+                                    <th>Sucursal</th>
                                     <th class="text-center">Publicaciones</th>
                                     <th class="text-center">Visualizaciones</th>
                                     <th class="text-center">Interacciones</th>
@@ -690,11 +690,11 @@
                             <input type="number" id="mk-msj" class="form-control custom-input" value="0" min="0">
                         </div>
                         <div class="col-6 col-md-4">
-                            <label class="form-label small fw-medium text-secondary">Zona</label>
+                            <label class="form-label small fw-medium text-secondary">Sucursal</label>
                             <select id="mk-zona" class="form-select custom-input" onchange="filterGruposByZona()">
                                 <option value="">Seleccionar...</option>
                             </select>
-                            <input type="text" id="mk-zona-custom" class="form-control custom-input d-none mt-1" placeholder="Nueva zona...">
+                            <input type="text" id="mk-zona-custom" class="form-control custom-input d-none mt-1" placeholder="Nueva sucursal...">
                         </div>
                         <div class="col-6 col-md-4">
                             <label class="form-label small fw-medium text-secondary">Estatus</label>
@@ -738,7 +738,7 @@
                             <input type="date" id="bulk-fecha" class="form-control custom-input">
                         </div>
                         <div class="col-6">
-                            <label class="form-label small fw-medium text-secondary">Zona</label>
+                            <label class="form-label small fw-medium text-secondary">Sucursal</label>
                             <select id="bulk-zona" class="form-select custom-input" onchange="filterGruposBulk()">
                                 <option value="">Seleccionar...</option>
                             </select>
@@ -831,7 +831,7 @@
                 </div>
                 <div class="modal-body pt-3">
                     <div class="mb-3">
-                        <label class="form-label small fw-medium text-secondary">Zona</label>
+                        <label class="form-label small fw-medium text-secondary">Sucursal</label>
                         <input class="form-control custom-input" id="zona-modal-nombre" maxlength="120"><small class="text-muted">Nombre histórico en redes. Se conserva al vincular una sucursal.</small>
                     </div>
                     <div class="mb-3">
@@ -842,7 +842,7 @@
                         </select>
                     </div>
                     <div class="mb-3"><label for="zona-sucursal" class="form-label">Sucursal del catálogo</label><select id="zona-sucursal" class="form-select custom-input"></select><p id="zona-link-status" class="small text-muted mt-2" role="status"></p></div><p class="small text-muted mb-0">
-                        <i class="bi bi-info-circle me-1"></i>Si la zona está <strong>Inactiva</strong>, sus grupos no se cuentan en las estadísticas ni en los informes (los datos de la planilla no se modifican).
+                        <i class="bi bi-info-circle me-1"></i>Si la sucursal de redes está <strong>Inactiva</strong>, sus grupos no se cuentan en las estadísticas ni en los informes (los datos de la planilla no se modifican).
                     </p>
                 </div>
                 <div class="modal-footer border-0 pt-0">

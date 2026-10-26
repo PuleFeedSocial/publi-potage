@@ -39,10 +39,10 @@ router.post('/', authenticate, requirePermission('edit_zonas'), async (req, res)
   try {
     const db = await getDb();
     const { nombre } = req.body;
-    if (typeof nombre !== 'string' || !nombre.trim() || nombre.length > 120) return res.status(400).json({ error: 'El nombre de la zona es obligatorio.' });
+    if (typeof nombre !== 'string' || !nombre.trim() || nombre.length > 120) return res.status(400).json({ error: 'El nombre de la sucursal de redes es obligatorio.' });
     const [branchId,branchName] = await resolveLink(req.body);
     await db.run('INSERT INTO zonas (nombre, sucursal_id, sucursal_nombre) VALUES (?, ?, ?)', [nombre.trim(),branchId,branchName]);
-    res.status(201).json({ message: 'Zona agregada correctamente.' });
+    res.status(201).json({ message: 'Sucursal de redes agregada correctamente.' });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Ese nombre o sucursal ya está registrado en redes.' });
     res.status(err.status || 500).json({ error: err.status ? err.message : 'No se pudo crear la sucursal de redes.' });
@@ -55,7 +55,7 @@ router.delete('/:id', authenticate, requirePermission('edit_zonas'), async (req,
     const id = Number(req.params.id);
     if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ error: 'ID inválido.' });
     await db.run('DELETE FROM zonas WHERE id = ?', [id]);
-    res.json({ message: 'Zona eliminada.' });
+    res.json({ message: 'Sucursal de redes eliminada.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
