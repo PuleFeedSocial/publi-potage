@@ -42,7 +42,7 @@ const PUBLIC_FILES = new Set([
   'index.html', 'login.html', 'register.html', 'dashboard.html', 'grupos.html',
   'informes.html', 'sucursales.html', 'calendario.html', 'logs.html', 'ayuda.html',
   'account-settings.html', 'productos.html', 'productos.js', 'productos.css', 'egg-prices.js', 'regiones.html', 'regiones.js',
-  'price-artwork.js', 'price-artwork-ui.js', 'price-text.js', 'chicken-catalog.js', 'sheet-labels.js', 'img/precios/pollos.png', 'img/precios/amba.jpg', 'img/precios/costa.jpg',
+  'price-artwork.js', 'price-artwork-ui.js', 'social-artwork.js', 'price-text.js', 'chicken-catalog.js', 'sheet-labels.js', 'img/precios/pollos.png', 'img/precios/amba.jpg', 'img/precios/costa.jpg',
   'app.js', 'account.js', 'theme.js', 'style.css', 'sw.js', 'manifest.json',
   'output/pdf/politicas-privacidad-atlas.pdf', 'output/pdf/terminos-condiciones-atlas.pdf'
 ]);

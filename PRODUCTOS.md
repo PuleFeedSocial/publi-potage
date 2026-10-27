@@ -64,3 +64,9 @@ En Generar imagen, seleccionar Pollos para usar la plantilla propia, sin mezclar
 ## Hoja legible (26/10/2026)
 
 La misma hoja de producción mantiene sus pestañas y posiciones de columnas. El lector admite tanto encabezados técnicos antiguos como los nombres en español de sheet-labels.js. Se verificó la lectura con datos reales después del cambio. La pestaña LEER PRIMERO documenta la edición, reglas de precios y códigos de región. Las columnas técnicas y registros antiguos están ocultos, no eliminados; hay respaldos ocultos del estado previo. No se agregaron fórmulas que escriban sobre precios ni otra base que haya que sincronizar.
+
+## Imágenes para el feed de Facebook
+
+Huevos y Pollos se dibujan en formato 4:5 fijo, PNG de 2160 × 2700 px. Los textos, precios y tablas se generan a esa resolución; las fotografías se conservan como recursos de las plantillas originales. No se amplía una captura completa del diseño anterior.
+
+Hasta tres sedes se incluyen nombre, dirección y contacto. Con más de tres se muestran nombre y teléfono. Si hay más de seis sedes, se generan páginas numeradas de hasta seis sedes cada una, con el mismo catálogo de precios. El selector del modal permite descargar cada página individualmente. Ninguna sede se omite por falta de espacio. Los textos extensos se ajustan dentro del área reservada; si no pueden mostrarse legiblemente, el generador informa el dato que hay que revisar y bloquea la descarga.

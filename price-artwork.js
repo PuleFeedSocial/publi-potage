@@ -11,7 +11,7 @@
    return matches[0];
   }).filter(b=>b.activo!==false);
   if(!result.length)throw Error('Esta región no tiene sucursales activas para publicar.');
-  for(const branch of result)if(!String(branch.direccion||'').trim()||!String(branch.contacto||'').trim())throw Error('Completá dirección y contacto de '+branch.ubicacion+' en Sucursales.');
+  for(const branch of result)if((result.length<=3&&!String(branch.direccion||'').trim())||!String(branch.contacto||'').trim())throw Error('Completá '+(result.length<=3?'dirección y contacto':'el contacto')+' de '+branch.ubicacion+' en Sucursales.');
   return result.sort((a,b)=>a.ubicacion.localeCompare(b.ubicacion,'es'));
  }
  function rows(data,id,keys,{allowEmpty=false}={}){
