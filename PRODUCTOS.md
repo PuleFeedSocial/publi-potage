@@ -67,6 +67,8 @@ La misma hoja de producción mantiene sus pestañas y posiciones de columnas. El
 
 ## Imágenes para el feed de Facebook
 
-Huevos y Pollos se dibujan en formato 4:5 fijo, PNG de 2160 × 2700 px. Los textos, precios y tablas se generan a esa resolución; las fotografías se conservan como recursos de las plantillas originales. No se amplía una captura completa del diseño anterior.
+Huevos y Pollos se dibujan en formato cuadrado fijo, PNG de 1080 × 1080 px. Los textos, precios y tablas se generan a esa resolución; las fotografías se conservan como recursos de las plantillas originales. No se amplía una captura completa del diseño anterior.
 
 Hasta tres sedes se incluyen nombre, dirección y contacto. Con más de tres se muestran nombre y teléfono. Si hay más de seis sedes, se generan páginas numeradas de hasta seis sedes cada una, con el mismo catálogo de precios. El selector del modal permite descargar cada página individualmente. Ninguna sede se omite por falta de espacio. Los textos extensos se ajustan dentro del área reservada; si no pueden mostrarse legiblemente, el generador informa el dato que hay que revisar y bloquea la descarga.
+
+La composición cuadrada retoma el título, franja diagonal, colores y tablas de la referencia original. El nombre de la región es administrativo y nunca se dibuja dentro de la imagen publicada.

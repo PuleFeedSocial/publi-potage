@@ -25,7 +25,7 @@ async function refreshPriceArtwork(){
  finally{if(version===artworkVersion)ae('artwork-refresh').disabled=false;}
 }
 function buildArtworkSelections(){
- ae('artwork-description').textContent=ae('artwork-template').value==='pollos'?'Pollos: 7 presentaciones, sin mezclar con huevos. Hasta 3 sedes: dirección y contacto. Más de 3: sede y teléfono. Formato Facebook 4:5. Cada presentación mantiene su precio independiente.':'Elegí los huevos estándar que se publicarán; podés dejar filas sin producto. Hasta 3 sedes: dirección y contacto. Más de 3: sede y teléfono. Formato Facebook 4:5. Maple de 30 huevos · cajón de 12 maples.';
+ ae('artwork-description').textContent=ae('artwork-template').value==='pollos'?'Pollos: 7 presentaciones, sin mezclar con huevos. Hasta 3 sedes: dirección y contacto. Más de 3: sede y teléfono. Formato cuadrado 1080 × 1080. Cada presentación mantiene su precio independiente.':'Elegí los huevos estándar que se publicarán; podés dejar filas sin producto. Hasta 3 sedes: dirección y contacto. Más de 3: sede y teléfono. Formato cuadrado 1080 × 1080. Maple de 30 huevos · cajón de 12 maples.';
  artworkVersion++;artworkReady=false;ae('artwork-download').disabled=true;
  if(ae('artwork-template').value==='pollos'){ae('artwork-selections').replaceChildren();renderChickenArtwork();return;}
  const template=PriceArtwork.templates[ae('artwork-template').value],root=ae('artwork-selections');root.replaceChildren();
@@ -54,10 +54,10 @@ async function renderSocialArtwork(kind,getRows){
   const [logo,source]=await Promise.all([artworkAsset('img/icon-512.png'),artworkAsset(kind==='pollos'?'img/precios/pollos.png':'img/precios/costa.jpg'),document.fonts.ready]);
   if(version!==artworkVersion)return;
   const region=artworkData.regiones.find(r=>r.region_id===artworkRegion);
-  artworkPages=SocialArtwork.render({canvasFactory:()=>document.createElement('canvas'),kind,region:region.nombre_region,branches:artworkBranches,rows,assets:{logo,source}});
+  artworkPages=SocialArtwork.render({canvasFactory:()=>document.createElement('canvas'),kind,branches:artworkBranches,rows,assets:{logo,source}});
   const select=ae('artwork-page');select.replaceChildren();artworkPages.forEach((_,i)=>select.add(new Option('Imagen '+(i+1)+' de '+artworkPages.length,String(i))));
   ae('artwork-page-picker').hidden=artworkPages.length<=1;artworkReady=true;showArtworkPage();
-  ae('artwork-status').textContent='PNG · 2160 × 2700 px · Formato 4:5 · '+(artworkBranches.length>3?'Sedes y teléfonos.':'Sedes, direcciones y teléfonos.')+(artworkPages.length>1?' '+artworkPages.length+' imágenes: descargá cada una desde el selector.':'')+' Precios consultados a las '+artworkLoadedAt+'.';
+  ae('artwork-status').textContent='PNG · 1080 × 1080 px · Formato cuadrado · '+(artworkBranches.length>3?'Sedes y teléfonos.':'Sedes, direcciones y teléfonos.')+(artworkPages.length>1?' '+artworkPages.length+' imágenes: descargá cada una desde el selector.':'')+' Precios consultados a las '+artworkLoadedAt+'.';
  }catch(error){if(version===artworkVersion)ae('artwork-status').textContent=error.message||'No se pudo generar la imagen. Volvé a intentar.';}
 }
 function showArtworkPage(){
