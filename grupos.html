@@ -320,7 +320,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="app.js"></script>
+    <script src="marketing-analysis.js"></script><script src="app.js"></script>
     <script>
         let gruposPageData = [];
 
@@ -392,14 +392,14 @@
                     window._gruposPubs = {};
                     window._gruposEstatus = {};
                     marketingData.forEach(r => {
-                        const g = r.grupo;
+                        const g = r.grupo ? groupMetricKey(r.grupo,r.zona) : null;
                         if (g) {
                             if (isEstatusActivo(r.estatus)) {
-                                window._gruposPubs[g] = (window._gruposPubs[g] || 0) + (r.publicaciones || 0);
+                                window._gruposPubs[g] = (window._gruposPubs[g] || 0) + MarketingAnalysis.number(r.publicaciones);
                             }
                             if (!window._gruposEstatus[g]) window._gruposEstatus[g] = { PUBLICADA: 0, ELIMINADA: 0, SUPRIMIDA: 0, 'EN REVISION': 0, 'SIN DEFINIR': 0 };
-                            const est = r.estatus || 'SIN DEFINIR';
-                            if (window._gruposEstatus[g][est] !== undefined) window._gruposEstatus[g][est]++;
+                            const est = normFilterVal(r.estatus||'SIN DEFINIR').toUpperCase();
+                            if (window._gruposEstatus[g][est] !== undefined) window._gruposEstatus[g][est]+=MarketingAnalysis.number(r.publicaciones);
                         }
                     });
                     // Populate zone filter
@@ -410,37 +410,38 @@
                     zonas.forEach(z => { const o = document.createElement('option'); o.value = z; o.textContent = z; selZona.appendChild(o); });
                     selZona.value = currentZona;
                     renderGruposPage();
-                    document.getElementById('grupos-count').innerText = gruposPageData.length;
+
                 })
                 .catch(() => {
                     if (!silent) tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">Error de conexión</td></tr>';
                 });
         }
 
+        function groupMetricKey(name,zone){return normFilterVal(name)+'|'+normFilterVal(zone);}
         function renderGruposPage() {
             const tbody = document.getElementById('grupos-page-table-body');
             const zonaFilter = document.getElementById('grupos-filter-zona').value;
             const sortMode = document.getElementById('grupos-sort').value;
             const soloProblemas = document.getElementById('grupos-solo-problemas').checked;
-            const search = (document.getElementById('grupos-search').value || '').toLowerCase().trim();
+            const search = normFilterVal(document.getElementById('grupos-search').value);
             let filtered = gruposPageData;
-            if (zonaFilter) filtered = filtered.filter(g => g.zona === zonaFilter);
+            if (zonaFilter) filtered = filtered.filter(g => normFilterVal(g.zona) === normFilterVal(zonaFilter));
             if (search) {
                 filtered = filtered.filter(g =>
-                    (g.nombre || '').toLowerCase().includes(search) ||
-                    (g.zona || '').toLowerCase().includes(search)
+                    normFilterVal(g.nombre).includes(search) ||
+                    normFilterVal(g.zona).includes(search)
                 );
             }
             if (soloProblemas) {
                 filtered = filtered.filter(g => {
-                    const e = window._gruposEstatus[g.nombre] || {};
+                    const e = window._gruposEstatus[groupMetricKey(g.nombre,g.zona)] || {};
                     return (e.SUPRIMIDA || 0) + (e.ELIMINADA || 0) + (e['EN REVISION'] || 0) > 0;
                 });
             }
             if (sortMode) {
                 filtered = [...filtered].sort((a, b) => {
-                    const ea = window._gruposEstatus[a.nombre] || {};
-                    const eb = window._gruposEstatus[b.nombre] || {};
+                    const ea = window._gruposEstatus[groupMetricKey(a.nombre,a.zona)] || {};
+                    const eb = window._gruposEstatus[groupMetricKey(b.nombre,b.zona)] || {};
                     if (sortMode === 'peores') {
                         const scoreA = (ea.SUPRIMIDA || 0) + (ea.ELIMINADA || 0) + (ea['EN REVISION'] || 0);
                         const scoreB = (eb.SUPRIMIDA || 0) + (eb.ELIMINADA || 0) + (eb['EN REVISION'] || 0);
@@ -457,8 +458,8 @@
                 const tr = document.createElement('tr');
                 tr.style.animation = 'fadeSlideUp 0.3s ease-out forwards';
                 tr.style.animationDelay = (i * 0.04) + 's';
-                const pubs = window._gruposPubs[g.nombre] || 0;
-                const est = window._gruposEstatus[g.nombre] || {};
+                const pubs = window._gruposPubs[groupMetricKey(g.nombre,g.zona)] || 0;
+                const est = window._gruposEstatus[groupMetricKey(g.nombre,g.zona)] || {};
                 const enlaceSafe = g.enlace && /^https?:\/\//i.test(g.enlace) ? g.enlace : null;
                 const enlaceDisplay = enlaceSafe
                     ? '<a href="' + escHtml(enlaceSafe) + '" target="_blank" rel="noopener noreferrer" class="small text-muted">' + escHtml(enlaceSafe.substring(0, 45)) + '...</a>'
@@ -495,8 +496,8 @@
                 tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Sin resultados</td></tr>';
             }
             // Update total pubs
-            const totalPubs = filtered.reduce((s, g) => s + (window._gruposPubs[g.nombre] || 0), 0);
-            document.getElementById('grupos-pubs-total').innerText = totalPubs;
+            const totalPubs = filtered.reduce((s, g) => s + (window._gruposPubs[groupMetricKey(g.nombre,g.zona)] || 0), 0);
+            document.getElementById('grupos-pubs-total').innerText = totalPubs;document.getElementById('grupos-count').innerText=filtered.length+' de '+gruposPageData.length;
         }
 
         function openAddGrupo() {
@@ -568,8 +569,8 @@
         function openGrupoDetailModal(nombre) {
             const g = gruposPageData.find(x => x.nombre === nombre);
             if (!g) return;
-            const pubs = window._gruposPubs[g.nombre] || 0;
-            const est = window._gruposEstatus[g.nombre] || {};
+            const pubs = window._gruposPubs[groupMetricKey(g.nombre,g.zona)] || 0;
+            const est = window._gruposEstatus[groupMetricKey(g.nombre,g.zona)] || {};
             const malas = (est.SUPRIMIDA || 0) + (est.ELIMINADA || 0) + (est['EN REVISION'] || 0);
             const buenas = (est.PUBLICADA || 0);
             let rendicion = '—';

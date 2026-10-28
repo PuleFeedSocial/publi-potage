@@ -923,7 +923,7 @@ let pageActual = 1;
 const PAGE_SIZE = 10;
 
 function isEstatusActivo(estatus) {
-  return estatus === 'PUBLICADA' || estatus === 'SIN DEFINIR' || !estatus;
+  return ['publicada','sin definir',''].includes(MarketingAnalysis.norm(estatus));
 }
 
 // Una zona es activa por defecto; solo se la considera inactiva si figura
@@ -1068,12 +1068,12 @@ function renderDashboard(data, chartData, periodLimit) {
     return db - da;
   });
 
-  const kpiData = data.filter(r => r.grupo !== 'Perfil Estandar' && isEstatusActivo(r.estatus) && zonaActiva(r.zona));
-  const grupos = [...new Set(kpiData.map(r => r.grupo).filter(Boolean))];
-  const totalPubs = kpiData.reduce((s, r) => s + r.publicaciones, 0);
-  const totalVis = kpiData.reduce((s, r) => s + r.visualizaciones, 0);
-  const totalInt = kpiData.reduce((s, r) => s + r.interacciones, 0);
-  const totalMsj = kpiData.reduce((s, r) => s + r.mensajes, 0);
+  const kpiData = data.filter(r => normFilterVal(r.grupo) !== 'perfil estandar' && isEstatusActivo(r.estatus) && zonaActiva(r.zona));
+  const grupos = [...new Set(kpiData.map(r => normFilterVal(r.grupo)).filter(Boolean))];
+  const totalPubs = kpiData.reduce((s, r) => s + MarketingAnalysis.number(r.publicaciones), 0);
+  const totalVis = kpiData.reduce((s, r) => s + MarketingAnalysis.number(r.visualizaciones), 0);
+  const totalInt = kpiData.reduce((s, r) => s + MarketingAnalysis.number(r.interacciones), 0);
+  const totalMsj = kpiData.reduce((s, r) => s + MarketingAnalysis.number(r.mensajes), 0);
   const numberFormat = new Intl.NumberFormat('es-AR');
   document.getElementById('kpi-grupos').innerText = numberFormat.format(grupos.length);
   document.getElementById('kpi-publicaciones').innerText = numberFormat.format(totalPubs);
@@ -1099,10 +1099,10 @@ function renderDashboard(data, chartData, periodLimit) {
     if (!zonas.length) { zoneContainer.innerHTML = ''; } else {
       zoneContainer.innerHTML = zonas.map(z => {
         const rows = kpiData.filter(r => r.zona === z);
-        const zp = rows.reduce((s, r) => s + r.publicaciones, 0);
-        const zv = rows.reduce((s, r) => s + r.visualizaciones, 0);
-        const zi = rows.reduce((s, r) => s + r.interacciones, 0);
-        const zm = rows.reduce((s, r) => s + r.mensajes, 0);
+        const zp = rows.reduce((s, r) => s + MarketingAnalysis.number(r.publicaciones), 0);
+        const zv = rows.reduce((s, r) => s + MarketingAnalysis.number(r.visualizaciones), 0);
+        const zi = rows.reduce((s, r) => s + MarketingAnalysis.number(r.interacciones), 0);
+        const zm = rows.reduce((s, r) => s + MarketingAnalysis.number(r.mensajes), 0);
         return `<div class="col-6 col-md-4 col-lg">
           <div class="zone-kpi-card zone-health-${saludZonaClass(rows).split('-')[2]}">
             <div class="zone-kpi-name">${saludDiv(rows)}${escHtml(z)}</div>
@@ -1208,7 +1208,7 @@ function populateFilterDropdowns() {
   const selZona = document.getElementById('filter-zona');
   if (selZona) {
     const savedZona = localStorage.getItem('dashZona');
-    const current = savedZona || selZona.value;
+    const current = selZona.value || savedZona;
     selZona.innerHTML = '<option value="">Todas</option>';
     zonas.forEach(v => {
       const opt = document.createElement('option');
@@ -1224,7 +1224,7 @@ function populateFilterDropdowns() {
   if (filterFecha) filterFecha.value = localStorage.getItem('dashFecha') || '';
 }
 
-function normFilterVal(v) { return String(v || '').trim().toLowerCase(); }
+function normFilterVal(v) { return MarketingAnalysis.norm(v); }
 
 function refreshGruposByZona() {
   const zona = document.getElementById('filter-zona').value;
@@ -1268,13 +1268,7 @@ function goToPage(p) {
   applyFilters(false);
 }
 
-function parseDate(str) {
-  if (!str) return null;
-  const parts = str.split('/');
-  if (parts.length !== 3) return null;
-  const d = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-  return isNaN(d.getTime()) ? null : d;
-}
+function parseDate(str) { return MarketingAnalysis.date(str); }
 
 function todayStr() {
   const d = new Date();
@@ -1341,22 +1335,14 @@ function restoreZonasPeriod() {
   }
 }
 
-function buildPeriodLimit() {
-  const DEFAULT_PERIOD_DAYS = 60;
-  const days = (!filterPeriod || filterPeriod === 'all') ? DEFAULT_PERIOD_DAYS : parseInt(filterPeriod);
-  const now = new Date();
-  const limit = new Date(now);
-  limit.setDate(limit.getDate() - days);
-  limit.setHours(0, 0, 0, 0);
-  return limit;
-}
+function buildPeriodLimit() { return MarketingAnalysis.start(filterPeriod); }
 
 function historialSetPeriodo(periodLimit) {
   const set = new Set();
   (historialData || []).forEach(h => {
     if (h && h.filaOrigen !== undefined && h.filaOrigen !== null) {
       const d = parseDate(h.fechaActualizacion);
-      if (d && d >= periodLimit) set.add(String(h.filaOrigen));
+      if (d && MarketingAnalysis.within(d,periodLimit)) set.add(String(h.filaOrigen));
     }
   });
   return set;
@@ -1371,42 +1357,9 @@ function applyFilters(resetPage) {
   const searchEl = document.getElementById('filter-search');
   const searchText = searchEl ? (searchEl.value || '').trim().toLowerCase() : '';
 
-  const grupoNorm = normFilterVal(grupo);
-  const zonaNorm = normFilterVal(zona);
-  const hasSpecificFilter = grupoNorm || zonaNorm || fecha || searchText;
-
-  // El cap de tiempo aplica solo a la vista general; al buscar algo
-  // específico se muestran todos los resultados que matcheen.
-  let periodLimit = buildPeriodLimit();
-  if (hasSpecificFilter) periodLimit = null;
-
-  let filtered = marketingData;
-  if (grupoNorm) filtered = filtered.filter(r => normFilterVal(r.grupo) === grupoNorm);
-  if (zonaNorm) filtered = filtered.filter(r => normFilterVal(r.zona) === zonaNorm);
-  if (fecha) filtered = filtered.filter(r => r.fecha === fecha);
-  if (searchText) {
-    filtered = filtered.filter(r => {
-      return (r.grupo || '').toLowerCase().includes(searchText) ||
-             (r.zona || '').toLowerCase().includes(searchText) ||
-             (r.estatus || '').toLowerCase().includes(searchText);
-    });
-  }
-  if (periodLimit) {
-    const actualizados = historialSetPeriodo(periodLimit);
-    filtered = filtered.filter(r => {
-      const d = parseDate(r.fecha);
-      if (d && d >= periodLimit) return true;
-      return actualizados.has(String(r.rowIndex));
-    });
-  }
-
-  // chartData = todas las filas (sin filtro de periodo) para que initCharts
-  // pueda matchear historial por fechaActualizacion
-  let chartBase = marketingData.filter(r => r.grupo !== 'Perfil Estandar' && isEstatusActivo(r.estatus) && zonaActiva(r.zona));
-  if (grupoNorm) chartBase = chartBase.filter(r => normFilterVal(r.grupo) === grupoNorm);
-  if (zonaNorm) chartBase = chartBase.filter(r => normFilterVal(r.zona) === zonaNorm);
-  if (fecha) chartBase = chartBase.filter(r => r.fecha === fecha);
-
+  const periodLimit = buildPeriodLimit();
+  const filtered = MarketingAnalysis.select(marketingData,{period:filterPeriod,grupo,zona,fecha,search:searchText});
+  const chartBase = filtered.filter(r=>normFilterVal(r.grupo)!=='perfil estandar'&&isEstatusActivo(r.estatus)&&zonaActiva(r.zona));
   renderDashboard(filtered, chartBase, periodLimit);
   saveDashboardFilters();
   const countEl = document.getElementById('results-count');
@@ -1440,50 +1393,19 @@ function fmtNum(n) {
   return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
-function buildInformeTexto() {
-  const DAYS = 30;
-  const limit = new Date();
-  limit.setDate(limit.getDate() - DAYS);
-  limit.setHours(0, 0, 0, 0);
-
-  const rows = (marketingData || []).filter(r => {
-    const d = parseDate(r.fecha);
-    return d && d >= limit;
-  });
-  if (!rows.length) return '';
-
-  const activas = rows.filter(r => isEstatusActivo(r.estatus) && zonaActiva(r.zona));
-  const sum = (arr, k) => arr.reduce((s, r) => s + (Number(r[k]) || 0), 0);
-
-  const totalPubs = sum(activas, 'publicaciones');
-  const totalVis = sum(activas, 'visualizaciones');
-  const totalInt = sum(activas, 'interacciones');
-  const totalCom = sum(activas, 'comentarios');
-  const totalMsj = sum(activas, 'mensajes');
-  const gruposCount = new Set(activas.map(r => normFilterVal(r.grupo)).filter(Boolean)).size;
-
-  const groupRows = activas.filter(r => normFilterVal(r.grupo) !== 'marketplace' && r.zona && normFilterVal(r.zona) !== 'todos');
-  const zonas = [...new Set(groupRows.map(r => r.zona))];
-  const zonaStats = zonas.map(z => {
-    const rz = groupRows.filter(r => r.zona === z);
-    return {
-      zona: z,
-      pubs: sum(rz, 'publicaciones'),
-      vis: sum(rz, 'visualizaciones'),
-      int: sum(rz, 'interacciones'),
-      com: sum(rz, 'comentarios'),
-      msj: sum(rz, 'mensajes'),
-      grupos: new Set(rz.map(r => normFilterVal(r.grupo)).filter(Boolean)).size
-    };
-  }).sort((a, b) => b.pubs - a.pubs);
-
-  let msg = '';
-  msg += 'En este período se gestionaron ' + fmtNum(totalPubs) + ' publicaciones a través de ' + fmtNum(gruposCount) + ' grupos activos, alcanzando un total de ' + fmtNum(totalVis) + ' visualizaciones, ' + fmtNum(totalInt) + ' interacciones, ' + fmtNum(totalCom) + ' comentarios y ' + fmtNum(totalMsj) + ' mensajes directos de potenciales clientes.\n\n';
-  msg += 'Las publicaciones en los grupos, distribuidas por localidad, registraron el siguiente rendimiento:\n';
-  zonaStats.forEach(z => {
-    msg += '• ' + z.zona + ': ' + fmtNum(z.pubs) + ' publicaciones → ' + fmtNum(z.vis) + ' visualizaciones, ' + fmtNum(z.int) + ' interacciones, ' + fmtNum(z.com) + ' comentarios y ' + fmtNum(z.msj) + ' mensajes (distribuidas en ' + fmtNum(z.grupos) + ' grupos).\n';
-  });
-  return msg;
+function dashboardReportFilters(){return {period:filterPeriod==='all'?'30':filterPeriod,grupo:document.getElementById('filter-grupo').value,zona:document.getElementById('filter-zona').value,fecha:document.getElementById('filter-fecha').value,search:document.getElementById('filter-search')?.value||''};}
+function buildInformeTexto(){
+ const filters=dashboardReportFilters(),result=MarketingAnalysis.report(marketingData||[],zonasData||[],filters);
+ if(!result.rows.length)return '';
+ const show=d=>d.toLocaleDateString('es-AR');const from=MarketingAnalysis.start(filters.period);
+ let msg='Informe de publicaciones · '+show(from)+' al '+show(new Date())+' (fecha de publicación).\n';
+ if(filters.zona||filters.grupo||filters.fecha||filters.search)msg+='Filtros: '+[filters.zona&&'Sucursal: '+filters.zona,filters.grupo&&'Grupo: '+filters.grupo,filters.fecha&&'Fecha: '+filters.fecha,filters.search&&'Búsqueda: '+filters.search].filter(Boolean).join(' · ')+'.\n';
+ msg+='Solo publicaciones activas de sucursales activas; se excluye Perfil Estándar.\n';
+ msg+='Métricas acumuladas actuales de las publicaciones incluidas; no representan aumentos de métricas dentro del período.\n\n';
+ const describe=t=>fmtNum(t.publicaciones)+' publicaciones → '+fmtNum(t.visualizaciones)+' visualizaciones, '+fmtNum(t.interacciones)+' interacciones, '+fmtNum(t.comentarios)+' comentarios y '+fmtNum(t.mensajes)+' mensajes';
+ msg+='TOTAL: '+describe(result.totals)+' (en '+fmtNum(result.groups)+' grupos/canales con publicaciones).\n\nPor sucursal:\n';
+ for(const zone of result.zones)msg+='• '+zone.nombre+': '+describe(zone.totals)+' ('+fmtNum(zone.groups)+' grupos/canales).\n';
+ return msg;
 }
 
 function copiarInforme() {
@@ -1510,21 +1432,18 @@ function copiarInforme() {
   }
 }
 
-function realizarInforme() {
-  if (sessionRole() !== 'admin') return;
-  if (!marketingData || !marketingData.length) {
-    alert('Todavía no hay datos de publicaciones para generar el informe.');
-    return;
-  }
-  const texto = buildInformeTexto();
-  const ta = document.getElementById('informe-texto');
-  if (!texto || !ta) return;
-  ta.value = texto;
-  const modalEl = document.getElementById('informeModal');
-  if (modalEl && window.bootstrap) {
-    const modal = new bootstrap.Modal(modalEl);
-    modal.show();
-  }
+let informeBusy=false;
+async function realizarInforme(){
+ if(sessionRole()!=='admin'||informeBusy)return;
+ informeBusy=true;const button=document.getElementById('btn-informe');if(button)button.disabled=true;
+ try{
+  const [metrics,zones]=await Promise.all([apiFetch('/api/marketing?refresh=true',{signal:AbortSignal.timeout(20000)}),apiFetch('/api/zonas',{signal:AbortSignal.timeout(20000)})]);
+  if(metrics.status!==200||zones.status!==200)throw Error('No se pudieron actualizar los datos. Volvé a intentar; no se generó un informe con datos anteriores.');
+  marketingData=metrics.body.data||[];zonasData=zones.body.data||[];
+  const texto=buildInformeTexto();if(!texto){showToast('No hay publicaciones activas para los filtros y período seleccionados.','error');return;}
+  document.getElementById('informe-texto').value=texto;bootstrap.Modal.getOrCreateInstance(document.getElementById('informeModal')).show();applyFilters(false);
+ }catch(error){showToast(error.message||'No se pudo generar el informe.','error');}
+ finally{informeBusy=false;if(button)button.disabled=false;}
 }
 
 function marketingFetch(method, body) {
@@ -2383,15 +2302,7 @@ function renderZonasDashboard() {
 
   const zonaFilter = document.getElementById('filter-zona-zonas')?.value || '';
   const periodoZonas = filterPeriodZonas;
-  const periodLimit = (() => {
-    if (!periodoZonas || periodoZonas === 'all') return null;
-    const days = parseInt(periodoZonas, 10);
-    const now = new Date();
-    const limit = new Date(now);
-    limit.setDate(limit.getDate() - days);
-    limit.setHours(0, 0, 0, 0);
-    return limit;
-  })();
+  const periodLimit = MarketingAnalysis.start(periodoZonas);
 
   // Cargar grupos fresco para el conteo
   authFetch(API_BASE + '/api/grupos')
@@ -2410,7 +2321,7 @@ function renderZonasDashboard() {
 
 // The configured catalog is the base; Sheets can also contain legacy zones.
 function zonaSummaryKey(value) {
-  return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+  return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
 function buildZonaSummary(configured, rows, groups, filter) {
@@ -2446,14 +2357,7 @@ function renderZonasDashboardInner(grupos, zonaFilter, periodLimit) {
   let data = marketingData.filter(r => r.grupo !== 'Perfil Estandar' && isEstatusActivo(r.estatus));
   const zonaNorm = zonaSummaryKey(zonaFilter);
   if (zonaNorm) data = data.filter(r => zonaSummaryKey(r.zona) === zonaNorm);
-  if (periodLimit) {
-    const actualizados = historialSetPeriodo(periodLimit);
-    data = data.filter(r => {
-      const d = parseDate(r.fecha);
-      if (d && d >= periodLimit) return true;
-      return actualizados.has(String(r.rowIndex));
-    });
-  }
+  if (periodLimit) data = data.filter(r=>MarketingAnalysis.within(r.fecha,periodLimit));
 
   const { sortedZones, totalGruposUnicos } = buildZonaSummary(zonasData, data, grupos, zonaFilter);
 
@@ -2539,73 +2443,13 @@ function initCharts(chartData, periodLimit) {
   Object.values(chartsInstances).forEach(c => { try { c.destroy(); } catch {} });
   chartsInstances = {};
 
-  const rowIndexes = new Set(chartData.map(r => r.rowIndex));
-  let hEntries = historialData.filter(h => rowIndexes.has(h.filaOrigen));
-  if (periodLimit) {
-    hEntries = hEntries.filter(h => {
-      const d = parseDate(h.fechaActualizacion);
-      return d && d >= periodLimit;
-    });
-  }
-
-  // --- Publicaciones: usa marketingData (filas agregadas, no actualizadas) ---
-  let pubsData = chartData;
-  if (periodLimit) pubsData = pubsData.filter(r => { const d = parseDate(r.fecha); return d && d >= periodLimit; });
-  const pubsLatest = {};
-  pubsData.forEach(r => {
-    const key = r.fecha + '|' + r.grupo;
-    if (!pubsLatest[key] || r.rowIndex > pubsLatest[key].rowIndex) pubsLatest[key] = r;
-  });
-  const pubsDeduped = Object.values(pubsLatest);
-  const pubsFechas = [...new Set(pubsDeduped.map(r => r.fecha).filter(Boolean))].sort((a, b) => {
-    const da = parseDate(a), db = parseDate(b); if (!da || !db) return 0; return da - db;
-  });
-  const pubsLabels = pubsFechas.map(f => f.substring(0, 5));
-  const pubsVals = pubsFechas.map(f => pubsDeduped.filter(r => r.fecha === f).reduce((s, r) => s + (r.publicaciones || 0), 0));
-
-  // --- Interacciones: usa historial (actualizaciones) ---
-  function buildHistorialSeries(entries, field, periodLimit) {
-    let data = entries;
-    if (periodLimit) data = data.filter(h => { const d = parseDate(h.fechaActualizacion); return d && d >= periodLimit; });
-    if (data.length === 0) return { labels: [], values: [] };
-    const byDate = {};
-    data.forEach(h => {
-      if (!h.fechaActualizacion) return;
-      byDate[h.fechaActualizacion] = (byDate[h.fechaActualizacion] || 0) + (h[field] || 0);
-    });
-    const dates = Object.keys(byDate).filter(Boolean).sort((a, b) => {
-      const da = parseDate(a), db = parseDate(b); if (!da || !db) return 0; return da - db;
-    });
-    return { labels: dates.map(f => f.substring(0, 5)), values: dates.map(f => byDate[f]) };
-  }
-
-  const intsSeries = buildHistorialSeries(hEntries, 'interacciones');
-  const msjsSeries = buildHistorialSeries(hEntries, 'mensajes');
-
-  // Si no hay historial para interacciones/mensajes, caer a marketingData
-  if (!intsSeries.labels.length) {
-    const fb = periodLimit ? chartData.filter(r => { const d = parseDate(r.fecha); return d && d >= periodLimit; }) : chartData;
-    const latest = {};
-    fb.forEach(r => { const k = r.fecha + '|' + r.grupo; if (!latest[k] || r.rowIndex > latest[k].rowIndex) latest[k] = r; });
-    const dedup = Object.values(latest);
-    const fechas = [...new Set(dedup.map(r => r.fecha).filter(Boolean))].sort((a, b) => {
-      const da = parseDate(a), db = parseDate(b); if (!da || !db) return 0; return da - db;
-    });
-    intsSeries.labels = fechas.map(f => f.substring(0, 5));
-    intsSeries.values = fechas.map(f => dedup.filter(r => r.fecha === f).reduce((s, r) => s + (r.interacciones || 0), 0));
-  }
-  if (!msjsSeries.labels.length) {
-    const fb = periodLimit ? chartData.filter(r => { const d = parseDate(r.fecha); return d && d >= periodLimit; }) : chartData;
-    const latest = {};
-    fb.forEach(r => { const k = r.fecha + '|' + r.grupo; if (!latest[k] || r.rowIndex > latest[k].rowIndex) latest[k] = r; });
-    const dedup = Object.values(latest);
-    const fechas = [...new Set(dedup.map(r => r.fecha).filter(Boolean))].sort((a, b) => {
-      const da = parseDate(a), db = parseDate(b); if (!da || !db) return 0; return da - db;
-    });
-    msjsSeries.labels = fechas.map(f => f.substring(0, 5));
-    msjsSeries.values = fechas.map(f => dedup.filter(r => r.fecha === f).reduce((s, r) => s + (r.mensajes || 0), 0));
-  }
-
+  const rows=periodLimit?chartData.filter(r=>MarketingAnalysis.within(r.fecha,periodLimit)):chartData;
+  const dates=[...new Set(rows.map(r=>parseDate(r.fecha)?.getTime()).filter(v=>v!==undefined))].sort((a,b)=>a-b);
+  const labels=dates.map(time=>{const d=new Date(time);return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0');});
+  const series=field=>dates.map(time=>rows.filter(r=>parseDate(r.fecha)?.getTime()===time).reduce((sum,r)=>sum+MarketingAnalysis.number(r[field]),0));
+  const pubsLabels=[...labels],pubsVals=series('publicaciones');
+  const intsSeries={labels:[...labels],values:series('interacciones')};
+  const msjsSeries={labels:[...labels],values:series('mensajes')};
   // Padding para un solo punto
   if (pubsLabels.length === 1) { pubsLabels.unshift(''); pubsLabels.push(''); pubsVals.unshift(null); pubsVals.push(null); }
   if (intsSeries.labels.length === 1) { intsSeries.labels.unshift(''); intsSeries.labels.push(''); intsSeries.values.unshift(null); intsSeries.values.push(null); }

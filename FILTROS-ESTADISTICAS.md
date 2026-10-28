@@ -1,0 +1,9 @@
+# Filtros y alcance de estadísticas
+
+Los períodos 7/15/30 incluyen hoy y los días anteriores hasta completar esa cantidad de fechas de calendario. Filtran por fecha de publicación, excluyendo fechas futuras. Un cambio posterior en Historial no incorpora una publicación antigua al período. Todo no tiene un límite oculto. Sucursal, grupo, búsqueda y fecha exacta se combinan con el período, sin desactivarlo.
+
+Los gráficos principales usan las mismas publicaciones que los filtros. Se suman todas las filas existentes, incluso varias del mismo grupo y fecha, porque son registros distintos de la tabla. No se suman los snapshots acumulativos de Historial como si fueran aumentos de métricas.
+
+Realizar Informe actualiza publicaciones y sucursales antes de calcular. Usa los filtros de Publicaciones y su período elegido; si está en Todo, conserva el informe de 30 días que ofrecía la función anterior. El texto informa el intervalo, filtros y alcance. Incluye publicaciones activas de sucursales de redes activas, excluye Perfil Estándar y conserva Marketplace/Todos en el desglose para que éste reconcilie con el total. Las métricas son valores acumulados actuales de esas publicaciones, no crecimiento ocurrido dentro de esos días. Fechas inválidas en registros activos del alcance o métricas inválidas bloquean el informe; fallos al actualizar impiden generar con datos anteriores.
+
+El conteo de grupos del resumen de Sucursales de redes sigue representando el catálogo total de la sucursal, tal como indica su descripción. Los indicadores de Grupos distinguen nombre y sucursal, normalizan espacios/mayúsculas/acentos y ponderan los estados por cantidad de publicaciones. El contador y el total de publicaciones respetan sus filtros.

@@ -432,7 +432,7 @@
                 </div>
 
                 <!-- KPIs zona -->
-                <div id="zonas-kpi-container" class="row g-2 g-md-3 mb-4"></div>
+                <p class="small text-muted">El período se aplica a la fecha de publicación. Las actualizaciones posteriores no incorporan publicaciones antiguas.</p><div id="zonas-kpi-container" class="row g-2 g-md-3 mb-4"></div>
 
                 <!-- Gráficos zona -->
                 <div class="row g-3 g-md-4 mb-4">
@@ -459,7 +459,7 @@
                     <div class="card-header-clean d-flex justify-content-between align-items-center">
                         <div>
                             <h5 class="table-card-title">Resumen por sucursal de redes</h5>
-                            <p class="text-muted small mb-0">Todas las sucursales configuradas, incluidas las inactivas. Métricas de publicaciones activas en el período seleccionado; grupos totales por sucursal.</p>
+                            <p class="text-muted small mb-0">Todas las sucursales configuradas, incluidas las inactivas. El período filtra por fecha de publicación; las métricas son acumuladas. Grupos: catálogo total por sucursal.</p>
                         </div>
                     </div>
                     <div class="table-responsive">
@@ -792,7 +792,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="app.js"></script>
+    <script src="marketing-analysis.js"></script><script src="app.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const session = getCurrentSession();
@@ -859,11 +859,11 @@
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content custom-modal">
                 <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-semibold text-dark">Informe de rendimiento (últimos 30 días)</h5>
+                    <h5 class="modal-title fw-semibold text-dark">Informe de publicaciones</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
                 <div class="modal-body pt-3">
-                    <p class="small text-muted">Mensaje redactado con los datos reales del período. Revisalo, ajustá si necesario y copialo para enviarlo.</p>
+                    <p class="small text-muted">Usa los filtros de Publicaciones y el período elegido (30 días cuando seleccionás Todo). Las métricas son acumuladas de esas publicaciones, no incrementos dentro del período.</p>
                     <textarea id="informe-texto" class="form-control" rows="16" readonly style="font-size:0.85rem;"></textarea>
                 </div>
                 <div class="modal-footer border-0 pt-0">

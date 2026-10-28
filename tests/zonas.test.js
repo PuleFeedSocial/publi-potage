@@ -24,7 +24,7 @@ test('empty periods keep configured zones visible and unusual names cannot colli
  assert.equal(result.sortedZones.length,5);assert.ok(result.sortedZones.every(z=>z.publicaciones===0));
 });
 test('period Todo has no hidden date cap, and a selected zone respects explicit periods',async()=>{
- let limit;const sandbox=vm.createContext({document:{getElementById:()=>({value:'Merlo'})},chartsInstances:{},filterPeriodZonas:'all',API_BASE:'',authFetch:async()=>({ok:true,json:async()=>({data:[]})}),renderZonasDashboardInner:(g,z,p)=>{limit=p;}});
+ let limit;const sandbox=vm.createContext({MarketingAnalysis:require('../marketing-analysis'),document:{getElementById:()=>({value:'Merlo'})},chartsInstances:{},filterPeriodZonas:'all',API_BASE:'',authFetch:async()=>({ok:true,json:async()=>({data:[]})}),renderZonasDashboardInner:(g,z,p)=>{limit=p;}});
  vm.runInContext(source.slice(source.indexOf('function renderZonasDashboard()'),source.indexOf('// The configured catalog')),sandbox);
  sandbox.renderZonasDashboard();await new Promise(r=>setImmediate(r));assert.equal(limit,null);
  sandbox.filterPeriodZonas='7';sandbox.renderZonasDashboard();await new Promise(r=>setImmediate(r));assert.ok(limit);assert.ok(Date.now()-limit.getTime()>=6*86400000);
