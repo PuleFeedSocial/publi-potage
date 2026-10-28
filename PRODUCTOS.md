@@ -72,3 +72,7 @@ Huevos y Pollos se dibujan en formato cuadrado fijo, PNG de 1080 × 1080 px. Los
 Hasta tres sedes se incluyen nombre, dirección y contacto. Con más de tres se muestran nombre y teléfono. Si hay más de seis sedes, se generan páginas numeradas de hasta seis sedes cada una, con el mismo catálogo de precios. El selector del modal permite descargar cada página individualmente. Ninguna sede se omite por falta de espacio. Los textos extensos se ajustan dentro del área reservada; si no pueden mostrarse legiblemente, el generador informa el dato que hay que revisar y bloquea la descarga.
 
 La composición cuadrada retoma el título, franja diagonal, colores y tablas de la referencia original. El nombre de la región es administrativo y nunca se dibuja dentro de la imagen publicada.
+
+## Pallet de huevos estándar
+
+Pallet equivale a 25 cajones, 300 maples o 9.000 huevos. La página muestra la columna solo para huevos estándar y permite calcular desde docena, maple, cajón o pallet. Los especiales no llevan pallet. Google Sheets agrega Precio pallet al final de la tabla (columna L), conservando posiciones y códigos existentes. Cada fila estándar lleva una fórmula vinculada al cajón; los guardados desde la aplicación conservan esa fórmula y el separador correspondiente a la configuración regional de la hoja. Para un pallet ingresado como base, el importe debe ser múltiplo de $0,25 para obtener cajones con dos decimales.

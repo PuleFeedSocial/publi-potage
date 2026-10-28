@@ -78,7 +78,7 @@ test('legacy 30-maple crates display 12 and save using the original revision',as
   const item=(await p.read(f.client)).huevos[0];
   assert.equal(item.precio_cajon,58800);assert.equal(item._needsPriceSave,true);assert.equal(f.calls.length,0);
   await p.write('huevos','PUT',{...item,price_source:'precio_maple'},f.client);
-  assert.equal(f.calls[0].requestBody.values[0][9],58800);
+  assert.equal(f.calls[0].requestBody.requests[0].updateCells.rows[0].values[9].userEnteredValue.numberValue,58800);
   f.rows.huevos[1][9]=60000;
   assert.equal((await p.read(f.client)).huevos[0]._needsPriceSave,undefined);
  }
@@ -101,7 +101,10 @@ function fixture(){
  rows.regiones.push(['REG-01','AMBA','Sí']);
  rows.huevos.push(['REG-01','GENERAL','B EXTRA','Especial','Maple 20',20,'',0,'',1200,'']);
  const calls=[];
- const client={spreadsheets:{values:{
+ const client={spreadsheets:{
+ async get(){return {data:{sheets:[{properties:{title:'Precios huevos',sheetId:7}}]}};},
+ async batchUpdate(args){calls.push(args);},
+ values:{
   async batchGet(){return {data:{valueRanges:Object.values(rows).map(values=>({values}))}};},
   async update(args){calls.push(args);},async clear(args){calls.push(args);},async append(args){calls.push(args);}
  }}};
@@ -111,10 +114,10 @@ test('product reads retain zero, blanks, special quantities and ignore region in
  const f=fixture();f.rows.regiones.push([],['CÓMO COMPLETAR LA BASE'],['1. Conservá los códigos']);
  const data=await p.read(f.client);assert.equal(data.regiones.length,1);assert.equal(data.huevos[0].precio_maple,0);assert.equal(data.huevos[0].precio_docena,'');assert.equal(data.huevos[0].unidades_maple,20);
 });
-test('product update targets only its row, uses RAW and rejects stale revisions',async()=>{
+test('product update targets only its row with typed cells and rejects stale revisions',async()=>{
  const f=fixture();const item=(await p.read(f.client)).huevos[0];
  await p.write('huevos','PUT',{...item,precio_maple:50,price_source:'precio_maple'},f.client);
- assert.equal(f.calls[0].range,"'Precios huevos'!A2:K2");assert.equal(f.calls[0].valueInputOption,'RAW');assert.equal(f.calls[0].requestBody.values[0][7],50);
+ const update=f.calls[0].requestBody.requests[0].updateCells;assert.equal(update.start.rowIndex,1);assert.equal(update.rows[0].values[7].userEnteredValue.numberValue,50);assert.ok(update.rows[0].values[11].userEnteredValue===undefined);
  f.rows.huevos[1][7]=500;
  await assert.rejects(p.write('huevos','PUT',item,f.client),{status:409});assert.equal(f.calls.length,1);
 });
@@ -129,7 +132,7 @@ test('create and delete preserve other rows and prevent removal of populated reg
  await assert.rejects(p.write('regiones','DELETE',all.regiones[0],f.client),{status:409});
  await p.write('locales','POST',{sucursal_id:'SUC-1',region_id:'REG-01'},f.client);
  assert.equal(f.calls[0].valueInputOption,'RAW');assert.equal(f.calls[0].insertDataOption,'INSERT_ROWS');
- await p.write('huevos','DELETE',all.huevos[0],f.client);assert.equal(f.calls[1].range,"'Precios huevos'!A2:K2");
+ await p.write('huevos','DELETE',all.huevos[0],f.client);assert.equal(f.calls[1].range,"'Precios huevos'!A2:L2");
 });
 test('modified headers, duplicate keys and invalid table names fail safely',async()=>{
  const f=fixture();f.rows.regiones.push(['REG-01','Duplicada','Sí']);await assert.rejects(p.read(f.client),{status:409});
@@ -155,4 +158,19 @@ test('human-readable and legacy headers both preserve row values and revisions',
  const row=['REG-02','PC-008','Pollos','Supremas','5 kg',29300];
  assert.deepEqual(p.parse('carnes',[labels.carnes,row]),p.parse('carnes',[p.schemas.carnes.fields,row]));
  assert.throws(()=>p.parse('carnes',[['wrong',...labels.carnes.slice(1)],row]),/encabezados/);
+});
+
+test('standard pallet writes preserve literal text and a live formula atomically',async()=>{
+ const f=fixture();const row={region_id:'REG-01',lista_id:'GENERAL',tipo_huevo:'=test()',categoria:'Estándar',presentacion_maple:'Maple',unidades_maple:30,precio_pallet:250000,price_source:'precio_pallet'};
+ await p.write('huevos','POST',row,f.client);
+ const cells=f.calls[0].requestBody.requests[0].appendCells.rows[0].values;
+ assert.equal(cells[2].userEnteredValue.stringValue,'=test()');assert.equal(cells[9].userEnteredValue.numberValue,10000);assert.match(cells[11].userEnteredValue.formulaValue,/\*25/);
+ const data=p.parse('huevos',[p.schemas.huevos.fields.slice(0,11),['REG-01','GENERAL','B1','Estándar','Maple',30,4000,10000,'',120000,'']]);assert.equal(data[0].precio_pallet,3000000);
+});
+
+test('pallet formulas follow the spreadsheet locale when saved',async()=>{
+ const f=fixture();f.client.spreadsheets.get=async()=>({data:{properties:{locale:'es_ES'},sheets:[{properties:{title:'Precios huevos',sheetId:7}}]}});
+ await p.write('huevos','POST',{region_id:'REG-01',lista_id:'GENERAL',tipo_huevo:'B2',categoria:'Estándar',presentacion_maple:'Maple',unidades_maple:30,precio_cajon:10000,price_source:'precio_cajon'},f.client);
+ const formula=f.calls[0].requestBody.requests[0].appendCells.rows[0].values[11].userEnteredValue.formulaValue;
+ assert.ok(formula.includes(';'));assert.ok(!formula.includes(','));
 });

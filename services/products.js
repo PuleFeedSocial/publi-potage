@@ -2,12 +2,12 @@ const { google } = require('googleapis');
 const crypto = require('crypto');
 const eggPrices = require('../egg-prices');
 const sheetLabels = require('../sheet-labels');
-function validHeaders(kind,header=[]){return schemas[kind].fields.every((field,i)=>header[i]===field||header[i]===sheetLabels[kind][i]);}
+function validHeaders(kind,header=[]){return schemas[kind].fields.every((field,i)=>header[i]===field||header[i]===sheetLabels[kind][i]||(kind==='huevos'&&field==='precio_pallet'&&header[i]===undefined));}
 const SPREADSHEET_ID = process.env.PRODUCTS_SHEET_ID || '1hFGIgLe4YgF2Iz5V7wJQcE0tS3tXlKvDtEwKduSEUtg';
 const schemas = {
   regiones: { tab: 'Regiones', fields: ['region_id','nombre_region','activa'], key: ['region_id'] },
   locales: { tab: 'Locales', fields: ['local_id','nombre_local','region_id'], key: ['local_id'] },
-  huevos: { tab: 'Precios huevos', fields: ['region_id','lista_id','tipo_huevo','categoria','presentacion_maple','unidades_maple','precio_docena','precio_maple','precio_medio_cajon','precio_cajon','cambio_por_docena'], key: ['region_id','lista_id','tipo_huevo'] },
+  huevos: { tab: 'Precios huevos', fields: ['region_id','lista_id','tipo_huevo','categoria','presentacion_maple','unidades_maple','precio_docena','precio_maple','precio_medio_cajon','precio_cajon','cambio_por_docena','precio_pallet'], key: ['region_id','lista_id','tipo_huevo'] },
   carnes: { tab: 'Precios pollos y carnes', fields: ['region_id','producto_id','categoria','producto','presentacion','precio'], key: ['region_id','producto_id'] },
   regionProductos: { tab: 'Productos por región', fields: ['region_id','tipo','activo'], key: ['region_id','tipo'] }
 };
@@ -57,6 +57,7 @@ function parse(kind, values=[]) {
     if(kind==='huevos'&&row.lista_id==='GENERAL'&&typeof row.precio_maple==='number'&&row.precio_maple>0&&Math.abs(row.precio_cajon-row.precio_maple*30)<0.011){
       row._previousCrate=row.precio_cajon;row.precio_cajon=eggPrices.calculate('precio_maple',row.precio_maple,row.categoria).precio_cajon;row._needsPriceSave=true;
     }
+    if(kind==='huevos')row.precio_pallet=row.categoria==='Especial'?'':typeof row.precio_cajon==='number'?Math.round(row.precio_cajon*2500)/100:'';
     return [{...row,_row:index+2,_revision:hash}];
   });
 }
@@ -186,6 +187,7 @@ function validate(kind, input, all) {
   if(kind==='carnes'&&(!row.producto||!row.categoria)) throw fail('Indicá producto y categoría.');
   if(kind==='regionProductos'){if(!PRODUCT_TYPES.includes(row.tipo))throw fail('Tipo de producto inválido.');if(!['Sí','No'].includes(row.activo))throw fail('Indicá si está activo.');}
   if(kind==='huevos') {
+    if(row.categoria==='Especial')row.precio_pallet='';
     if(!['Estándar','Especial'].includes(row.categoria)||!row.presentacion_maple) throw fail('Indicá la categoría y presentación del maple.');
     if(row.categoria==='Especial'&&(row.unidades_maple===''||row.precio_docena!=='')) throw fail('Los especiales requieren cantidad de unidades y no llevan precio por docena.');
     if(row.lista_id==='GENERAL') {
@@ -227,10 +229,19 @@ async function writeNow(kind,method,input,client=getClient()) {
   }
   if(kind==='huevos'&&row.lista_id==='GENERAL'&&input.price_source===undefined) {
     const changed=eggPrices.fields.some(field=>row[field]!== (current?.[field]??''));
-    if(changed&&eggPrices.fields.some(field=>row[field]!==''))throw fail('Indicá cuál de los tres precios editaste para calcular los demás.');
+    if(changed&&eggPrices.fields.some(field=>row[field]!==''))throw fail('Indicá cuál de los precios editaste para calcular los demás.');
   }
   if(current&&schema.key.some(k=>row[k]!==current[k])&&!(kind==='locales'&&input.sucursal_id))throw fail('Los códigos y la identidad del registro no se pueden cambiar al editar.');
   if(all[kind].some(r=>r._row!==current?._row&&rowKey(schema,r)===rowKey(schema,row)))throw fail('Este registro ya existe en la región y lista seleccionadas.',409);
+  if(kind==='huevos'){
+    const metadata=await client.spreadsheets.get({spreadsheetId:SPREADSHEET_ID,fields:'properties.locale,sheets.properties'});
+    const separator=new Intl.NumberFormat((metadata.data.properties?.locale||'en_US').replace('_','-')).formatToParts(1.1).find(p=>p.type==='decimal')?.value===','?';':',';
+    const sheetId=metadata.data.sheets?.find(s=>s.properties.title===schema.tab)?.properties.sheetId;
+    if(sheetId===undefined)throw fail('No se encontró la hoja de precios de huevos.',409);
+    const cells=schema.fields.map(field=>field==='precio_pallet'?row.categoria==='Especial'?{}:{userEnteredValue:{formulaValue:'=IF(ISNUMBER(INDEX(J:J,ROW())),ROUND(INDEX(J:J,ROW())*25,2),"")'.replaceAll(',',separator)}}:row[field]===''?{}:{userEnteredValue:typeof row[field]==='number'?{numberValue:row[field]}:{stringValue:row[field]}});
+    const request=current?{updateCells:{start:{sheetId,rowIndex:current._row-1,columnIndex:0},rows:[{values:cells}],fields:'userEnteredValue'}}:{appendCells:{sheetId,rows:[{values:cells}],fields:'userEnteredValue'}};
+    await client.spreadsheets.batchUpdate({spreadsheetId:SPREADSHEET_ID,requestBody:{requests:[request]}});return;
+  }
   const values=[schema.fields.map(f=>row[f])];
   if(kind==='regionProductos')await ensureRegionProductsSheet(client);
   if(current) await client.spreadsheets.values.update({spreadsheetId:SPREADSHEET_ID,range,valueInputOption:'RAW',requestBody:{values}});

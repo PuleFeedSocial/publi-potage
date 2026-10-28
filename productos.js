@@ -1,5 +1,5 @@
 const productFields = {
-  huevos: [['region_id', 'Región'], ['lista_id', 'Lista'], ['tipo_huevo', 'Tipo de huevo'], ['categoria', 'Categoría', ['Estándar', 'Especial']], ['presentacion_maple', 'Presentación del maple'], ['unidades_maple', 'Unidades por maple', 'number'], ['precio_docena', 'Docena', 'number'], ['precio_maple', 'Maple', 'number'], ['precio_medio_cajon', 'Medio cajón', 'number'], ['precio_cajon', 'Cajón', 'number'], ['cambio_por_docena', 'Cambio por docena', 'number']],
+  huevos: [['region_id', 'Región'], ['lista_id', 'Lista'], ['tipo_huevo', 'Tipo de huevo'], ['categoria', 'Categoría', ['Estándar', 'Especial']], ['presentacion_maple', 'Presentación del maple'], ['unidades_maple', 'Unidades por maple', 'number'], ['precio_docena', 'Docena', 'number'], ['precio_maple', 'Maple', 'number'], ['precio_medio_cajon', 'Medio cajón', 'number'], ['precio_cajon', 'Cajón', 'number'], ['precio_pallet', 'Pallet (25 cajones)', 'number'], ['cambio_por_docena', 'Cambio por docena', 'number']],
   carnes: [['region_id', 'Región'], ['producto_id', 'Código del producto'], ['categoria', 'Categoría', ['Pollos', 'Cerdos', 'Carnes']], ['producto', 'Producto'], ['presentacion', 'Presentación'], ['precio', 'Precio', 'number']],
 };
 const productKeys = { huevos: ['region_id', 'lista_id', 'tipo_huevo'], carnes: ['region_id', 'producto_id'] };
@@ -111,7 +111,7 @@ function renderProductRegion() {
     for (const special of [false, true]) {
       const rows = eggs.filter(r => (r.categoria === 'Especial') === special); if (!rows.length) continue;
       const cols = [['tipo_huevo', 'Tipo'], ['presentacion_maple', 'Presentación']];
-      if (!special) cols.push(['precio_docena', 'Docena']); cols.push(['precio_maple', 'Maple'], ['precio_cajon', 'Cajón']);
+      if (!special) cols.push(['precio_docena', 'Docena']); cols.push(['precio_maple', 'Maple'], ['precio_cajon', 'Cajón']); if(!special)cols.push(['precio_pallet','Pallet (25 cajones)']);
       root.append(productTable(`Huevos${special ? ' especiales' : ''}`, rows, cols, 'huevos'));
     }
   }
@@ -172,12 +172,13 @@ function openProductForm(kind, row = null) {
     };
     const sync = (changed = false) => {
       const special = pe('pf-categoria').value === 'Especial';
+      pe('pf-precio_pallet').disabled=special;pe('pf-precio_pallet').parentElement.hidden=special;if(special)pe('pf-precio_pallet').value='';
       productEdit.priceSource = undefined;
       pe('pf-precio_docena').disabled = special; if (special) pe('pf-precio_docena').value = '';
       pe('pf-unidades_maple').required = false; pe('pf-unidades_maple').disabled = true; pe('pf-presentacion_maple').readOnly = true;
       if (!special) { pe('pf-unidades_maple').value = 30; pe('pf-presentacion_maple').value = 'Maple de 30 unidades'; }
       else { pe('pf-unidades_maple').value = 20; pe('pf-presentacion_maple').value = 'Maple de 20 unidades'; }
-      note.textContent = special ? '20 huevos por maple · 12 maples por cajón (240 huevos). Editá maple o cajón para calcular el otro automáticamente.' : '12 huevos por docena · 30 por maple · 12 maples por cajón (360 huevos). Editá cualquiera de los tres: los demás se calculan al instante.';
+      note.textContent = special ? '20 huevos por maple · 12 maples por cajón (240 huevos). Editá maple o cajón para calcular el otro automáticamente.' : '12 huevos por docena · 30 por maple · 12 maples por cajón (360 huevos). 1 pallet = 25 cajones (9.000 huevos). Editá docena, maple, cajón o pallet para calcular los demás.';
       if (changed) { const source = EggPrices.fields.find(key => !pe('pf-' + key).disabled && pe('pf-' + key).value !== ''); if (source) calculate(source); }
     };
     pe('pf-categoria').onchange = () => sync(true); sync();
