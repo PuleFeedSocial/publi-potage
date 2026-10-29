@@ -1,0 +1,12 @@
+
+.account-hero{display:flex;align-items:center;gap:20px;padding:28px;margin-bottom:24px;border:1px solid var(--border-color);border-radius:20px;background:var(--bg-card)}
+.account-avatar{display:grid;place-items:center;flex:0 0 76px;height:76px;border-radius:22px;background:color-mix(in srgb,var(--accent-color) 16%,var(--bg-card));color:var(--accent-color);font-size:1.65rem;font-weight:700}
+.account-identity{min-width:0;flex:1}.account-identity h2{font-size:1.6rem;overflow-wrap:anywhere;margin:0 0 6px}.account-identity p{overflow-wrap:anywhere}.account-eyebrow{font-size:.68rem;letter-spacing:.12em;color:var(--text-muted);margin-bottom:8px;font-weight:700}
+.account-meta{display:flex;align-items:flex-end;flex-direction:column;gap:10px}.account-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;align-items:start}.account-section .card-header-clean{padding:24px}.account-section-icon{display:inline-grid;place-items:center;width:36px;height:36px;background:color-mix(in srgb,var(--accent-color) 10%,var(--bg-card));color:var(--accent-color);border-radius:10px;margin-bottom:12px}
+.account-section h2{margin-bottom:6px}.account-section .form-label{font-size:.85rem;font-weight:500}.account-section .form-text{color:var(--text-muted);font-size:.78rem;line-height:1.5}.account-verification{border-top:1px solid var(--border-color);padding-top:18px;margin:22px 0}.account-form-actions{display:flex;gap:10px;flex-wrap:wrap}.account-feedback{margin-top:16px;padding:12px;border-radius:10px;font-size:.85rem}.account-feedback[data-kind="success"]{background:color-mix(in srgb,#198754 12%,var(--bg-card));color:var(--text-main)}.account-feedback[data-kind="error"]{background:color-mix(in srgb,#dc3545 12%,var(--bg-card));color:var(--text-main)}
+.account-note{display:flex;gap:16px;padding:20px;border:1px solid var(--border-color);border-radius:16px;background:var(--bg-card)}.account-note>i{color:var(--accent-color);font-size:1.3rem}.account-section input{min-width:0}.account-section fieldset{min-width:0}
+@media(max-width:1000px){.account-grid{grid-template-columns:minmax(0,1fr)}}@media(max-width:575px){.account-hero{padding:20px;gap:14px;flex-wrap:wrap}.account-avatar{flex-basis:56px;height:56px;border-radius:16px;font-size:1.2rem}.account-identity h2{font-size:1.25rem}.account-meta{width:100%;align-items:flex-start}.account-form-actions>*{flex:1}.account-note{padding:16px}}
+
+
+/* Static element styles formerly embedded in the page markup. */
+html .page-account-settings-inline-1 { border-radius:8px;margin-bottom:8px }

@@ -395,3 +395,8 @@ test('marketing branch links reject unknown branches and enforce unique associat
   const reader={id:55,name:'Reader',email:'reader@test',role:'colaborador',token_version:0};users.set(55,reader);
   assert.equal((await request('/api/zonas/sucursales',{token:signAccessToken(reader)})).status,403);
 });
+
+test('extracted page assets are public without exposing their server-side manifest', async()=>{
+ for(const asset of require('../assets/page-assets.json'))assert.equal((await request('/'+asset)).status,200,asset);
+ assert.equal((await request('/assets/page-assets.json')).status,404);
+});

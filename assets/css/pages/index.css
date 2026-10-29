@@ -1,0 +1,17 @@
+
+#view-landing .landing-nav { max-width:1320px; width:100%; margin:auto; gap:20px; }
+#view-landing .landing-nav-actions { align-items:center; flex-wrap:wrap; }
+#view-landing .theme-toggle-btn-floating { position:static; flex:0 0 40px; order:3; }
+#view-landing .landing-hero { gap:64px; }
+#view-landing .landing-hero-content h1 { font-size:clamp(2rem,4vw,3.4rem); }
+#view-landing .landing-description { max-width:560px; }
+@media(max-width:575px){
+ #view-landing .landing-nav{padding:20px;flex-wrap:wrap;}
+ #view-landing .landing-nav-actions{width:100%;justify-content:space-between;gap:8px;}
+ #view-landing .landing-hero{padding:32px 20px;gap:32px;}
+ #view-landing .landing-footer{padding:24px 20px;}
+}
+
+
+/* Static element styles formerly embedded in the page markup. */
+

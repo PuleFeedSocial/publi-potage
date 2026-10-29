@@ -1,0 +1,22 @@
+
+#view-register .auth-form-container { min-height:100dvh; padding:24px 16px; }
+#view-register .auth-card { max-width:680px; padding:24px 32px; }
+.register-toolbar { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:12px; }
+.register-toolbar a { font-size:.85rem; }
+#view-register .theme-toggle-btn-floating { position:static; flex:0 0 40px; }
+#view-register .auth-card-header { margin-bottom:16px; }
+#view-register .auth-logo { margin-bottom:8px; }
+#view-register .logo-img-lg { width:40px; height:40px; object-fit:contain; }
+.register-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:20px; }
+#view-register .auth-card-footer { margin-top:16px; padding-top:14px; }
+#view-register .auth-card-credit { margin-top:12px; }
+#view-register .form-check-label { line-height:1.5; }
+@media(max-width:575px){
+ #view-register .auth-form-container { padding:16px 12px; }
+ #view-register .auth-card { padding:20px; }
+ .register-fields { grid-template-columns:minmax(0,1fr); }
+}
+
+
+/* Static element styles formerly embedded in the page markup. */
+

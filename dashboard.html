@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <script src="theme.js"></script>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="assets/css/pages/dashboard.css">
 </head>
 
 <body>
@@ -29,14 +30,14 @@
                         <img src="img/isotiposinfondo.png" alt="Potage" class="logo-img">
                         <span class="logo-text">Potage</span>
                     </div>
-                    <button class="sidebar-toggle" onclick="toggleSidebar()">
+                    <button data-page-event="dashboard-1" class="sidebar-toggle">
                         <i class="bi bi-x-lg"></i>
                     </button>
                 </div>
             </div>
 
             <nav class="sidebar-menu" aria-label="Navegación principal">
-<div class="menu-section-label">Principal</div><details class="sidebar-nav-group" id="nav-marketing" open><summary class="menu-item"><i class="bi bi-megaphone" aria-hidden="true"></i><span>Redes / Marketing</span><i class="bi bi-chevron-down nav-group-chevron" aria-hidden="true"></i></summary><div class="sidebar-submenu"><button type="button" class="menu-item submenu-item active" id="btn-nav-dashboard" onclick="switchView('dashboard')" style="cursor:pointer;">
+<div class="menu-section-label">Principal</div><details class="sidebar-nav-group" id="nav-marketing" open><summary class="menu-item"><i class="bi bi-megaphone" aria-hidden="true"></i><span>Redes / Marketing</span><i class="bi bi-chevron-down nav-group-chevron" aria-hidden="true"></i></summary><div class="sidebar-submenu"><button data-page-event="dashboard-2" type="button" class="menu-item submenu-item active page-dashboard-inline-1" id="btn-nav-dashboard">
                     <i class="bi bi-grid-1x2-fill"></i>
                     <span>Publicaciones</span>
                 </button>
@@ -48,7 +49,7 @@
                     <i class="bi bi-diagram-3"></i>
                     <span>Grupos</span>
                 </a>
-<button type="button" class="menu-item submenu-item" id="btn-nav-zonas" onclick="switchView('zonas')" style="cursor:pointer;">
+<button data-page-event="dashboard-3" type="button" class="menu-item submenu-item page-dashboard-inline-2" id="btn-nav-zonas">
                     <i class="bi bi-geo-alt-fill"></i>
                     <span>Sucursales de redes</span>
                 </button></div></details><details class="sidebar-nav-group" id="nav-interno"><summary class="menu-item"><i class="bi bi-building" aria-hidden="true"></i><span>Interno</span><i class="bi bi-chevron-down nav-group-chevron" aria-hidden="true"></i></summary><div class="sidebar-submenu"><a href="productos.html" class="menu-item submenu-item" id="btn-nav-productos"><i class="bi bi-box-seam"></i><span>Productos</span></a>
@@ -62,7 +63,7 @@
                 </a>
 <div class="menu-section-label" id="gestion-label">Gestión</div>
                 <div id="gestion-items">
-                    <a href="#" class="menu-item submenu-item" id="btn-nav-users" onclick="switchView('users')">
+                    <a data-page-event="dashboard-4" href="#" class="menu-item submenu-item" id="btn-nav-users">
                         <i class="bi bi-people-fill"></i>
                         <span>Usuarios</span>
                     </a>
@@ -74,11 +75,11 @@
             </nav>
 
             <div class="sidebar-footer">
-                <a href="ayuda.html" class="menu-item submenu-item" style="border-radius:8px;margin-bottom:8px">
+                <a href="ayuda.html" class="menu-item submenu-item page-dashboard-inline-3">
                     <i class="bi bi-question-circle-fill"></i>
                     <span>Ayuda</span>
                 </a>
-                <button type="button" class="theme-toggle-row" onclick="toggleTheme()" title="Cambiar tema">
+                <button data-page-event="dashboard-5" type="button" class="theme-toggle-row" title="Cambiar tema">
                     <i class="bi bi-moon-stars-fill theme-toggle-icon"></i>
                     <span class="theme-toggle-label">Modo oscuro</span>
                     <span class="theme-switch"><span class="theme-switch-thumb"></span></span>
@@ -101,7 +102,7 @@
         <main class="main-content">
             <header class="top-navbar">
                 <div class="d-flex align-items-center gap-3">
-                    <button class="sidebar-toggle" onclick="toggleSidebar()">
+                    <button data-page-event="dashboard-6" class="sidebar-toggle">
                         <i class="bi bi-list"></i>
                     </button>
                     <div class="page-context">
@@ -123,7 +124,7 @@
                             <li>
                                 <hr class="dropdown-divider">
                             </li>
-                            <li><a class="dropdown-item text-danger" href="#" onclick="logout()">
+                            <li><a data-page-event="dashboard-7" class="dropdown-item text-danger" href="#">
                                     <i class="bi bi-box-arrow-right me-2"></i>Cerrar Sesión
                                 </a></li>
                         </ul>
@@ -139,7 +140,7 @@
                             <i class="bi bi-database"></i> Google Sheets
                         </span>
                     </div>
-                    <button class="btn btn-sm btn-outline-secondary" onclick="refreshMarketingData()"
+                    <button data-page-event="dashboard-8" class="btn btn-sm btn-outline-secondary"
                         title="Recargar desde Google Sheets">
                         <i class="bi bi-arrow-clockwise"></i> Recargar datos
                     </button>
@@ -216,37 +217,36 @@
                         <div class="row g-2 align-items-end">
                             <div class="col-6 col-md-2">
                                 <label class="form-label small mb-1 text-secondary">Grupo</label>
-                                <select class="form-select form-select-sm" id="filter-grupo" onchange="applyFilters()">
+                                <select data-page-event="dashboard-9" class="form-select form-select-sm" id="filter-grupo">
                                     <option value="">Todos</option>
                                 </select>
                             </div>
                             <div class="col-6 col-md-2">
                                 <label class="form-label small mb-1 text-secondary">Sucursal</label>
-                                <select class="form-select form-select-sm" id="filter-zona" onchange="refreshGruposByZona()">
+                                <select data-page-event="dashboard-10" class="form-select form-select-sm" id="filter-zona">
                                     <option value="">Todas</option>
                                 </select>
                             </div>
                             <div class="col-6 col-md-2">
                                 <label class="form-label small mb-1 text-secondary">Período</label>
                                 <div class="btn-group btn-group-sm w-100" role="group">
-                                    <button type="button" class="btn btn-outline-secondary filter-period active" data-period="all" onclick="setPeriod('all')">Todo</button>
-                                    <button type="button" class="btn btn-outline-secondary filter-period" data-period="7" onclick="setPeriod('7')">7d</button>
-                                    <button type="button" class="btn btn-outline-secondary filter-period" data-period="15" onclick="setPeriod('15')">15d</button>
-                                    <button type="button" class="btn btn-outline-secondary filter-period" data-period="30" onclick="setPeriod('30')">30d</button>
+                                    <button data-page-event="dashboard-11" type="button" class="btn btn-outline-secondary filter-period active" data-period="all">Todo</button>
+                                    <button data-page-event="dashboard-12" type="button" class="btn btn-outline-secondary filter-period" data-period="7">7d</button>
+                                    <button data-page-event="dashboard-13" type="button" class="btn btn-outline-secondary filter-period" data-period="15">15d</button>
+                                    <button data-page-event="dashboard-14" type="button" class="btn btn-outline-secondary filter-period" data-period="30">30d</button>
                                 </div>
                             </div>
                             <div class="col-6 col-md-3">
                                 <label class="form-label small mb-1 text-secondary">Fecha exacta</label>
-                                <input type="date" class="form-control form-control-sm" id="filter-fecha"
-                                    onchange="applyFilters()">
+                                <input data-page-event="dashboard-15" type="date" class="form-control form-control-sm" id="filter-fecha">
                             </div>
                             <div class="col-6 col-md-2">
                                 <label class="form-label small mb-1 text-secondary">Buscar</label>
-                                <input type="text" class="form-control form-control-sm" id="filter-search"
-                                    placeholder="Grupo, sucursal o estatus" oninput="applyFilters()">
+                                <input data-page-event="dashboard-16" type="text" class="form-control form-control-sm" id="filter-search"
+                                    placeholder="Grupo, sucursal o estatus">
                             </div>
                             <div class="col-6 col-md-1 d-flex align-items-end">
-                                <button class="btn btn-sm btn-outline-secondary w-100" onclick="clearFilters()">
+                                <button data-page-event="dashboard-17" class="btn btn-sm btn-outline-secondary w-100">
                                     <i class="bi bi-x-lg me-1"></i>Limpiar
                                 </button>
                             </div>
@@ -261,13 +261,13 @@
                             <span class="text-muted small">Google Sheets · click en fila para ver detalle · <span id="results-count">0 resultados</span></span>
                         </div>
                         <div class="d-flex gap-2">
-                            <button class="btn btn-sm btn-action-primary" onclick="openAddModal()">
+                            <button data-page-event="dashboard-18" class="btn btn-sm btn-action-primary">
                                 <i class="bi bi-plus-circle-fill me-1"></i> Agregar
                             </button>
-                            <button class="btn btn-sm btn-outline-secondary" onclick="openBulkModal()">
+                            <button data-page-event="dashboard-19" class="btn btn-sm btn-outline-secondary">
                                 <i class="bi bi-layers-fill me-1"></i> Carga múltiple
                             </button>
-                            <button id="btn-informe" class="btn btn-sm btn-outline-secondary" onclick="realizarInforme()">
+                            <button data-page-event="dashboard-20" id="btn-informe" class="btn btn-sm btn-outline-secondary">
                                 <i class="bi bi-clipboard-data me-1"></i> Realizar Informe
                             </button>
                         </div>
@@ -334,7 +334,7 @@
                             <h5 class="table-card-title"><i class="bi bi-shield-lock-fill me-1"></i> Configuración de Roles y Permisos</h5>
                             <span class="text-muted small">Gestioná los roles del sistema. El rol <span class="fw-semibold">Admin</span> no se puede modificar ni eliminar.</span>
                         </div>
-                        <button class="btn btn-sm btn-action-primary" onclick="openAddRoleModal()">
+                        <button data-page-event="dashboard-21" class="btn btn-sm btn-action-primary">
                             <i class="bi bi-plus-circle-fill me-1"></i> Agregar Rol
                         </button>
                     </div>
@@ -363,10 +363,10 @@
                             </span>
                         </div>
                         <div class="d-flex gap-2">
-                            <button class="btn btn-sm btn-outline-secondary" onclick="inviteUser()">
+                            <button data-page-event="dashboard-22" class="btn btn-sm btn-outline-secondary">
                                 <i class="bi bi-envelope-heart me-1"></i> Invitar Usuario
                             </button>
-                            <button class="btn btn-sm btn-action-primary" onclick="generateCodes()">
+                            <button data-page-event="dashboard-23" class="btn btn-sm btn-action-primary">
                                 <i class="bi bi-plus-circle-fill me-1"></i> Generar Códigos
                             </button>
                         </div>
@@ -398,11 +398,11 @@
                         <span class="text-muted small">Métricas agrupadas por sucursal de redes</span>
                     </div>
                     <div class="d-flex gap-2 align-items-center" id="zona-add-box">
-                        <input type="text" id="zona-nombre-input" class="form-control form-control-sm custom-input" placeholder="Nueva sucursal..." style="max-width:180px">
-                        <button class="btn btn-sm btn-action-primary" onclick="addZona()">
+                        <input type="text" id="zona-nombre-input" class="form-control form-control-sm custom-input page-dashboard-inline-4" placeholder="Nueva sucursal...">
+                        <button data-page-event="dashboard-24" class="btn btn-sm btn-action-primary">
                             <i class="bi bi-plus-circle me-1"></i>Agregar
                         </button>
-                        <button class="btn btn-sm btn-outline-secondary" id="btn-sync-zonas" onclick="syncZonas()" title="Agregar las sucursales que aparecen en los datos y aún no están en la lista">
+                        <button data-page-event="dashboard-25" class="btn btn-sm btn-outline-secondary" id="btn-sync-zonas" title="Agregar las sucursales que aparecen en los datos y aún no están en la lista">
                             <i class="bi bi-arrow-repeat me-1"></i>Sincronizar
                         </button>
                     </div>
@@ -414,17 +414,17 @@
                         <div class="row g-2 align-items-end">
                             <div class="col-6 col-md-2">
                                 <label class="form-label small mb-1 text-secondary">Sucursal</label>
-                                <select class="form-select form-select-sm" id="filter-zona-zonas" onchange="renderZonasDashboard()">
+                                <select data-page-event="dashboard-26" class="form-select form-select-sm" id="filter-zona-zonas">
                                     <option value="">Todas</option>
                                 </select>
                             </div>
                             <div class="col-6 col-md-2">
                                 <label class="form-label small mb-1 text-secondary">Período</label>
                                 <div class="d-flex gap-1">
-                                    <button class="btn btn-sm btn-outline-secondary filter-period-zonas active" data-period="all" onclick="setPeriodZonas('all')">Todo</button>
-                                    <button class="btn btn-sm btn-outline-secondary filter-period-zonas" data-period="7" onclick="setPeriodZonas('7')">7d</button>
-                                    <button class="btn btn-sm btn-outline-secondary filter-period-zonas" data-period="15" onclick="setPeriodZonas('15')">15d</button>
-                                    <button class="btn btn-sm btn-outline-secondary filter-period-zonas" data-period="30" onclick="setPeriodZonas('30')">30d</button>
+                                    <button data-page-event="dashboard-27" class="btn btn-sm btn-outline-secondary filter-period-zonas active" data-period="all">Todo</button>
+                                    <button data-page-event="dashboard-28" class="btn btn-sm btn-outline-secondary filter-period-zonas" data-period="7">7d</button>
+                                    <button data-page-event="dashboard-29" class="btn btn-sm btn-outline-secondary filter-period-zonas" data-period="15">15d</button>
+                                    <button data-page-event="dashboard-30" class="btn btn-sm btn-outline-secondary filter-period-zonas" data-period="30">30d</button>
                                 </div>
                             </div>
                         </div>
@@ -488,7 +488,7 @@
                             <span class="text-muted small">El estado activo/inactivo indica si trabajás sus redes; no cambia el catálogo general.</span>
                         </div>
                     </div>
-                    <div class="card-body" id="zonas-list"></div><div class="card-footer"><button type="button" class="btn btn-sm btn-outline-primary" data-zona-control style="display:none" onclick="openZonaModal()">Añadir desde el catálogo</button></div>
+                    <div class="card-body" id="zonas-list"></div><div class="card-footer"><button data-page-event="dashboard-31" type="button" class="btn btn-sm btn-outline-primary page-dashboard-inline-5" data-zona-control hidden>Añadir desde el catálogo</button></div>
                 </div>
 
             </div>
@@ -503,7 +503,7 @@
                     <h5 class="modal-title fw-semibold text-dark">Registrar Nuevo Miembro</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
-                <form id="add-user-form" onsubmit="createNewUser(event)">
+                <form data-page-event="dashboard-32" id="add-user-form">
                     <div class="modal-body pt-3">
                         <div class="mb-3">
                             <label class="form-label small fw-medium text-secondary">Nombre Completo</label>
@@ -544,10 +544,10 @@
                     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 border-top pt-3 mt-4">
                         <span id="permissions-status" class="small text-muted">Los cambios se aplican al guardar.</span>
                         <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetPermissions()">
+                            <button data-page-event="dashboard-33" type="button" class="btn btn-sm btn-outline-secondary">
                                 <i class="bi bi-arrow-counterclockwise me-1"></i> Restaurar
                             </button>
-                            <button type="button" class="btn btn-sm btn-action-primary" id="save-permissions-btn" onclick="savePermissions()">
+                            <button data-page-event="dashboard-34" type="button" class="btn btn-sm btn-action-primary" id="save-permissions-btn">
                                 <i class="bi bi-check-lg me-1"></i> Guardar cambios
                             </button>
                         </div>
@@ -570,7 +570,7 @@
                 </div>
                 <div class="modal-footer border-0 pt-0">
                     <button type="button" class="btn btn-sm btn-light-muted" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-sm btn-action-primary" onclick="createRole()">Guardar</button>
+                    <button data-page-event="dashboard-35" type="button" class="btn btn-sm btn-action-primary">Guardar</button>
                 </div>
             </div>
         </div>
@@ -638,7 +638,7 @@
                 </div>
                 <div class="modal-footer border-0 pt-0">
                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-sm btn-action-primary" onclick="saveUpdate()">
+                    <button data-page-event="dashboard-36" type="button" class="btn btn-sm btn-action-primary">
                         <i class="bi bi-check-circle me-1"></i>Guardar
                     </button>
                 </div>
@@ -664,7 +664,7 @@
                         </div>
                         <div class="col-6">
                             <label class="form-label small fw-medium text-secondary">Grupo / Canal</label>
-                            <select id="mk-grupo" class="form-select custom-input" onchange="toggleCustomInputs()">
+                            <select data-page-event="dashboard-37" id="mk-grupo" class="form-select custom-input">
                                 <option value="">Seleccionar...</option>
                             </select>
                             <input type="text" id="mk-grupo-custom" class="form-control custom-input d-none mt-1" placeholder="Nuevo grupo...">
@@ -691,7 +691,7 @@
                         </div>
                         <div class="col-6 col-md-4">
                             <label class="form-label small fw-medium text-secondary">Sucursal</label>
-                            <select id="mk-zona" class="form-select custom-input" onchange="filterGruposByZona()">
+                            <select data-page-event="dashboard-38" id="mk-zona" class="form-select custom-input">
                                 <option value="">Seleccionar...</option>
                             </select>
                             <input type="text" id="mk-zona-custom" class="form-control custom-input d-none mt-1" placeholder="Nueva sucursal...">
@@ -713,7 +713,7 @@
                         <i class="bi bi-trash3-fill me-1"></i>Eliminar
                     </button>
                     <button type="button" class="btn btn-sm btn-light-muted" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-sm btn-action-primary" onclick="saveMarketingRow()">
+                    <button data-page-event="dashboard-39" type="button" class="btn btn-sm btn-action-primary">
                         <i class="bi bi-check-lg me-1"></i>Guardar
                     </button>
                 </div>
@@ -739,13 +739,13 @@
                         </div>
                         <div class="col-6">
                             <label class="form-label small fw-medium text-secondary">Sucursal</label>
-                            <select id="bulk-zona" class="form-select custom-input" onchange="filterGruposBulk()">
+                            <select data-page-event="dashboard-40" id="bulk-zona" class="form-select custom-input">
                                 <option value="">Seleccionar...</option>
                             </select>
                         </div>
                         <div class="col-12">
                             <label class="form-label small fw-medium text-secondary">Grupos</label>
-                            <input type="text" id="bulk-grupo-search" class="form-control form-control-sm mb-2" placeholder="Buscar grupo..." oninput="filterGruposBulkSearch()">
+                            <input data-page-event="dashboard-41" type="text" id="bulk-grupo-search" class="form-control form-control-sm mb-2" placeholder="Buscar grupo...">
                             <div id="bulk-grupos-container" class="bulk-grupos-list"></div>
                         </div>
                         <div class="col-6 col-md-3">
@@ -782,7 +782,7 @@
                 </div>
                 <div class="modal-footer border-0 pt-0">
                     <button type="button" class="btn btn-sm btn-light-muted" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-sm btn-action-primary" onclick="saveBulkMarketing()">
+                    <button data-page-event="dashboard-42" type="button" class="btn btn-sm btn-action-primary">
                         <i class="bi bi-check-lg me-1"></i>Publicar en 0 grupos
                     </button>
                 </div>
@@ -793,32 +793,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="marketing-analysis.js"></script><script src="app.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const session = getCurrentSession();
-            if (!session) {
-                window.location.href = 'index.html';
-                return;
-            }
-            enterApp(session);
-            const sessionRole = (session.role || '').toLowerCase();
-            const isAdmin = sessionRole === 'admin';
-            const gestionLabel = document.getElementById('gestion-label');
-            const gestionItems = document.getElementById('gestion-items');
-            if (gestionLabel) gestionLabel.style.display = isAdmin ? '' : 'none';
-            if (gestionItems) gestionItems.style.display = isAdmin ? '' : 'none';
-            const informeBtn = document.getElementById('btn-informe');
-            if (informeBtn) informeBtn.style.display = isAdmin ? '' : 'none';
-            const navTarget = localStorage.getItem('navTarget');
-            if (navTarget === 'users') {
-                localStorage.removeItem('navTarget');
-                switchView('users');
-            } else if (navTarget === 'zonas') {
-                localStorage.removeItem('navTarget');
-                switchView('zonas');
-            }
-        });
-    </script>
+    <script src="assets/js/pages/dashboard.js"></script>
 
     <div class="modal fade" id="zonaModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -847,7 +822,7 @@
                 </div>
                 <div class="modal-footer border-0 pt-0">
                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-sm btn-action-primary" onclick="saveZona()">
+                    <button data-page-event="dashboard-43" type="button" class="btn btn-sm btn-action-primary">
                         <i class="bi bi-check-lg me-1"></i>Guardar
                     </button>
                 </div>
@@ -864,17 +839,18 @@
                 </div>
                 <div class="modal-body pt-3">
                     <p class="small text-muted">Usa los filtros de Publicaciones y el período elegido (30 días cuando seleccionás Todo). Las métricas son acumuladas de esas publicaciones, no incrementos dentro del período.</p>
-                    <textarea id="informe-texto" class="form-control" rows="16" readonly style="font-size:0.85rem;"></textarea>
+                    <textarea id="informe-texto" class="form-control page-dashboard-inline-6" rows="16" readonly></textarea>
                 </div>
                 <div class="modal-footer border-0 pt-0">
                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
-                    <button type="button" class="btn btn-sm btn-action-primary" onclick="copiarInforme()">
+                    <button data-page-event="dashboard-44" type="button" class="btn btn-sm btn-action-primary">
                         <i class="bi bi-clipboard me-1"></i> Copiar mensaje
                     </button>
                 </div>
             </div>
         </div>
     </div>
+    <script src="assets/js/pages/dashboard-events.js"></script>
 </body>
 
 </html>

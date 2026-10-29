@@ -2894,6 +2894,7 @@ function refreshZonasEditControls() {
   if (addBox) addBox.style.display = can ? '' : 'none';
   const container = document.getElementById('view-zonas');
   if (container) container.querySelectorAll('[data-zona-control]').forEach(el => {
+    el.hidden = !can;
     el.style.display = can ? '' : 'none';
   });
 }
@@ -3185,7 +3186,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     });
-    sidebar.querySelectorAll('div.menu-item[onclick]').forEach(item => {
+    sidebar.querySelectorAll('div.menu-item[data-page-event]').forEach(item => {
       item.setAttribute('role', 'button');
       item.tabIndex = 0;
       item.addEventListener('keydown', event => {

@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="generador-imagenes.css">
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <link rel="stylesheet" href="assets/css/pages/generador-imagenes.css">
 </head>
 
 <body>
@@ -22,7 +23,7 @@
                         <img src="img/isotiposinfondo.png" alt="Potage" class="logo-img">
                         <span class="logo-text">Potage</span>
                     </div>
-                    <button class="sidebar-toggle" onclick="toggleSidebar()">
+                    <button data-page-event="generador-imagenes-1" class="sidebar-toggle">
                         <i class="bi bi-x-lg"></i>
                     </button>
                 </div>
@@ -49,7 +50,7 @@
                             <i class="bi bi-diagram-3"></i>
                             <span>Grupos</span>
                         </a>
-                        <a href="dashboard.html" class="menu-item submenu-item" id="btn-nav-zonas" onclick="localStorage.setItem('navTarget','zonas');window.location='dashboard.html'">
+                        <a data-page-event="generador-imagenes-2" href="dashboard.html" class="menu-item submenu-item" id="btn-nav-zonas">
                             <i class="bi bi-map-fill"></i>
                             <span>Sucursales de redes</span>
                         </a>
@@ -87,7 +88,7 @@
 
                 <div class="menu-section-label" id="gestion-label">Gestión</div>
                 <div id="gestion-items">
-                    <a href="dashboard.html" class="menu-item submenu-item" id="btn-nav-users" onclick="localStorage.setItem('navTarget','users');window.location='dashboard.html'">
+                    <a data-page-event="generador-imagenes-3" href="dashboard.html" class="menu-item submenu-item" id="btn-nav-users">
                         <i class="bi bi-people-fill"></i>
                         <span>Usuarios</span>
                     </a>
@@ -99,11 +100,11 @@
             </nav>
 
             <div class="sidebar-footer">
-                <a href="ayuda.html" class="menu-item submenu-item" style="border-radius:8px;margin-bottom:8px">
+                <a href="ayuda.html" class="menu-item submenu-item page-generador-imagenes-inline-1">
                     <i class="bi bi-question-circle-fill"></i>
                     <span>Ayuda</span>
                 </a>
-                <button type="button" class="theme-toggle-row" onclick="toggleTheme()" title="Cambiar tema">
+                <button data-page-event="generador-imagenes-4" type="button" class="theme-toggle-row" title="Cambiar tema">
                     <i class="bi bi-moon-stars-fill theme-toggle-icon"></i>
                     <span class="theme-toggle-label">Modo oscuro</span>
                     <span class="theme-switch"><span class="theme-switch-thumb"></span></span>
@@ -121,7 +122,7 @@
         <main class="main-content">
             <header class="top-navbar">
                 <div class="d-flex align-items-center gap-3">
-                    <button class="sidebar-toggle" onclick="toggleSidebar()">
+                    <button data-page-event="generador-imagenes-5" class="sidebar-toggle">
                         <i class="bi bi-list"></i>
                     </button>
                     <div class="page-context">
@@ -215,7 +216,7 @@
                     </div>
                     <div class="gen-canvas-container" id="canvas-container">
                         <div class="gen-canvas" id="gen-canvas">
-                            <img id="template-img" class="gen-template" alt="Plantilla" style="display:none;">
+                            <img id="template-img" class="gen-template page-generador-imagenes-inline-2" alt="Plantilla">
                             <div id="price-layer"></div>
                         </div>
                     </div>
@@ -227,6 +228,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="marketing-analysis.js"></script><script src="app.js"></script>
     <script src="generador-imagenes.js"></script>
+    <script src="assets/js/pages/generador-imagenes-events.js"></script>
 </body>
 
 </html>

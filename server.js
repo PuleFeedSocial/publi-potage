@@ -39,6 +39,7 @@ app.use('/api', require('./services/validation').objectBody);
 // Archivos públicos: solo front-end. Nunca servir código del servidor,
 // node_modules, .env, package.json ni la base de datos.
 const PUBLIC_FILES = new Set([
+  ...require('./assets/page-assets.json'),
   'index.html', 'login.html', 'register.html', 'dashboard.html', 'grupos.html',
   'informes.html', 'sucursales.html', 'calendario.html', 'logs.html', 'ayuda.html',
   'account-settings.html', 'productos.html', 'productos.js', 'productos.css', 'egg-prices.js', 'regiones.html', 'regiones.js',

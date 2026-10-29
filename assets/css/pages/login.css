@@ -1,0 +1,9 @@
+
+body:has(#forgot-form:not(.d-none)) .auth-card{max-width:520px;padding:24px}
+body:has(#forgot-form:not(.d-none)) .auth-card-header{margin-bottom:16px}
+body:has(#forgot-form:not(.d-none)) .auth-logo{margin-bottom:10px}
+body:has(#forgot-form:not(.d-none)) .auth-card-footer{margin-top:16px;padding-top:14px}
+
+
+/* Static element styles formerly embedded in the page markup. */
+

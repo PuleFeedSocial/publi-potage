@@ -17,7 +17,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <script src="theme.js"></script>
     <link rel="stylesheet" href="style.css">
-<link rel="stylesheet" href="productos.css"></head>
+<link rel="stylesheet" href="productos.css">    <link rel="stylesheet" href="assets/css/pages/regiones.css">
+</head>
 
 <body>
 
@@ -29,7 +30,7 @@
                         <img src="img/isotiposinfondo.png" alt="Potage" class="logo-img">
                         <span class="logo-text">Potage SRL</span>
                     </div>
-                    <button class="sidebar-toggle" onclick="toggleSidebar()">
+                    <button data-page-event="regiones-1" class="sidebar-toggle">
                         <i class="bi bi-x-lg"></i>
                     </button>
                 </div>
@@ -48,7 +49,7 @@
                     <i class="bi bi-diagram-3"></i>
                     <span>Grupos</span>
                 </a>
-<a href="dashboard.html" class="menu-item submenu-item" id="btn-nav-zonas" onclick="localStorage.setItem('navTarget','zonas');window.location='dashboard.html'">
+<a data-page-event="regiones-2" href="dashboard.html" class="menu-item submenu-item" id="btn-nav-zonas">
                     <i class="bi bi-map-fill"></i>
                     <span>Sucursales de redes</span>
                 </a></div></details><details class="sidebar-nav-group" id="nav-interno" open><summary class="menu-item"><i class="bi bi-building" aria-hidden="true"></i><span>Interno</span><i class="bi bi-chevron-down nav-group-chevron" aria-hidden="true"></i></summary><div class="sidebar-submenu"><a href="productos.html" class="menu-item submenu-item" id="btn-nav-productos"><i class="bi bi-box-seam"></i><span>Productos</span></a>
@@ -62,7 +63,7 @@
                 </a>
 <div class="menu-section-label" id="gestion-label">Gestión</div>
                 <div id="gestion-items">
-                    <a href="dashboard.html" class="menu-item submenu-item" id="btn-nav-users" onclick="localStorage.setItem('navTarget','users');window.location='dashboard.html'">
+                    <a data-page-event="regiones-3" href="dashboard.html" class="menu-item submenu-item" id="btn-nav-users">
                         <i class="bi bi-people-fill"></i>
                         <span>Usuarios</span>
                     </a>
@@ -74,11 +75,11 @@
             </nav>
 
             <div class="sidebar-footer">
-                <a href="ayuda.html" class="menu-item submenu-item" style="border-radius:8px;margin-bottom:8px">
+                <a href="ayuda.html" class="menu-item submenu-item page-regiones-inline-1">
                     <i class="bi bi-question-circle-fill"></i>
                     <span>Ayuda</span>
                 </a>
-                <button type="button" class="theme-toggle-row" onclick="toggleTheme()" title="Cambiar tema">
+                <button data-page-event="regiones-4" type="button" class="theme-toggle-row" title="Cambiar tema">
                     <i class="bi bi-moon-stars-fill theme-toggle-icon"></i>
                     <span class="theme-toggle-label">Modo oscuro</span>
                     <span class="theme-switch"><span class="theme-switch-thumb"></span></span>
@@ -101,7 +102,7 @@
         <main class="main-content">
             <header class="top-navbar">
                 <div class="d-flex align-items-center gap-3">
-                    <button class="sidebar-toggle" onclick="toggleSidebar()">
+                    <button data-page-event="regiones-5" class="sidebar-toggle">
                         <i class="bi bi-list"></i>
                     </button>
                     <div class="page-context">
@@ -121,7 +122,7 @@
                                 <i class="bi bi-gear me-2"></i>Ajustes de la cuenta
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item text-danger" href="#" onclick="logout()">
+                            <li><a data-page-event="regiones-6" class="dropdown-item text-danger" href="#">
                                 <i class="bi bi-box-arrow-right me-2"></i>Cerrar Sesión
                             </a></li>
                         </ul>
@@ -154,4 +155,5 @@
 <p id="region-error" role="status" aria-live="polite" class="mt-3"></p>
 <div class="product-form-actions mt-4"><button type="button" id="region-delete" class="btn btn-outline-danger">Eliminar región</button><button type="button" id="region-cancel" class="btn btn-outline-secondary">Cancelar</button><button type="submit" class="btn btn-action-primary">Guardar cambios</button></div>
 </fieldset></form></dialog>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script><script src="marketing-analysis.js"></script><script src="app.js"></script><script src="regiones.js"></script></body></html>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script><script src="marketing-analysis.js"></script><script src="app.js"></script><script src="regiones.js"></script>    <script src="assets/js/pages/regiones-events.js"></script>
+</body></html>

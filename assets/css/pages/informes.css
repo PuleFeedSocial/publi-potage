@@ -1,0 +1,10 @@
+
+        .text-truncate-cell { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .text-truncate-cell:hover { overflow: visible; white-space: normal; background: #fff; position: relative; z-index: 1; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .data-table-card { overflow-x: hidden; }
+        .data-table-card .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+        #informes-table { table-layout: auto; width: 100%; }
+    
+
+/* Static element styles formerly embedded in the page markup. */
+html .page-informes-inline-1 { border-radius:8px;margin-bottom:8px }

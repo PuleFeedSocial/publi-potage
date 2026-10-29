@@ -5,7 +5,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const html = fs.readFileSync(path.join(__dirname, '../calendario.html'), 'utf8');
-const script = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]).join('\n');
+const script = fs.readFileSync(path.join(__dirname, '../assets/js/pages/calendario.js'), 'utf8');
 
 function calendar(user) {
   const elements = new Map();

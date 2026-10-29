@@ -17,16 +17,12 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <script src="theme.js"></script>
     <link rel="stylesheet" href="style.css">
-<style>
-body:has(#forgot-form:not(.d-none)) .auth-card{max-width:520px;padding:24px}
-body:has(#forgot-form:not(.d-none)) .auth-card-header{margin-bottom:16px}
-body:has(#forgot-form:not(.d-none)) .auth-logo{margin-bottom:10px}
-body:has(#forgot-form:not(.d-none)) .auth-card-footer{margin-top:16px;padding-top:14px}
-</style></head>
+    <link rel="stylesheet" href="assets/css/pages/login.css">
+</head>
 
 <body>
 
-    <button type="button" class="theme-toggle-btn-floating" onclick="toggleTheme()" title="Cambiar tema">
+    <button data-page-event="login-1" type="button" class="theme-toggle-btn-floating" title="Cambiar tema">
         <i class="bi bi-moon-stars-fill theme-toggle-icon"></i>
     </button>
 
@@ -42,7 +38,7 @@ body:has(#forgot-form:not(.d-none)) .auth-card-footer{margin-top:16px;padding-to
                     <h2>Iniciar Sesión</h2>
                     <p class="text-muted">Ingresá tus credenciales para acceder al dashboard</p>
                 </div>
-                <form id="login-form" onsubmit="handleLogin(event)">
+                <form data-page-event="login-2" id="login-form">
                     <div class="mb-3">
                         <label for="login-email" class="form-label small fw-medium text-secondary">Correo Electrónico</label>
                         <input type="email" id="login-email" autocomplete="username" class="form-control custom-input" placeholder="tu@correo.com" required>
@@ -50,11 +46,11 @@ body:has(#forgot-form:not(.d-none)) .auth-card-footer{margin-top:16px;padding-to
                     <div class="mb-4">
                         <div class="d-flex justify-content-between align-items-center mb-1">
                             <label for="login-password" class="form-label small fw-medium text-secondary mb-0">Contraseña</label>
-                            <a href="#" class="small text-decoration-none" onclick="showForgot();return false;">¿Olvidaste tu contraseña?</a>
+                            <a data-page-event="login-3" href="#" class="small text-decoration-none">¿Olvidaste tu contraseña?</a>
                         </div>
                         <div class="input-group">
                             <input type="password" id="login-password" autocomplete="current-password" class="form-control custom-input" placeholder="••••••••" required minlength="6">
-                            <button aria-label="Mostrar contraseña" aria-pressed="false" class="btn btn-outline-secondary password-toggle" type="button" onclick="togglePassword('login-password', this)">
+                            <button data-page-event="login-4" aria-label="Mostrar contraseña" aria-pressed="false" class="btn btn-outline-secondary password-toggle" type="button">
                                 <i class="bi bi-eye"></i>
                             </button>
                         </div>
@@ -62,7 +58,7 @@ body:has(#forgot-form:not(.d-none)) .auth-card-footer{margin-top:16px;padding-to
                     <button type="submit" class="btn btn-action-primary w-100">Acceder al Dashboard</button>
                 </form>
 
-                <form id="forgot-form" class="d-none" onsubmit="handleForgot(event)">
+                <form data-page-event="login-5" id="forgot-form" class="d-none">
                     <p class="small text-muted">Ingresá el correo actual de tu cuenta y el mismo código con el que te registraste. Si no tenés el código, contactá al administrador.</p>
 
                     <div class="mb-3">
@@ -78,7 +74,7 @@ body:has(#forgot-form:not(.d-none)) .auth-card-footer{margin-top:16px;padding-to
                         <label for="forgot-password" class="form-label small fw-medium text-secondary">Nueva Contraseña</label>
                         <div class="input-group">
                             <input type="password" id="forgot-password" autocomplete="new-password" class="form-control custom-input" placeholder="Mínimo 6 caracteres" required minlength="6">
-                            <button aria-label="Mostrar contraseña" aria-pressed="false" class="btn btn-outline-secondary password-toggle" type="button" onclick="togglePassword('forgot-password', this)">
+                            <button data-page-event="login-6" aria-label="Mostrar contraseña" aria-pressed="false" class="btn btn-outline-secondary password-toggle" type="button">
                                 <i class="bi bi-eye"></i>
                             </button>
                         </div>
@@ -87,13 +83,13 @@ body:has(#forgot-form:not(.d-none)) .auth-card-footer{margin-top:16px;padding-to
                         <label for="forgot-confirm" class="form-label small fw-medium text-secondary">Confirmar Nueva Contraseña</label>
                         <div class="input-group">
                             <input type="password" id="forgot-confirm" autocomplete="new-password" class="form-control custom-input" placeholder="Repetí la contraseña" required minlength="6">
-                            <button aria-label="Mostrar contraseña" aria-pressed="false" class="btn btn-outline-secondary password-toggle" type="button" onclick="togglePassword('forgot-confirm', this)">
+                            <button data-page-event="login-7" aria-label="Mostrar contraseña" aria-pressed="false" class="btn btn-outline-secondary password-toggle" type="button">
                                 <i class="bi bi-eye"></i>
                             </button>
                         </div>
                     </div>
                     <button type="submit" id="forgot-submit" class="btn btn-action-primary w-100">Restablecer Contraseña</button>
-                    <button type="button" class="btn btn-link w-100 mt-1 text-secondary text-decoration-none" onclick="showLogin()">
+                    <button data-page-event="login-8" type="button" class="btn btn-link w-100 mt-1 text-secondary text-decoration-none">
                         Volver a iniciar sesión
                     </button>
                 </form>
@@ -115,85 +111,8 @@ body:has(#forgot-form:not(.d-none)) .auth-card-footer{margin-top:16px;padding-to
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="marketing-analysis.js"></script><script src="app.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            if (getCurrentSession()) {
-                window.location.href = 'dashboard.html';
-            }
-        });
-        function togglePassword(inputId, btn) {
-            const input = document.getElementById(inputId);
-            const isPassword = input.type === 'password';
-            input.type = isPassword ? 'text' : 'password';
-            btn.setAttribute('aria-label', isPassword ? 'Ocultar contraseña' : 'Mostrar contraseña');
-            btn.setAttribute('aria-pressed', String(isPassword));
-            btn.innerHTML = isPassword ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
-        }
-
-        function showForgot() {
-            document.getElementById('login-form').classList.add('d-none');
-            document.getElementById('forgot-form').classList.remove('d-none');
-            document.getElementById('forgot-feedback').classList.add('d-none');
-            document.querySelector('.auth-card-header h2').innerText = 'Recuperar Contraseña';
-            document.querySelector('.auth-card-header p').innerText = 'Restablecé tu clave con tu código de activación';
-        }
-
-        function showLogin() {
-            document.getElementById('forgot-form').classList.add('d-none');
-            document.getElementById('forgot-feedback').classList.add('d-none');
-            document.getElementById('login-form').classList.remove('d-none');
-            document.querySelector('.auth-card-header h2').innerText = 'Iniciar Sesión';
-            document.querySelector('.auth-card-header p').innerText = 'Ingresá tus credenciales para acceder al dashboard';
-        }
-
-        function forgotFeedback(msg, type) {
-            const el = document.getElementById('forgot-feedback');
-            el.className = 'mt-3 small alert alert-' + type + ' py-2 px-3 mb-0';
-            el.innerText = msg;
-            el.classList.remove('d-none');
-        }
-
-        function handleForgot(e) {
-            e.preventDefault();
-            const email = document.getElementById('forgot-email').value.trim();
-            const code = document.getElementById('forgot-code').value.trim();
-            const pw = document.getElementById('forgot-password').value;
-            const confirm = document.getElementById('forgot-confirm').value;
-
-            if (!/^[0-9]{6}$/.test(code)) { forgotFeedback('El código de activación debe tener 6 dígitos.', 'danger'); return; }
-            if (pw.length < 6) { forgotFeedback('La nueva contraseña debe tener al menos 6 caracteres.', 'danger'); return; }
-            if (pw !== confirm) { forgotFeedback('Las contraseñas no coinciden.', 'danger'); return; }
-
-            const btn = document.getElementById('forgot-submit');
-            const orig = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Procesando...';
-
-            fetch(API_BASE + '/api/auth/forgot-password', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, activationCode: code, newPassword: pw })
-            })
-                .then(r => r.json().then(b => ({ status: r.status, body: b })))
-                .then(({ status, body }) => {
-                    btn.disabled = false;
-                    btn.innerHTML = orig;
-                    if (status !== 200) { forgotFeedback(body.error || 'No se pudo restablecer la contraseña.', 'danger'); return; }
-                    forgotFeedback('Contraseña restablecida correctamente. Ya podés iniciar sesión.', 'success');
-                    document.getElementById('forgot-form').reset();
-                    setTimeout(showLogin, 1800);
-                })
-                .catch(() => {
-                    btn.disabled = false;
-                    btn.innerHTML = orig;
-                    forgotFeedback('Error de conexión con el servidor.', 'danger');
-                });
-        }
-
-        document.getElementById('forgot-code').addEventListener('input', function () {
-            this.value = this.value.replace(/\D/g, '');
-        });
-    </script>
+    <script src="assets/js/pages/login.js"></script>
+    <script src="assets/js/pages/login-events.js"></script>
 </body>
 
 </html>

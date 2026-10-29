@@ -1,0 +1,1342 @@
+        const CAL_MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        const CAL_MESES_LOWER = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+        const CAL_MESES_SHORT = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+        const CAL_DOW_FULL = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+        const CAL_DOW_SHORT = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM'];
+        const CAL_RECURRENCIA_LABEL = { diaria: 'Diaria', semanal: 'Semanal', mensual: 'Mensual' };
+        const CAL_RECURRENCIA_TOTAL = { diaria: 60, semanal: 52, mensual: 24 };
+
+        let calEvents = [];
+        let calView = 'mes';
+        let calFocus = '';
+        let calSelected = '';
+        let calRange = null;
+        let calLoading = false;
+        let calLoadError = false;
+        let calBusy = false;
+        let calDetailId = null;
+        let calUsers = [];
+        let calUsersLoaded = false;
+        let calScrolledTo = false;
+        let _lastCalSnapshot = '';
+        let _calSuppressClick = false;
+        let calDrag = null;
+        let calPendingResp = '';
+
+        /* ---------- utilidades de fecha (fechas como texto local, sin zonas UTC) ---------- */
+        function pad2(n) { return String(n).padStart(2, '0'); }
+        function calIso(y, m, d) {
+            const dt = new Date(y, m, d);
+            return dt.getFullYear() + '-' + pad2(dt.getMonth() + 1) + '-' + pad2(dt.getDate());
+        }
+        function calTodayIso() { const d = new Date(); return calIso(d.getFullYear(), d.getMonth(), d.getDate()); }
+        function calParse(iso) { const p = String(iso || '').split('-'); return { y: parseInt(p[0]), m: parseInt(p[1]) - 1, d: parseInt(p[2]) }; }
+        function calD(iso) { const p = calParse(iso); return new Date(p.y, p.m, p.d); }
+        function calAdd(iso, n) { const dt = calD(iso); dt.setDate(dt.getDate() + n); return calIso(dt.getFullYear(), dt.getMonth(), dt.getDate()); }
+        function calMonthStart(iso) { const p = calParse(iso); return calIso(p.y, p.m, 1); }
+        function calMonthEnd(iso) { const p = calParse(iso); return calIso(p.y, p.m + 1, 0); }
+        function calStartOfWeek(iso) { const dt = calD(iso); return calAdd(iso, -((dt.getDay() + 6) % 7)); }
+        function calFechaLarga(iso) {
+            const p = calParse(iso);
+            if (isNaN(p.y)) return '—';
+            return CAL_DOW_FULL[(calD(iso).getDay() + 6) % 7] + ', ' + p.d + ' de ' + CAL_MESES_LOWER[p.m] + ' de ' + p.y;
+        }
+        function calFechaMedia(iso) {
+            const p = calParse(iso);
+            if (isNaN(p.y)) return '—';
+            return p.d + ' de ' + CAL_MESES_LOWER[p.m] + ' de ' + p.y;
+        }
+        function minsOf(hora) {
+            if (!hora) return null;
+            const p = hora.split(':').map(Number);
+            return p[0] * 60 + p[1];
+        }
+        function hhmm(min) {
+            min = Math.max(0, Math.min(1439, Math.round(min)));
+            return pad2(Math.floor(min / 60)) + ':' + pad2(min % 60);
+        }
+        function fmtFechaHora(iso) {
+            if (!iso) return '';
+            const d = new Date(iso);
+            if (isNaN(d)) return '';
+            return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+        }
+        function calDuracionTexto(ev) {
+            if (!ev.hora) return 'Todo el día';
+            const s = minsOf(ev.hora);
+            let e = minsOf(ev.hora_fin);
+            if (e === null || e <= s) e = Math.min(s + 60, 1440);
+            const d = e - s;
+            const h = Math.floor(d / 60), m = d % 60;
+            if (h && m) return h + ' h ' + m + ' min';
+            if (h) return h + ' h';
+            return m + ' min';
+        }
+        function calRangoTexto(ev) {
+            if (!ev.hora) return 'Todo el día';
+            return ev.hora + (ev.hora_fin ? '–' + ev.hora_fin : '');
+        }
+        function calEndFecha(ev) { return ev.fecha_fin || ev.fecha; }
+        function calIsMulti(ev) { return !!(ev.fecha_fin && ev.fecha_fin !== ev.fecha); }
+        function calIsAdmin() { return sessionRole() === 'admin'; }
+        function calCanViewResponsible(ev) {
+            if (!ev.responsable_nombre) return false;
+            if (calIsAdmin()) return true;
+            const session = getCurrentSession();
+            return !!(session && session.id && ev.responsable_id &&
+                String(ev.responsable_id) === String(session.id));
+        }
+        function calCanComplete() { return hasPermission('complete_calendario'); }
+
+        function normEvent(ev) {
+            if (!ev) return ev;
+            if (ev.estado === 'completada') ev.estado = 'realizada';
+            ev.hora = ev.hora || '';
+            ev.hora_fin = ev.hora_fin || '';
+            ev.fecha_fin = ev.fecha_fin || '';
+            ev.recurrencia = ev.recurrencia || 'none';
+            ev.descripcion = ev.descripcion || '';
+            return ev;
+        }
+        function applyItem(item) {
+            if (!item) return;
+            normEvent(item);
+            const i = calEvents.findIndex(x => x.id === item.id);
+            if (i >= 0) calEvents[i] = item;
+            else calEvents.push(item);
+        }
+        function applyItems(items) { (items || []).forEach(applyItem); }
+
+        /* ---------- filtros ---------- */
+        function calFilters() {
+            const estado = document.getElementById('cal-filter-estado').value;
+            return {
+                q: (document.getElementById('cal-search').value || '').toLowerCase().trim(),
+                tipo: document.getElementById('cal-filter-tipo').value,
+                estado: estado === 'completada' ? 'realizada' : estado,
+                resp: document.getElementById('cal-filter-resp').value
+            };
+        }
+        function calAnyFilter(f) {
+            f = f || calFilters();
+            return !!(f.q || f.tipo || f.estado || f.resp);
+        }
+        function calMatch(ev, f) {
+            if (f.tipo && ev.tipo !== f.tipo) return false;
+            if (f.estado && ev.estado !== f.estado) return false;
+            if (f.resp && String(ev.responsable_id || '') !== f.resp) return false;
+            if (f.q) {
+                const s = ((ev.titulo || '') + ' ' + (ev.descripcion || '')).toLowerCase();
+                if (s.indexOf(f.q) === -1) return false;
+            }
+            return true;
+        }
+        function calVisibleEvents(f) {
+            f = f || calFilters();
+            return calEvents.filter(ev => calMatch(ev, f));
+        }
+        function saveCalFilters() {
+            localStorage.setItem('calFilterTipo', document.getElementById('cal-filter-tipo').value);
+            localStorage.setItem('calFilterEstado', document.getElementById('cal-filter-estado').value);
+            localStorage.setItem('calFilterResp', document.getElementById('cal-filter-resp').value);
+            localStorage.setItem('calFilterSearch', document.getElementById('cal-search').value);
+        }
+        function restoreCalFilters() {
+            const t = localStorage.getItem('calFilterTipo');
+            const e = localStorage.getItem('calFilterEstado');
+            const r = localStorage.getItem('calFilterResp');
+            const s = localStorage.getItem('calFilterSearch');
+            if (t) document.getElementById('cal-filter-tipo').value = t;
+            if (e) document.getElementById('cal-filter-estado').value = (e === 'completada' ? 'realizada' : e);
+            if (r) document.getElementById('cal-filter-resp').value = r;
+            if (s) document.getElementById('cal-search').value = s;
+        }
+        function calClearFilters() {
+            document.getElementById('cal-filter-tipo').value = '';
+            document.getElementById('cal-filter-estado').value = '';
+            document.getElementById('cal-filter-resp').value = '';
+            document.getElementById('cal-search').value = '';
+            saveCalFilters();
+            renderAll();
+        }
+        function calRebuildRespOptions() {
+            if (!calIsAdmin()) {
+                const sel = document.getElementById('cal-filter-resp');
+                if (sel) {
+                    sel.innerHTML = '<option value="">Todos los responsables</option>';
+                    sel.value = '';
+                }
+                return;
+            }
+            const sel = document.getElementById('cal-filter-resp');
+            const cur = sel.value;
+            const map = {};
+            calEvents.forEach(ev => {
+                if (ev.responsable_id && ev.responsable_nombre) map[ev.responsable_id] = ev.responsable_nombre;
+            });
+            sel.innerHTML = '<option value="">Todos los responsables</option>' +
+                Object.keys(map).map(id => '<option value="' + id + '">' + escHtml(map[id]) + '</option>').join('');
+            if (cur && map[cur]) sel.value = cur;
+        }
+
+        /* ---------- toast con Deshacer ---------- */
+        function calToast(mensaje, tipo, undoFn) {
+            let c = document.getElementById('toast-container');
+            if (!c) {
+                c = document.createElement('div');
+                c.id = 'toast-container';
+                c.style.cssText = 'position:fixed;top:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px;';
+                document.body.appendChild(c);
+            }
+            const color = tipo === 'success' ? '#16a34a' : (tipo === 'error' ? '#dc2626' : '#0f172a');
+            const t = document.createElement('div');
+            t.style.cssText = 'background:' + color + ';color:#fff;padding:9px 14px;border-radius:8px;font-size:0.85rem;font-weight:500;box-shadow:0 4px 12px rgba(0,0,0,0.2);max-width:360px;display:flex;align-items:center;gap:14px;';
+            const span = document.createElement('span');
+            span.textContent = mensaje;
+            t.appendChild(span);
+            if (undoFn) {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.textContent = 'Deshacer';
+                b.className = 'cal-undo-btn';
+                b.onclick = () => { t.remove(); undoFn(); };
+                t.appendChild(b);
+            }
+            c.appendChild(t);
+            setTimeout(() => {
+                t.style.transition = 'opacity .3s';
+                t.style.opacity = '0';
+                setTimeout(() => t.remove(), 300);
+            }, undoFn ? 6000 : 2600);
+        }
+
+        /* ---------- carga por rango visible ---------- */
+        function calRangeFor() {
+            let start, end;
+            if (calView === 'semana') {
+                start = calStartOfWeek(calFocus);
+                end = calAdd(start, 6);
+            } else if (calView === 'dia') {
+                start = calFocus; end = calFocus;
+            } else if (calView === 'agenda') {
+                start = calFocus; end = calAdd(calFocus, 90);
+            } else {
+                start = calMonthStart(calFocus); end = calMonthEnd(calFocus);
+            }
+            return { desde: calAdd(start, -14), hasta: calAdd(end, 60) };
+        }
+        function calNeedsLoad() {
+            const r = calRangeFor();
+            return !calRange || r.desde < calRange.desde || r.hasta > calRange.hasta;
+        }
+        function loadCalendario(silent) {
+            if (calLoading) return;
+            const r = calRangeFor();
+            calLoading = true;
+            if (!silent) { calLoadError = false; renderAll(); }
+            authFetch(API_BASE + '/api/calendario?desde=' + r.desde + '&hasta=' + r.hasta)
+                .then(res => res.json().then(b => ({ status: res.status, body: b })))
+                .then(({ status, body }) => {
+                    calLoading = false;
+                    if (status !== 200) {
+                        if (silent) return;
+                        calLoadError = true;
+                        renderAll();
+                        showToast(body.error || 'Error al cargar el calendario.', 'error');
+                        return;
+                    }
+                    const data = (body.data || []).map(normEvent);
+                    const snap = JSON.stringify(data);
+                    if (silent && snap === _lastCalSnapshot) { renderAll(); return; }
+                    _lastCalSnapshot = snap;
+                    calEvents = data;
+                    calRange = r;
+                    renderAll();
+                })
+                .catch(() => {
+                    calLoading = false;
+                    if (silent) return;
+                    calLoadError = true;
+                    renderAll();
+                    showToast('Error de conexión con el servidor.', 'error');
+                });
+        }
+
+        /* ---------- navegación y vistas ---------- */
+        function calSetView(v) {
+            if (['mes', 'semana', 'dia', 'agenda'].indexOf(v) === -1) return;
+            calView = v;
+            localStorage.setItem('calView', v);
+            calScrolledTo = false;
+            if (calNeedsLoad()) loadCalendario();
+            else renderAll();
+        }
+        function calNav(delta) {
+            if (calView === 'mes') {
+                const p = calParse(calFocus);
+                calFocus = calIso(p.y, p.m + delta, p.d);
+            } else if (calView === 'dia') {
+                calFocus = calAdd(calFocus, delta);
+            } else {
+                calFocus = calAdd(calFocus, delta * 7);
+            }
+            calSelected = calFocus;
+            calScrolledTo = false;
+            if (calNeedsLoad()) loadCalendario();
+            else renderAll();
+        }
+        function calGoToday() {
+            calFocus = calTodayIso();
+            calSelected = calFocus;
+            calScrolledTo = false;
+            if (calNeedsLoad()) loadCalendario();
+            else renderAll();
+        }
+        function calSelectDay(ds) {
+            const sameMonth = ds.slice(0, 7) === calFocus.slice(0, 7);
+            calSelected = ds;
+            if (!sameMonth && calView === 'mes') calFocus = ds;
+            renderAll();
+        }
+
+        /* ---------- render general ---------- */
+        function renderAll() {
+            renderToolbar();
+            renderView();
+            renderSidePanel();
+            renderFiltersBar();
+        }
+
+        function renderToolbar() {
+            const title = document.getElementById('cal-view-title');
+            let txt = '';
+            if (calView === 'mes') {
+                const p = calParse(calFocus);
+                txt = CAL_MESES[p.m] + ' ' + p.y;
+            } else if (calView === 'semana') {
+                const s = calStartOfWeek(calFocus), e = calAdd(s, 6);
+                const ps = calParse(s), pe = calParse(e);
+                if (s.slice(0, 7) === e.slice(0, 7)) {
+                    txt = ps.d + ' – ' + pe.d + ' de ' + CAL_MESES_LOWER[ps.m] + ' de ' + ps.y;
+                } else if (ps.y === pe.y) {
+                    txt = ps.d + ' ' + CAL_MESES_SHORT[ps.m] + ' – ' + pe.d + ' ' + CAL_MESES_SHORT[pe.m] + ' ' + pe.y;
+                } else {
+                    txt = ps.d + '/' + CAL_MESES_SHORT[ps.m] + '/' + ps.y + ' – ' + pe.d + '/' + CAL_MESES_SHORT[pe.m] + '/' + pe.y;
+                }
+            } else if (calView === 'dia') {
+                txt = calFechaLarga(calFocus);
+            } else {
+                txt = calFocus === calTodayIso() ? 'Agenda · próximos eventos' : 'Agenda · desde ' + isoToDate(calFocus);
+            }
+            title.textContent = txt;
+            document.querySelectorAll('.cal-view-btn').forEach(b => {
+                const on = b.dataset.view === calView;
+                b.classList.toggle('active', on);
+                b.setAttribute('aria-pressed', on ? 'true' : 'false');
+            });
+        }
+
+        function renderFiltersBar() {
+            const f = calFilters();
+            const vis = calVisibleEvents(f);
+            const count = document.getElementById('cal-filter-count');
+            count.textContent = calAnyFilter(f)
+                ? vis.length + ' de ' + calEvents.length + ' elementos'
+                : calEvents.length + (calEvents.length === 1 ? ' elemento' : ' elementos');
+            document.getElementById('cal-clear-filters').classList.toggle('d-none', !calAnyFilter(f));
+            calRebuildRespOptions();
+        }
+
+        function calStateHtml() {
+            if (calLoadError) {
+                return '<div class="cal-state-box"><i class="bi bi-cloud-slash"></i>' +
+                    '<p>No se pudieron cargar los eventos.</p>' +
+                    '<button type="button" class="btn btn-sm btn-action-primary" data-action="retry">Reintentar</button></div>';
+            }
+            if (calLoading) {
+                return '<div class="cal-skeleton"><span class="sk-bar" style="width:45%"></span>' +
+                    '<span class="sk-bar" style="width:80%"></span><span class="sk-bar" style="width:65%"></span>' +
+                    '<span class="sk-bar" style="width:72%"></span></div>';
+            }
+            return null;
+        }
+
+        function calEmptyHtml() {
+            const f = calFilters();
+            if (calAnyFilter(f)) {
+                return '<div class="cal-state-box"><i class="bi bi-funnel"></i>' +
+                    '<p>Los filtros no arrojan resultados.</p>' +
+                    '<button type="button" class="btn btn-sm btn-outline-secondary" data-action="clearfilters">Limpiar filtros</button></div>';
+            }
+            return '<div class="cal-state-box"><i class="bi bi-calendar-x"></i>' +
+                '<p>Sin elementos en este período.</p>' +
+                (calIsAdmin() ? '<button type="button" class="btn btn-sm btn-action-primary" data-action="new">Crear elemento</button>' : '') +
+                '</div>';
+        }
+
+        function renderView() {
+            const root = document.getElementById('cal-view-root');
+            const state = calStateHtml();
+            if (state) { root.innerHTML = state; return; }
+            if (calView === 'mes') renderMes(root);
+            else if (calView === 'agenda') renderAgenda(root);
+            else renderTimed(root);
+        }
+
+        /* ---------- chips (28–32px, hora + título, con acción de estado) ---------- */
+        function chipAria(ev) {
+            const estado = ev.estado === 'realizada' ? 'realizada' : 'pendiente';
+            return ev.titulo + ', ' + isoToDate(ev.fecha) + ', ' +
+                (ev.hora ? calRangoTexto(ev) : 'todo el día') + ', ' +
+                (ev.tipo === 'evento' ? 'evento' : 'tarea') + ', ' + estado;
+        }
+
+        function chipWrapHtml(ev, opts) {
+            opts = opts || {};
+            const done = ev.estado === 'realizada';
+            const toggleLabel = done ? 'Marcar como pendiente' : 'Marcar como realizada';
+            let inner;
+            if (opts.mode === 'block') {
+                inner = '<span class="blk-hora">' + escHtml(calRangoTexto(ev)) + '</span>' +
+                    '<span class="blk-title">' + escHtml(ev.titulo) + '</span>';
+            } else {
+                const time = ev.hora
+                    ? '<span class="chip-hora">' + escHtml(ev.hora) + '</span>'
+                    : '<i class="bi bi-calendar3 chip-ic-allday" aria-hidden="true"></i>';
+                inner = time + '<span class="chip-title">' + escHtml(ev.titulo) + '</span>';
+            }
+            const chipCls = 'cal-chip ' + (ev.tipo === 'evento' ? 'chip-evento' : 'chip-tarea') +
+                (done ? ' is-done' : '') + (opts.mode === 'block' ? ' is-block' : '');
+            return '<div class="chip-wrap' + (opts.wrapClass ? ' ' + opts.wrapClass : '') + '"' +
+                (opts.wrapStyle ? ' style="' + opts.wrapStyle + '"' : '') +
+                ' data-drag="1" data-id="' + ev.id + '">' +
+                '<button type="button" class="' + chipCls + '" data-action="detail" data-id="' + ev.id + '"' +
+                (opts.chipStyle ? ' style="' + opts.chipStyle + '"' : '') +
+                ' aria-label="' + escHtml(chipAria(ev)) + '">' + inner + '</button>' +
+                (calCanComplete()
+                    ? '<button type="button" class="chip-toggle" data-action="toggle" data-id="' + ev.id + '"' +
+                    ' title="' + toggleLabel + '" aria-label="' + toggleLabel + ': ' + escHtml(ev.titulo) + '">' +
+                    '<i class="bi ' + (done ? 'bi-arrow-counterclockwise' : 'bi-check2') + '"></i></button>'
+                    : '') +
+                '</div>';
+        }
+
+        function calItemHtml(ev, showDate) {
+            const done = ev.estado === 'realizada';
+            const icon = done ? 'bi-check2-circle' : (ev.tipo === 'evento' ? 'bi-calendar-event-fill' : 'bi-clipboard2-check-fill');
+            const iconCls = done ? 'icon-done' : (ev.tipo === 'evento' ? 'icon-evento' : 'icon-tarea');
+            const tipoBadge = ev.tipo === 'evento'
+                ? '<span class="cal-badge badge-evento"><i class="bi bi-calendar-event"></i> Evento</span>'
+                : '<span class="cal-badge badge-tarea"><i class="bi bi-clipboard2-check"></i> Tarea</span>';
+            const estadoBadge = done
+                ? '<span class="cal-badge badge-done"><i class="bi bi-check2-circle"></i> Realizada</span>'
+                : '<span class="cal-badge badge-pend"><i class="bi bi-hourglass-split"></i> Pendiente</span>';
+            const repBadge = ev.recurrencia !== 'none'
+                ? '<span class="cal-badge badge-rep"><i class="bi bi-arrow-repeat"></i> ' + CAL_RECURRENCIA_LABEL[ev.recurrencia] + '</span>'
+                : '';
+            let meta = tipoBadge + estadoBadge + repBadge;
+            if (showDate) meta += '<span class="cal-meta"><i class="bi bi-calendar3"></i> ' + isoToDate(ev.fecha) + '</span>';
+            if (ev.hora) meta += '<span class="cal-meta"><i class="bi bi-clock"></i> ' + escHtml(calRangoTexto(ev)) + '</span>';
+            if (calCanViewResponsible(ev)) {
+                meta += '<span class="cal-meta"><i class="bi bi-person"></i> ' + escHtml(ev.responsable_nombre) + '</span>';
+            }
+            if (calIsAdmin() && ev.realizado_en) {
+                meta += '<span class="cal-meta cal-meta-hecho"><i class="bi bi-person-check"></i> Hecho por ' +
+                    escHtml(ev.realizado_por_nombre || '—') + ' · ' + fmtFechaHora(ev.realizado_en) + '</span>';
+            }
+            const desc = ev.descripcion ? '<div class="cal-item-desc">' + escHtml(ev.descripcion) + '</div>' : '';
+
+            let actions = '';
+            if (calCanComplete()) {
+                actions += '<button class="cal-act' + (done ? ' is-done' : '') + '" data-action="toggle" data-id="' + ev.id + '"' +
+                    ' title="' + (done ? 'Marcar como pendiente' : 'Marcar como realizada') + '"' +
+                    ' aria-label="' + (done ? 'Marcar como pendiente' : 'Marcar como realizada') + ': ' + escHtml(ev.titulo) + '">' +
+                    '<i class="bi ' + (done ? 'bi-arrow-counterclockwise' : 'bi-check2-circle') + '"></i></button>';
+            }
+            if (calIsAdmin()) {
+                actions += '<button class="cal-act" data-action="edit" data-id="' + ev.id + '" title="Editar" aria-label="Editar: ' + escHtml(ev.titulo) + '">' +
+                    '<i class="bi bi-pencil-fill"></i></button>' +
+                    '<button class="cal-act act-danger" data-action="del" data-id="' + ev.id + '" title="Eliminar" aria-label="Eliminar: ' + escHtml(ev.titulo) + '">' +
+                    '<i class="bi bi-trash3-fill"></i></button>';
+            }
+            return '<div class="cal-item' + (done ? ' is-done' : '') + '" data-action="detail" data-id="' + ev.id + '" role="button" tabindex="0" aria-label="' + escHtml(chipAria(ev)) + '">' +
+                '<div class="cal-item-icon ' + iconCls + '"><i class="bi ' + icon + '"></i></div>' +
+                '<div class="cal-item-main">' +
+                '<div class="cal-item-title">' + escHtml(ev.titulo) + '</div>' +
+                '<div class="cal-item-meta">' + meta + '</div>' + desc +
+                '</div>' +
+                (actions ? '<div class="cal-item-actions">' + actions + '</div>' : '') +
+                '</div>';
+        }
+
+        /* ---------- vista mes ---------- */
+        function bucketForDay(vis, ds) {
+            return vis.filter(ev => ev.fecha <= ds && calEndFecha(ev) >= ds)
+                .sort((a, b) => {
+                    const ha = a.hora || '', hb = b.hora || '';
+                    if (ha !== hb) return ha.localeCompare(hb);
+                    if (a.estado !== b.estado) return a.estado === 'pendiente' ? -1 : 1;
+                    return a.id - b.id;
+                });
+        }
+
+        function renderMes(root) {
+            const first = calMonthStart(calFocus);
+            const last = calMonthEnd(calFocus);
+            const offset = (calD(first).getDay() + 6) % 7;
+            const daysInMonth = calParse(last).d;
+            const totalCells = Math.ceil((offset + daysInMonth) / 7) * 7;
+            const gridStart = calAdd(first, -offset);
+            const today = calTodayIso();
+            const f = calFilters();
+            const vis = calVisibleEvents(f);
+            const maxChips = 3;
+
+            let html = '<div class="cal-month" role="grid" aria-label="Vista mensual">' +
+                '<div class="cal-dow" role="row">' +
+                CAL_DOW_SHORT.map(d => '<span role="columnheader">' + d + '</span>').join('') +
+                '</div><div class="cal-month-grid">';
+
+            for (let i = 0; i < totalCells; i++) {
+                const ds = calAdd(gridStart, i);
+                const p = calParse(ds);
+                const inMonth = p.m === calParse(calFocus).m;
+                const items = bucketForDay(vis, ds);
+                const isToday = ds === today;
+                const isSel = ds === calSelected;
+                const cls = 'cal-day' + (inMonth ? '' : ' other-month') + (isToday ? ' today' : '') + (isSel ? ' selected' : '');
+                if (i % 7 === 0) html += '<div class="cal-week" role="row">';
+                html += '<div class="' + cls + '" role="gridcell" data-date="' + ds + '" tabindex="-1"' +
+                    ' aria-label="' + p.d + ' de ' + CAL_MESES_LOWER[p.m] + ', ' + items.length +
+                    (items.length === 1 ? ' elemento' : ' elementos') + '"' + (isSel ? ' aria-selected="true"' : '') + '>' +
+                    '<span class="cal-day-num">' + p.d + '</span>';
+                if (items.length) {
+                    html += '<div class="cal-chips">';
+                    items.slice(0, maxChips).forEach(ev => { html += chipWrapHtml(ev, { wrapClass: 'in-cell' }); });
+                    if (items.length > maxChips) {
+                        html += '<button type="button" class="cal-more" data-action="moredays" data-date="' + ds + '"' +
+                            ' aria-label="Ver los ' + items.length + ' elementos del ' + p.d + '">+' + (items.length - maxChips) + ' más</button>';
+                    }
+                    html += '</div>';
+                }
+                html += '</div>';
+                if (i % 7 === 6) html += '</div>';
+            }
+            html += '</div></div>';
+            root.innerHTML = html;
+        }
+
+        /* ---------- vistas semana / día (rejilla horaria) ---------- */
+        function calLayoutDay(list) {
+            const items = list.map(ev => {
+                const s = minsOf(ev.hora);
+                let e = minsOf(ev.hora_fin);
+                if (e === null || e <= s) e = Math.min(s + 60, 1440);
+                return { ev, start: s, end: e };
+            }).sort((a, b) => a.start - b.start || b.end - a.end);
+
+            const clusters = [];
+            let cur = [], curEnd = -1;
+            items.forEach(it => {
+                if (cur.length && it.start >= curEnd) { clusters.push(cur); cur = []; curEnd = -1; }
+                cur.push(it);
+                curEnd = Math.max(curEnd, it.end);
+            });
+            if (cur.length) clusters.push(cur);
+
+            const out = [];
+            clusters.forEach(cl => {
+                const colEnds = [];
+                cl.forEach(it => {
+                    let c = colEnds.findIndex(end => end <= it.start);
+                    if (c === -1) { c = colEnds.length; colEnds.push(0); }
+                    colEnds[c] = it.end;
+                    it.col = c;
+                });
+                const n = colEnds.length;
+                cl.forEach(it => out.push({ ev: it.ev, start: it.start, end: it.end, col: it.col, cols: n }));
+            });
+            return out;
+        }
+
+        function renderTimed(root) {
+            const esDia = calView === 'dia';
+            const start = esDia ? calFocus : calStartOfWeek(calFocus);
+            const days = [];
+            for (let i = 0; i < (esDia ? 1 : 7); i++) days.push(calAdd(start, i));
+            const today = calTodayIso();
+            const f = calFilters();
+            const vis = calVisibleEvents(f);
+            const cols = days.length;
+
+            let html = '<div class="cal-timewrap' + (cols === 7 ? ' is-week' : '') + '" style="--cal-cols:' + cols + '">' +
+                '<div class="cal-time-scroll" id="cal-time-scroll">' +
+                '<div class="cal-weekdays">' +
+                '<div class="cal-wd-spacer"></div>';
+            days.forEach(ds => {
+                const p = calParse(ds);
+                html += '<div class="cal-wd' + (ds === today ? ' is-today' : '') + '" aria-label="' + escHtml(calFechaLarga(ds)) + '">' +
+                    '<span class="cal-wd-name">' + CAL_DOW_SHORT[(calD(ds).getDay() + 6) % 7] + '</span>' +
+                    '<span class="cal-wd-num">' + p.d + '</span></div>';
+            });
+            html += '</div><div class="cal-allday"><div class="cal-allday-label">Todo el día</div>';
+            days.forEach(ds => {
+                const items = vis.filter(ev => (!ev.hora || calIsMulti(ev)) && ev.fecha <= ds && calEndFecha(ev) >= ds)
+                    .sort((a, b) => a.fecha.localeCompare(b.fecha) || a.id - b.id);
+                html += '<div class="cal-allday-col" data-date="' + ds + '">';
+                items.forEach(ev => {
+                    const cont = ev.fecha < ds;
+                    html += chipWrapHtml(ev, { mode: 'block', wrapClass: 'allday-bar' + (cont ? ' is-cont' : '') });
+                });
+                html += '</div>';
+            });
+            html += '</div><div class="cal-timegrid"><div class="cal-hours">';
+            for (let h = 0; h < 24; h++) html += '<div class="cal-hour-l"><span>' + pad2(h) + ':00</span></div>';
+            html += '</div>';
+
+            days.forEach(ds => {
+                const timed = vis.filter(ev => ev.hora && !calIsMulti(ev) && ev.fecha === ds);
+                const layout = calLayoutDay(timed);
+                html += '<div class="cal-daycol' + (ds === today ? ' is-today' : '') + '" data-date="' + ds + '"' +
+                    ' aria-label="' + escHtml(calFechaLarga(ds)) + '">';
+                if (ds === today) {
+                    const now = new Date();
+                    const min = now.getHours() * 60 + now.getMinutes();
+                    html += '<div class="cal-nowline" style="top:' + (min / 1440 * 100).toFixed(3) + '%"></div>';
+                }
+                layout.forEach(it => {
+                    const top = (it.start / 1440 * 100).toFixed(4);
+                    const heightPct = ((it.end - it.start) / 1440 * 100).toFixed(4);
+                    const left = (it.col / it.cols * 100).toFixed(3);
+                    const width = (100 / it.cols).toFixed(3);
+                    html += chipWrapHtml(it.ev, {
+                        mode: 'block',
+                        wrapClass: 'timed-blk',
+                        wrapStyle: 'top:calc(' + top + '% + 1px);height:calc(' + heightPct + '% - 3px);' +
+                            'left:calc(' + left + '% + 2px);width:calc(' + width + '% - 4px);'
+                    });
+                });
+                html += '</div>';
+            });
+
+            html += '</div></div></div>';
+            root.innerHTML = html;
+
+            if (!calScrolledTo) {
+                const sc = document.getElementById('cal-time-scroll');
+                if (sc) {
+                    const hourH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cal-hour-h')) || 48;
+                    let targetHour = 8;
+                    if (days.indexOf(today) !== -1) { const now = new Date(); targetHour = now.getHours(); }
+                    sc.scrollTop = Math.max(0, targetHour * hourH - 10);
+                    calScrolledTo = true;
+                }
+            }
+        }
+
+        /* ---------- vista agenda ---------- */
+        function renderAgenda(root) {
+            const f = calFilters();
+            const vis = calVisibleEvents(f)
+                .filter(ev => calEndFecha(ev) >= calFocus)
+                .sort((a, b) => (a.fecha + (a.hora || '')).localeCompare(b.fecha + (b.hora || '')) || a.id - b.id);
+            if (!vis.length) { root.innerHTML = calEmptyHtml(); return; }
+
+            const groups = {};
+            const order = [];
+            vis.forEach(ev => {
+                if (!groups[ev.fecha]) { groups[ev.fecha] = []; order.push(ev.fecha); }
+                groups[ev.fecha].push(ev);
+            });
+
+            let html = '<div class="cal-agenda">';
+            order.forEach(ds => {
+                const items = groups[ds];
+                const pend = items.filter(e => e.estado !== 'realizada').length;
+                html += '<div class="cal-agenda-day">' +
+                    '<div class="cal-agenda-head">' +
+                    '<span class="cal-agenda-date">' + escHtml(calFechaLarga(ds)) + '</span>' +
+                    '<span class="cal-agenda-count">' + items.length + (items.length === 1 ? ' elemento' : ' elementos') +
+                    ' · ' + pend + (pend === 1 ? ' pendiente' : ' pendientes') + '</span></div>' +
+                    '<div class="cal-agenda-items">' + items.map(ev => calItemHtml(ev, false)).join('') + '</div>' +
+                    '</div>';
+            });
+            html += '</div>';
+            root.innerHTML = html;
+        }
+
+        /* ---------- panel lateral ---------- */
+        function renderSidePanel() {
+            const dateEl = document.getElementById('cal-side-date');
+            const countEl = document.getElementById('cal-side-count');
+            const body = document.getElementById('cal-side-body');
+            dateEl.textContent = calFechaLarga(calSelected);
+
+            if (calLoadError) {
+                countEl.textContent = '';
+                body.innerHTML = '<div class="cal-state-box"><i class="bi bi-cloud-slash"></i>' +
+                    '<p>No se pudieron cargar los eventos.</p>' +
+                    '<button type="button" class="btn btn-sm btn-outline-secondary" data-action="retry">Reintentar</button></div>';
+                return;
+            }
+            if (calLoading) {
+                countEl.textContent = '';
+                body.innerHTML = '<div class="cal-skeleton"><span class="sk-bar" style="width:70%"></span>' +
+                    '<span class="sk-bar" style="width:90%"></span><span class="sk-bar" style="width:55%"></span></div>';
+                return;
+            }
+
+            const f = calFilters();
+            const vis = calVisibleEvents(f);
+            const dayItems = bucketForDay(vis, calSelected);
+            const pend = dayItems.filter(ev => ev.estado !== 'realizada');
+            const doneLst = dayItems.filter(ev => ev.estado === 'realizada');
+            countEl.textContent = dayItems.length
+                ? dayItems.length + (dayItems.length === 1 ? ' elemento' : ' elementos')
+                : '';
+
+            const nextItems = vis.filter(ev => ev.fecha > calSelected)
+                .sort((a, b) => (a.fecha + (a.hora || '')).localeCompare(b.fecha + (b.hora || '')))
+                .slice(0, 6);
+
+            let html = '';
+            if (!dayItems.length) {
+                html += '<div class="cal-empty">' +
+                    (calAnyFilter(f) ? 'Los filtros no arrojan resultados en esta fecha.' : 'Sin elementos en esta fecha.') +
+                    '</div>';
+                if (calAnyFilter(f)) {
+                    html += '<button type="button" class="btn btn-sm btn-outline-secondary w-100 mb-3" data-action="clearfilters">Limpiar filtros</button>';
+                }
+                if (calIsAdmin()) {
+                    html += '<button type="button" class="btn btn-sm btn-action-primary w-100 mb-3" data-action="new">Crear elemento para este día</button>';
+                }
+            } else {
+                if (pend.length) {
+                    html += '<div class="cal-side-group"><span class="cal-side-group-title">Pendientes</span>' +
+                        '<span class="cal-side-group-count">' + pend.length + '</span></div>' +
+                        pend.map(ev => calItemHtml(ev, false)).join('');
+                }
+                if (doneLst.length) {
+                    html += '<div class="cal-side-group"><span class="cal-side-group-title is-done">Realizadas</span>' +
+                        '<span class="cal-side-group-count">' + doneLst.length + '</span></div>' +
+                        doneLst.map(ev => calItemHtml(ev, false)).join('');
+                }
+            }
+            if (nextItems.length) {
+                html += '<div class="cal-side-group"><span class="cal-side-group-title">Próximos</span>' +
+                    '<span class="cal-side-group-count">' + nextItems.length + '</span></div>' +
+                    nextItems.map(ev => calItemHtml(ev, true)).join('');
+            }
+            body.innerHTML = html;
+        }
+
+        /* ---------- modal detalle ---------- */
+        function openDetail(id) {
+            calDetailId = id;
+            renderDetail();
+            const m = new bootstrap.Modal(document.getElementById('calDetailModal'));
+            m.show();
+        }
+
+        function renderDetail() {
+            const ev = calEvents.find(x => x.id === calDetailId);
+            const head = document.getElementById('cal-detail-head');
+            const body = document.getElementById('cal-detail-body');
+            const footer = document.getElementById('cal-detail-actions');
+            if (!ev) {
+                head.innerHTML = '';
+                body.innerHTML = '<p class="cal-empty">Este elemento ya no existe.</p>';
+                footer.innerHTML = '<button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>';
+                return;
+            }
+            const done = ev.estado === 'realizada';
+
+            head.innerHTML = '<div class="cal-detail-title">' +
+                '<span class="cal-item-icon ' + (done ? 'icon-done' : (ev.tipo === 'evento' ? 'icon-evento' : 'icon-tarea')) + '">' +
+                '<i class="bi ' + (done ? 'bi-check2-circle' : (ev.tipo === 'evento' ? 'bi-calendar-event-fill' : 'bi-clipboard2-check-fill')) + '"></i></span>' +
+                '<div><h5 class="mb-0">' + escHtml(ev.titulo) + '</h5>' +
+                '<div class="cal-item-meta">' +
+                (ev.tipo === 'evento'
+                    ? '<span class="cal-badge badge-evento"><i class="bi bi-calendar-event"></i> Evento</span>'
+                    : '<span class="cal-badge badge-tarea"><i class="bi bi-clipboard2-check"></i> Tarea</span>') +
+                (done
+                    ? '<span class="cal-badge badge-done"><i class="bi bi-check2-circle"></i> Realizada</span>'
+                    : '<span class="cal-badge badge-pend"><i class="bi bi-hourglass-split"></i> Pendiente</span>') +
+                (ev.recurrencia !== 'none'
+                    ? '<span class="cal-badge badge-rep"><i class="bi bi-arrow-repeat"></i> ' + CAL_RECURRENCIA_LABEL[ev.recurrencia] + '</span>'
+                    : '') +
+                '</div></div></div>';
+
+            let html = '<div class="cal-detail-rows">' +
+                '<div class="cal-detail-row"><i class="bi bi-calendar3"></i><div><strong>Fecha</strong>' +
+                '<span>' + escHtml(calFechaMedia(ev.fecha)) +
+                (ev.fecha_fin ? ' → ' + escHtml(calFechaMedia(ev.fecha_fin)) : '') + '</span></div></div>' +
+                '<div class="cal-detail-row"><i class="bi bi-clock"></i><div><strong>Hora</strong>' +
+                '<span>' + escHtml(ev.hora ? calDuracionTexto(ev) + ' (' + calRangoTexto(ev) + ')' : 'Todo el día') + '</span></div></div>';
+            if (calCanViewResponsible(ev)) {
+                html += '<div class="cal-detail-row"><i class="bi bi-person"></i><div><strong>Responsable</strong>' +
+                    '<span>' + escHtml(ev.responsable_nombre) + '</span></div></div>';
+            }
+            if (calIsAdmin() && ev.realizado_en) {
+                html += '<div class="cal-detail-row"><i class="bi bi-person-check"></i><div><strong>Registro</strong>' +
+                    '<span>Marcaron como realizada: ' + escHtml(ev.realizado_por_nombre || '—') + ' · ' + fmtFechaHora(ev.realizado_en) + '</span></div></div>';
+            }
+            html += '</div>';
+
+            if (ev.descripcion) {
+                html += '<div class="cal-detail-desc">' + escHtml(ev.descripcion) + '</div>';
+            }
+            body.innerHTML = html;
+
+            let actions = '<button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>';
+            if (calCanComplete()) {
+                actions += '<button type="button" class="btn btn-sm ' + (done ? 'btn-outline-warning' : 'btn-action-primary') +
+                    '" data-action="toggle" data-id="' + ev.id + '" data-bs-dismiss="modal">' +
+                    (done ? '<i class="bi bi-arrow-counterclockwise"></i> Marcar pendiente' : '<i class="bi bi-check2-circle"></i> Marcar realizada') +
+                    '</button>';
+            }
+            if (calIsAdmin()) {
+                actions += '<button type="button" class="btn btn-sm btn-outline-primary" data-action="edit" data-id="' + ev.id + '" data-bs-dismiss="modal">' +
+                    '<i class="bi bi-pencil"></i> Editar</button>' +
+                    '<button type="button" class="btn btn-sm btn-outline-primary" data-action="dup" data-id="' + ev.id + '" data-bs-dismiss="modal">' +
+                    '<i class="bi bi-copy"></i> Duplicar</button>';
+                if (ev.serie_id) {
+                    actions += '<button type="button" class="btn btn-sm btn-outline-danger" data-action="del-serie" data-id="' + ev.id + '" data-bs-dismiss="modal">' +
+                        '<i class="bi bi-arrow-repeat"></i> Eliminar serie</button>';
+                }
+                actions += '<button type="button" class="btn btn-sm btn-outline-danger" data-action="del" data-id="' + ev.id + '" data-bs-dismiss="modal">' +
+                    '<i class="bi bi-trash3"></i> Eliminar</button>';
+            }
+            footer.innerHTML = actions;
+        }
+
+        /* ---------- modal formulario ---------- */
+        function openCalModal(id, presetDate) {
+            if (!calIsAdmin()) return;
+            if (!calUsersLoaded) loadCalUsers();
+            const form = document.getElementById('cal-form');
+            form.reset();
+            document.getElementById('cal-form-error').classList.add('d-none');
+            document.getElementById('cal-form-error').textContent = '';
+            const scopeRow = document.getElementById('cal-scope-row');
+            scopeRow.classList.add('d-none');
+
+            const ev = id ? calEvents.find(x => x.id === id) : null;
+            document.getElementById('cal-modal-title').innerHTML =
+                '<i class="bi bi-calendar3-fill me-2"></i>' + (ev ? 'Editar elemento' : 'Nuevo evento o tarea');
+            document.getElementById('cal-id').value = ev ? ev.id : '';
+            document.getElementById('cal-titulo').value = ev ? ev.titulo : '';
+            document.getElementById('cal-tipo').value = ev ? ev.tipo : 'tarea';
+            document.getElementById('cal-estado').value = ev ? (ev.estado === 'completada' ? 'realizada' : ev.estado) : 'pendiente';
+            document.getElementById('cal-descripcion').value = ev ? (ev.descripcion || '') : '';
+            document.getElementById('cal-fecha').value = ev ? ev.fecha : (presetDate || calSelected || calTodayIso());
+            document.getElementById('cal-fecha-fin').value = ev ? (ev.fecha_fin || '') : '';
+            document.getElementById('cal-hora').value = ev ? ev.hora : '';
+            document.getElementById('cal-hora-fin').value = ev ? ev.hora_fin : '';
+            document.getElementById('cal-tododia').checked = ev ? !ev.hora : false;
+            document.getElementById('cal-responsable').value = ev ? (ev.responsable_id || '') : '';
+            document.getElementById('cal-recurrencia').value = ev ? ev.recurrencia : 'none';
+            document.getElementById('cal-responsable-row').classList.remove('d-none');
+            document.getElementById('cal-recurrencia-row').classList.toggle('d-none', !!ev);
+            scopeRow.classList.toggle('d-none', !(ev && ev.serie_id));
+            if (ev && ev.serie_id) {
+                document.querySelector('input[name="cal-scope"][value="ocurrencia"]').checked = true;
+            }
+            calFormToggleTodoDia();
+            calHoraChanged();
+            calRecurrenciaChanged();
+            new bootstrap.Modal(document.getElementById('calModal')).show();
+            setTimeout(() => document.getElementById('cal-titulo').focus(), 400);
+        }
+
+        function calFormToggleTodoDia() {
+            const todo = document.getElementById('cal-tododia').checked;
+            document.getElementById('cal-hora').disabled = todo;
+            document.getElementById('cal-hora-fin').disabled = todo;
+            if (todo) {
+                document.getElementById('cal-hora').value = '';
+                document.getElementById('cal-hora-fin').value = '';
+            } else if (!document.getElementById('cal-hora').value) {
+                const ev = calEvents.find(x => x.id === parseInt(document.getElementById('cal-id').value));
+                if (ev && ev.hora) document.getElementById('cal-hora').value = ev.hora;
+            }
+            calHoraChanged();
+        }
+        function calToggleTodoDia() { calFormToggleTodoDia(); }
+        function calFechaChanged() {
+            const f = document.getElementById('cal-fecha').value;
+            const ff = document.getElementById('cal-fecha-fin');
+            if (ff.value && ff.value < f) ff.value = f;
+        }
+        function calHoraChanged() {
+            const h = document.getElementById('cal-hora').value;
+            const hf = document.getElementById('cal-hora-fin');
+            if (h && !hf.value) {
+                hf.value = hhmm(Math.min(minsOf(h) + 60, 1439));
+            } else if (h && hf.value && hf.value <= h) {
+                hf.value = hhmm(Math.min(minsOf(h) + 60, 1439));
+            }
+            document.getElementById('cal-hora-hint').textContent = (h && hf.value)
+                ? calDuracionTexto({ hora: h, hora_fin: hf.value })
+                : '';
+        }
+        function calRecurrenciaChanged() {
+            const r = document.getElementById('cal-recurrencia').value;
+            const hint = document.getElementById('cal-recurrencia-hint');
+            if (r === 'none') hint.textContent = '';
+            else hint.textContent = 'Se crearán ' + CAL_RECURRENCIA_TOTAL[r] + ' elementos (' + CAL_RECURRENCIA_LABEL[r].toLowerCase() + ').';
+        }
+
+        function calHideModal(id) {
+            const el = document.getElementById(id);
+            const inst = bootstrap.Modal.getInstance(el);
+            if (!inst) return;
+            inst.hide();
+            // Si el modal aún está en transición de apertura, hide() se ignora: reintenta.
+            if (el.classList.contains('show')) {
+                setTimeout(function () {
+                    const i2 = bootstrap.Modal.getInstance(el);
+                    if (i2 && el.classList.contains('show')) i2.hide();
+                }, 450);
+            }
+        }
+
+        function saveCalEvent() {
+            if (calBusy) return;
+            const id = document.getElementById('cal-id').value;
+            const titulo = document.getElementById('cal-titulo').value.trim();
+            const fecha = document.getElementById('cal-fecha').value;
+            const todo = document.getElementById('cal-tododia').checked;
+            const hora = todo ? '' : document.getElementById('cal-hora').value;
+            const errEl = document.getElementById('cal-form-error');
+            errEl.classList.add('d-none');
+
+            if (!titulo || !fecha) {
+                errEl.textContent = 'Título y fecha son obligatorios.';
+                errEl.classList.remove('d-none');
+                return;
+            }
+            let hora_fin = todo ? '' : document.getElementById('cal-hora-fin').value;
+            if (hora && hora_fin && hora_fin <= hora) hora_fin = '';
+            const payload = {
+                titulo: titulo,
+                tipo: document.getElementById('cal-tipo').value,
+                estado: document.getElementById('cal-estado').value || 'pendiente',
+                descripcion: document.getElementById('cal-descripcion').value.trim(),
+                fecha: fecha,
+                fecha_fin: document.getElementById('cal-fecha-fin').value || '',
+                hora: hora,
+                hora_fin: hora_fin,
+                responsable_id: document.getElementById('cal-responsable').value || null,
+                recurrencia: id ? 'none' : document.getElementById('cal-recurrencia').value
+            };
+
+            calBusy = true;
+            const btn = document.getElementById('cal-save-btn');
+            const prevHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Guardando…';
+
+            let url = API_BASE + '/api/calendario' + (id ? '/' + id : '');
+            if (id) {
+                const scope = document.querySelector('input[name="cal-scope"]:checked');
+                if (scope && scope.value === 'serie') url += '?scope=serie';
+            }
+            const opts = {
+                method: id ? 'PUT' : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            };
+
+            authFetch(url, opts)
+                .then(res => res.json().then(b => ({ status: res.status, body: b })))
+                .then(({ status, body }) => {
+                    calBusy = false;
+                    btn.disabled = false;
+                    btn.innerHTML = prevHtml;
+                    if (status !== 200 && status !== 201) {
+                        errEl.textContent = body.error || 'Error al guardar.';
+                        errEl.classList.remove('d-none');
+                        return;
+                    }
+                    calHideModal('calModal');
+                    if (body.item) applyItems([body.item]);
+                    else if (body.data) applyItems(body.data);
+                    if (!id || payload.recurrencia !== 'none') calForceReload();
+                    else renderAll();
+                    showToast(id ? 'Elemento actualizado.' : 'Elemento creado.', 'success');
+                })
+                .catch(() => {
+                    calBusy = false;
+                    btn.disabled = false;
+                    btn.innerHTML = prevHtml;
+                    errEl.textContent = 'Error de conexión con el servidor.';
+                    errEl.classList.remove('d-none');
+                });
+        }
+
+        function calForceReload() {
+            _lastCalSnapshot = '';
+            calRange = null;
+            loadCalendario();
+        }
+
+        function loadCalUsers() {
+            authFetch(API_BASE + '/api/auth/users')
+                .then(res => res.ok ? res.json() : [])
+                .then(b => {
+                    calUsers = Array.isArray(b) ? b : (b.data || []);
+                    calUsersLoaded = true;
+                    const sel = document.getElementById('cal-responsable');
+                    const cur = sel.value || calPendingResp;
+                    sel.innerHTML = '<option value="">Sin responsable</option>' +
+                        calUsers.map(u => '<option value="' + u.id + '">' + escHtml(u.name) + ' (' + u.role + ')</option>').join('');
+                    if (cur) sel.value = cur;
+                    if (sel.value) calPendingResp = '';
+                })
+                .catch(() => { });
+        }
+
+        /* ---------- cambiar estado (marcar realizada) ---------- */
+        function toggleEstado(id) {
+            if (calBusy) return;
+            const ev = calEvents.find(x => x.id === id);
+            if (!ev) return;
+            if (!calCanComplete()) {
+                showToast('No tienes permiso para cambiar el estado.', 'error');
+                return;
+            }
+            const nuevo = ev.estado === 'realizada' ? 'pendiente' : 'realizada';
+            const snapshot = { estado: ev.estado, realizado_en: ev.realizado_en, realizado_por_nombre: ev.realizado_por_nombre };
+            calBusy = true;
+            authFetch(API_BASE + '/api/calendario/' + id + '/estado', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ estado: nuevo })
+            })
+                .then(res => res.json().then(b => ({ status: res.status, body: b })))
+                .then(({ status, body }) => {
+                    calBusy = false;
+                    if (status !== 200) {
+                        showToast(body.error || 'No se pudo cambiar el estado.', 'error');
+                        return;
+                    }
+                    applyItems(body.item ? [body.item] : (body.data || []));
+                    renderAll();
+                    if (calDetailId === id && document.getElementById('calDetailModal').classList.contains('show')) renderDetail();
+                    calToast(nuevo === 'realizada' ? 'Marcada como realizada.' : 'Marcada como pendiente.', 'success', () => {
+                        Object.assign(ev, snapshot);
+                        calBusy = true;
+                        authFetch(API_BASE + '/api/calendario/' + id + '/estado', {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ estado: snapshot.estado })
+                        })
+                            .then(res => res.json()).then(b => {
+                                calBusy = false;
+                                applyItems(b.item ? [b.item] : (b.data || []));
+                                renderAll();
+                            })
+                            .catch(() => { calBusy = false; showToast('No se pudo deshacer.', 'error'); });
+                    });
+                })
+                .catch(() => {
+                    calBusy = false;
+                    showToast('Error de conexión con el servidor.', 'error');
+                });
+        }
+
+        /* ---------- eliminar ---------- */
+        function deleteCalEvent(id, scope) {
+            if (calBusy) return;
+            const ev = calEvents.find(x => x.id === id);
+            if (!ev) return;
+            const msg = scope === 'serie'
+                ? '¿Eliminar toda la serie «' + ev.titulo + '» y sus ocurrencias?'
+                : '¿Eliminar «' + ev.titulo + '»?';
+            if (!confirm(msg)) return;
+            calBusy = true;
+            let url = API_BASE + '/api/calendario/' + id;
+            if (scope === 'serie') url += '?scope=serie';
+            authFetch(url, { method: 'DELETE' })
+                .then(res => res.json().then(b => ({ status: res.status, body: b })))
+                .then(({ status, body }) => {
+                    calBusy = false;
+                    if (status !== 200) {
+                        showToast(body.error || 'No se pudo eliminar.', 'error');
+                        return;
+                    }
+                    calForceReload();
+                    showToast(scope === 'serie' ? 'Serie eliminada.' : 'Elemento eliminado.', 'success');
+                })
+                .catch(() => {
+                    calBusy = false;
+                    showToast('Error de conexión con el servidor.', 'error');
+                });
+        }
+
+        /* ---------- drag & drop (solo admin, escritorio) ---------- */
+        function calOnPointerDown(e) {
+            if (e.pointerType === 'touch') return;
+            if (e.button !== 0) return;
+            if (!calIsAdmin()) return;
+            const wrap = e.target.closest('[data-drag]');
+            if (!wrap) return;
+            if (e.target.closest('.chip-toggle')) return;
+            const ev = calEvents.find(x => x.id === parseInt(wrap.dataset.id));
+            if (!ev) return;
+
+            calDrag = {
+                id: ev.id,
+                startX: e.clientX, startY: e.clientY,
+                moved: false, dropTarget: null,
+                ghost: null,
+                wrap: wrap,
+                origFecha: ev.fecha
+            };
+            window.addEventListener('pointermove', calOnPointerMove);
+            window.addEventListener('pointerup', calOnPointerUp, { once: true });
+        }
+
+        function calOnPointerMove(e) {
+            if (!calDrag) return;
+            const dx = e.clientX - calDrag.startX;
+            const dy = e.clientY - calDrag.startY;
+            if (!calDrag.moved && Math.abs(dx) + Math.abs(dy) < 5) return;
+            if (!calDrag.moved) {
+                calDrag.moved = true;
+                const r = calDrag.wrap.getBoundingClientRect();
+                const ghost = calDrag.wrap.cloneNode(true);
+                ghost.className += ' cal-drag-ghost';
+                ghost.style.width = r.width + 'px';
+                ghost.style.left = r.left + 'px';
+                ghost.style.top = r.top + 'px';
+                document.body.appendChild(ghost);
+                calDrag.ghost = ghost;
+                calDrag.wrap.classList.add('is-dragging');
+            }
+            calDrag.ghost.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+
+            const el = document.elementFromPoint(e.clientX, e.clientY);
+            const col = el ? el.closest('.cal-daycol, .cal-allday-col, .cal-day') : null;
+            document.querySelectorAll('.cal-drop-hi').forEach(c => c.classList.remove('cal-drop-hi'));
+            if (col && col.dataset.date) {
+                col.classList.add('cal-drop-hi');
+                calDrag.dropTarget = col.dataset.date;
+            } else {
+                calDrag.dropTarget = null;
+            }
+        }
+
+        function calOnPointerUp() {
+            window.removeEventListener('pointermove', calOnPointerMove);
+            if (!calDrag) return;
+            const drag = calDrag;
+            calDrag = null;
+            document.querySelectorAll('.cal-drop-hi').forEach(c => c.classList.remove('cal-drop-hi'));
+            if (drag.ghost) drag.ghost.remove();
+            if (drag.wrap) drag.wrap.classList.remove('is-dragging');
+
+            if (!drag.moved || !drag.dropTarget || drag.dropTarget === drag.origFecha) return;
+            _calSuppressClick = true;
+            setTimeout(() => { _calSuppressClick = false; }, 250);
+
+            const ev = calEvents.find(x => x.id === drag.id);
+            if (!ev) return;
+            const fechaAnterior = ev.fecha;
+            const fechaAnteriorFin = ev.fecha_fin;
+            const offsetDays = Math.round((calD(drag.dropTarget) - calD(ev.fecha)) / 86400000);
+            const nuevoFin = ev.fecha_fin ? calAdd(ev.fecha_fin, offsetDays) : '';
+            const payload = { fecha: drag.dropTarget, fecha_fin: nuevoFin };
+            const snapshot = { fecha: ev.fecha, fecha_fin: ev.fecha_fin };
+
+            calBusy = true;
+            authFetch(API_BASE + '/api/calendario/' + ev.id, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+                .then(res => res.json().then(b => ({ status: res.status, body: b })))
+                .then(({ status, body }) => {
+                    calBusy = false;
+                    if (status !== 200) {
+                        renderAll();
+                        showToast(body.error || 'No se pudo reprogramar.', 'error');
+                        return;
+                    }
+                    applyItems(body.item ? [body.item] : (body.data || []));
+                    renderAll();
+                    calToast('Reprogramado para el ' + isoToDate(drag.dropTarget) + '.', 'success', () => {
+                        calBusy = true;
+                        authFetch(API_BASE + '/api/calendario/' + ev.id, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ fecha: fechaAnterior, fecha_fin: fechaAnteriorFin })
+                        })
+                            .then(res => res.json()).then(b => {
+                                calBusy = false;
+                                applyItems(b.item ? [b.item] : (b.data || []));
+                                renderAll();
+                            })
+                            .catch(() => { calBusy = false; showToast('No se pudo deshacer.', 'error'); });
+                    });
+                })
+                .catch(() => {
+                    calBusy = false;
+                    renderAll();
+                    showToast('Error de conexión con el servidor.', 'error');
+                });
+        }
+
+        /* ---------- delegación de clics ---------- */
+        function onCalClick(e) {
+            const act = e.target.closest('[data-action]');
+            if (act) {
+                // Si el clic es sobre una acción dentro del detalle y el modal aún está
+                // en transición de apertura, data-bs-dismiss se ignora: reintenta el cierre.
+                if (act.dataset.action !== 'detail' && act.closest('#calDetailModal')) {
+                    setTimeout(function () {
+                        const el = document.getElementById('calDetailModal');
+                        const inst = bootstrap.Modal.getInstance(el);
+                        if (inst && el.classList.contains('show')) inst.hide();
+                    }, 400);
+                }
+                calDoAction(act.dataset.action, act.dataset, e);
+                return;
+            }
+            const day = e.target.closest('.cal-day, .cal-allday-col');
+            if (day && day.dataset.date) {
+                if (calView === 'mes') calSelectDay(day.dataset.date);
+                return;
+            }
+        }
+
+        function calDoAction(action, data, e) {
+            const id = data.id ? parseInt(data.id) : null;
+            if (action === 'detail') {
+                if (_calSuppressClick) return;
+                openDetail(id);
+            } else if (action === 'toggle') {
+                toggleEstado(id);
+            } else if (action === 'edit') {
+                openCalModal(id);
+            } else if (action === 'new') {
+                openCalModal(null, data.date || (calView === 'mes' ? calSelected : calFocus));
+            } else if (action === 'dup') {
+                const ev = calEvents.find(x => x.id === id);
+                if (!ev || !calIsAdmin()) return;
+                openCalModal(null, ev.fecha);
+                calPendingResp = ev.responsable_id || '';
+                setTimeout(() => {
+                    document.getElementById('cal-titulo').value = ev.titulo + ' (copia)';
+                    document.getElementById('cal-tipo').value = ev.tipo;
+                    document.getElementById('cal-estado').value = 'pendiente';
+                    document.getElementById('cal-descripcion').value = ev.descripcion || '';
+                    document.getElementById('cal-fecha-fin').value = ev.fecha_fin || '';
+                    document.getElementById('cal-hora').value = ev.hora || '';
+                    document.getElementById('cal-hora-fin').value = ev.hora_fin || '';
+                    document.getElementById('cal-tododia').checked = !ev.hora;
+                    if (calPendingResp) document.getElementById('cal-responsable').value = calPendingResp;
+                    calFormToggleTodoDia();
+                    calHoraChanged();
+                }, 60);
+            } else if (action === 'del') {
+                deleteCalEvent(id);
+            } else if (action === 'del-serie') {
+                deleteCalEvent(id, 'serie');
+            } else if (action === 'moredays') {
+                calSelectDay(data.date);
+                const side = document.querySelector('.cal-side');
+                if (side && window.innerWidth < 1200) side.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else if (action === 'clearfilters') {
+                calClearFilters();
+            } else if (action === 'retry') {
+                calLoadError = false;
+                loadCalendario();
+            } else if (action === 'today') {
+                calGoToday();
+            } else if (action === 'prev') {
+                calNav(-1);
+            } else if (action === 'next') {
+                calNav(1);
+            }
+        }
+
+        /* ---------- init ---------- */
+        function calDefaultView() {
+            const saved = localStorage.getItem('calView');
+            if (saved && ['mes', 'semana', 'dia', 'agenda'].indexOf(saved) !== -1) return saved;
+            return window.innerWidth < 768 ? 'agenda' : 'mes';
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const session = getCurrentSession();
+            if (!session) {
+                window.location.href = 'index.html';
+                return;
+            }
+            guardPage();
+
+            const name = (session.name || session.email || '').trim();
+            const parts = name ? name.split(/\s+/).filter(Boolean) : [];
+            const initials = parts.length ? parts.map(n => n[0]).join('').slice(0, 2).toUpperCase() : (session.email ? session.email[0].toUpperCase() : 'U');
+            const firstName = parts[0] || name || 'Usuario';
+            document.getElementById('display-avatar').innerText = initials;
+            document.getElementById('display-user-name').innerText = name || firstName;
+            document.getElementById('nav-avatar').innerText = initials;
+            document.getElementById('nav-user-name').innerText = firstName;
+            const isAdminSession = (session.role || '').toLowerCase() === 'admin';
+            const gestionLabel = document.getElementById('gestion-label');
+            const gestionItems = document.getElementById('gestion-items');
+            if (gestionLabel) gestionLabel.style.display = isAdminSession ? '' : 'none';
+            if (gestionItems) gestionItems.style.display = isAdminSession ? '' : 'none';
+
+
+            calFocus = calTodayIso();
+            calSelected = calFocus;
+            calView = calDefaultView();
+
+            restoreCalFilters();
+
+            document.getElementById('calModal').addEventListener('shown.bs.modal', function () {
+                if (!calUsersLoaded) loadCalUsers();
+            });
+
+            const root = document.getElementById('cal-view-root');
+            root.addEventListener('click', onCalClick);
+            root.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    const t = e.target.closest('[data-action]');
+                    if (t) { e.preventDefault(); calDoAction(t.dataset.action, t.dataset, e); }
+                }
+            });
+            root.addEventListener('pointerdown', calOnPointerDown);
+
+            const sideBody = document.getElementById('cal-side-body');
+            sideBody.addEventListener('click', onCalClick);
+            sideBody.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    const t = e.target.closest('[data-action]');
+                    if (t) { e.preventDefault(); calDoAction(t.dataset.action, t.dataset, e); }
+                }
+            });
+            sideBody.addEventListener('pointerdown', calOnPointerDown);
+
+            document.getElementById('calDetailModal').addEventListener('click', onCalClick);
+
+            if (isAdminSession) {
+                document.getElementById('cal-btn-nuevo').classList.remove('d-none');
+            }
+
+            loadMyPermissions().then(function () {
+                if (calIsAdmin()) document.getElementById('cal-btn-nuevo').classList.remove('d-none');
+                loadCalendario();
+            });
+
+            setInterval(function () {
+                if (document.hidden) return;
+                if (calLoadError || calBusy) return;
+                loadCalendario(true);
+            }, 60000);
+        });
+    

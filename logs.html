@@ -17,17 +17,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <script src="theme.js"></script>
     <link rel="stylesheet" href="style.css">
-    <style>
-        .log-entry { font-size: 0.85rem; }
-        .log-entry td { vertical-align: middle; }
-        .badge-accion { font-size: 0.65rem; padding: 3px 8px; border-radius: 20px; font-weight: 600; white-space: nowrap; }
-        .accion-creacion { background: #f0fdf4; color: #166534; }
-        .accion-edicion { background: #eff6ff; color: #1e40af; }
-        .accion-eliminacion { background: #fef2f2; color: #991b1b; }
-        .accion-sesion { background: #f8fafc; color: #475569; }
-        .accion-csv { background: #f5f3ff; color: #5b21b6; }
-        .accion-registro { background: #fffbeb; color: #92400e; }
-    </style>
+
+    <link rel="stylesheet" href="assets/css/pages/logs.css">
 </head>
 
 <body>
@@ -40,7 +31,7 @@
                         <img src="img/isotiposinfondo.png" alt="Potage" class="logo-img">
                         <span class="logo-text">Potage</span>
                     </div>
-                    <button class="sidebar-toggle" onclick="toggleSidebar()">
+                    <button data-page-event="logs-1" class="sidebar-toggle">
                         <i class="bi bi-x-lg"></i>
                     </button>
                 </div>
@@ -59,7 +50,7 @@
                     <i class="bi bi-diagram-3"></i>
                     <span>Grupos</span>
                 </a>
-<a href="dashboard.html" class="menu-item submenu-item" id="btn-nav-zonas" onclick="localStorage.setItem('navTarget','zonas')">
+<a data-page-event="logs-2" href="dashboard.html" class="menu-item submenu-item" id="btn-nav-zonas">
                     <i class="bi bi-map-fill"></i>
                     <span>Sucursales de redes</span>
                 </a></div></details><details class="sidebar-nav-group" id="nav-interno"><summary class="menu-item"><i class="bi bi-building" aria-hidden="true"></i><span>Interno</span><i class="bi bi-chevron-down nav-group-chevron" aria-hidden="true"></i></summary><div class="sidebar-submenu"><a href="productos.html" class="menu-item submenu-item" id="btn-nav-productos"><i class="bi bi-box-seam"></i><span>Productos</span></a>
@@ -73,7 +64,7 @@
                 </a>
 <div class="menu-section-label" id="gestion-label">Gestión</div>
                 <div id="gestion-items">
-                    <a href="dashboard.html" class="menu-item submenu-item" id="btn-nav-users" onclick="localStorage.setItem('navTarget','users')">
+                    <a data-page-event="logs-3" href="dashboard.html" class="menu-item submenu-item" id="btn-nav-users">
                         <i class="bi bi-people-fill"></i>
                         <span>Usuarios</span>
                     </a>
@@ -85,11 +76,11 @@
             </nav>
 
             <div class="sidebar-footer">
-                <a href="ayuda.html" class="menu-item submenu-item" style="border-radius:8px;margin-bottom:8px">
+                <a href="ayuda.html" class="menu-item submenu-item page-logs-inline-1">
                     <i class="bi bi-question-circle-fill"></i>
                     <span>Ayuda</span>
                 </a>
-                <button type="button" class="theme-toggle-row" onclick="toggleTheme()" title="Cambiar tema">
+                <button data-page-event="logs-4" type="button" class="theme-toggle-row" title="Cambiar tema">
                     <i class="bi bi-moon-stars-fill theme-toggle-icon"></i>
                     <span class="theme-toggle-label">Modo oscuro</span>
                     <span class="theme-switch"><span class="theme-switch-thumb"></span></span>
@@ -112,7 +103,7 @@
         <main class="main-content">
             <header class="top-navbar">
                 <div class="d-flex align-items-center gap-3">
-                    <button class="sidebar-toggle" onclick="toggleSidebar()">
+                    <button data-page-event="logs-5" class="sidebar-toggle">
                         <i class="bi bi-list"></i>
                     </button>
                     <div class="page-context">
@@ -134,7 +125,7 @@
                             <li>
                                 <hr class="dropdown-divider">
                             </li>
-                            <li><a class="dropdown-item text-danger" href="#" onclick="logout()">
+                            <li><a data-page-event="logs-6" class="dropdown-item text-danger" href="#">
                                     <i class="bi bi-box-arrow-right me-2"></i>Cerrar Sesión
                                 </a></li>
                         </ul>
@@ -150,7 +141,7 @@
                         </span>
                     </div>
                     <div class="d-flex gap-2">
-                        <button class="btn btn-sm btn-outline-secondary" onclick="loadLogs()" title="Recargar">
+                        <button data-page-event="logs-7" class="btn btn-sm btn-outline-secondary" title="Recargar">
                             <i class="bi bi-arrow-clockwise"></i> Recargar
                         </button>
                     </div>
@@ -164,14 +155,10 @@
                         </div>
                     </div>
                     <div class="d-flex flex-wrap align-items-center gap-2 px-3 pt-3 pb-2 logs-filter-bar">
-                        <select id="logs-filter-usuario" class="form-select form-select-sm custom-input"
-                            style="width:auto;min-width:170px" title="Filtrar por usuario"
-                            onchange="saveLogsFilters();renderLogs()">
+                        <select data-page-event="logs-8" id="logs-filter-usuario" class="form-select form-select-sm custom-input page-logs-inline-2" title="Filtrar por usuario">
                             <option value="">Todos los usuarios</option>
                         </select>
-                        <select id="logs-filter-tipo" class="form-select form-select-sm custom-input"
-                            style="width:auto;min-width:220px" title="Filtrar por tipo"
-                            onchange="saveLogsFilters();renderLogs()">
+                        <select data-page-event="logs-9" id="logs-filter-tipo" class="form-select form-select-sm custom-input page-logs-inline-3" title="Filtrar por tipo">
                             <option value="">Todas las tareas</option>
                             <option value="Registro">Registro</option>
                             <option value="Visitas">Visitas</option>
@@ -191,13 +178,11 @@
                             <option value="Permisos">Permisos</option>
                             <option value="Otras">Otras</option>
                         </select>
-                        <input type="date" id="logs-desde" class="form-control form-control-sm custom-input"
-                            style="width:auto;min-width:150px" title="Desde" onchange="saveLogsFilters();renderLogs()">
-                        <input type="date" id="logs-hasta" class="form-control form-control-sm custom-input"
-                            style="width:auto;min-width:150px" title="Hasta" onchange="saveLogsFilters();renderLogs()">
-                        <input type="text" id="logs-buscar" class="form-control form-control-sm custom-input"
-                            placeholder="Buscar email o detalle..." style="width:auto;min-width:200px" oninput="renderLogs()">
-                        <button class="btn btn-sm btn-outline-secondary" onclick="clearLogsFilters()" title="Quitar todos los filtros">
+                        <input data-page-event="logs-10" type="date" id="logs-desde" class="form-control form-control-sm custom-input page-logs-inline-4" title="Desde">
+                        <input data-page-event="logs-11" type="date" id="logs-hasta" class="form-control form-control-sm custom-input page-logs-inline-5" title="Hasta">
+                        <input data-page-event="logs-12" type="text" id="logs-buscar" class="form-control form-control-sm custom-input page-logs-inline-6"
+                            placeholder="Buscar email o detalle...">
+                        <button data-page-event="logs-13" class="btn btn-sm btn-outline-secondary" title="Quitar todos los filtros">
                             <i class="bi bi-x-circle"></i> Limpiar
                         </button>
                     </div>
@@ -222,196 +207,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="marketing-analysis.js"></script><script src="app.js"></script>
-    <script>
-        function badgeClass(accion) {
-            const a = (accion || '').toLowerCase();
-            if (a === 'registro') return 'accion-registro';
-            if (a.includes('creaci')) return 'accion-creacion';
-            if (a.includes('edici') || a.includes('cambio')) return 'accion-edicion';
-            if (a.includes('elimin')) return 'accion-eliminacion';
-            if (a.includes('sesi') || a.includes('inicio')) return 'accion-sesion';
-            if (a.includes('import') || a.includes('csv')) return 'accion-csv';
-            return '';
-        }
-
-        let _lastLogsSnapshot = '';
-        let logsData = [];
-
-        function fechaLocal(fechaStr) {
-            if (!fechaStr) return '';
-            try {
-                return new Date(fechaStr).toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
-            } catch (e) {
-                return '';
-            }
-        }
-
-        function categoriaAccion(accion) {
-            const a = (accion || '').toLowerCase();
-            if (a === 'registro') return 'Registro';
-            if (a.includes('visita')) return 'Visitas';
-            if (a.includes('sesi') || a.includes('inicio')) return 'Sesión';
-            if (a.includes('creaci')) return 'Creación';
-            if (a.includes('edici') || a.includes('cambio') || a.includes('sincroniz')) {
-                if (a.includes('publicaci')) return 'Edición Publicaciones';
-                if (a.includes('grupo')) return 'Edición Grupos';
-                if (a.includes('zona')) return 'Edición Zonas';
-                if (a.includes('sucursal')) return 'Edición Sucursales';
-                if (a.includes('informe')) return 'Edición Informes';
-                if (a.includes('usuario') || a.includes('miembro')) return 'Edición Usuarios';
-                if (a.includes('rol') || a.includes('permiso')) return 'Edición Roles/Permisos';
-                if (a.includes('calendario') || a.includes('serie')) return 'Edición Calendario';
-                return 'Edición / Cambios';
-            }
-            if (a.includes('elimin')) return 'Eliminación';
-            if (a.includes('import')) return 'Importación';
-            if (a.includes('sincroniz')) return 'Sincronización';
-            if (a.includes('permisos')) return 'Permisos';
-            return 'Otras';
-        }
-
-        function saveLogsFilters() {
-            localStorage.setItem('logsFilterUsuario', document.getElementById('logs-filter-usuario').value);
-            localStorage.setItem('logsFilterTipo', document.getElementById('logs-filter-tipo').value);
-            localStorage.setItem('logsDesde', document.getElementById('logs-desde').value);
-            localStorage.setItem('logsHasta', document.getElementById('logs-hasta').value);
-        }
-
-        function restoreLogsFilters() {
-            const selU = document.getElementById('logs-filter-usuario');
-            const selT = document.getElementById('logs-filter-tipo');
-            const d = document.getElementById('logs-desde');
-            const h = document.getElementById('logs-hasta');
-            const vU = localStorage.getItem('logsFilterUsuario');
-            const vT = localStorage.getItem('logsFilterTipo');
-            if (selU && vU) selU.value = vU;
-            if (selT && vT) selT.value = vT;
-            if (d && localStorage.getItem('logsDesde')) d.value = localStorage.getItem('logsDesde');
-            if (h && localStorage.getItem('logsHasta')) h.value = localStorage.getItem('logsHasta');
-        }
-
-        function clearLogsFilters() {
-            document.getElementById('logs-filter-usuario').value = '';
-            document.getElementById('logs-filter-tipo').value = '';
-            document.getElementById('logs-desde').value = '';
-            document.getElementById('logs-hasta').value = '';
-            document.getElementById('logs-buscar').value = '';
-            saveLogsFilters();
-            renderLogs();
-        }
-
-        function setLogsUserOptions() {
-            const sel = document.getElementById('logs-filter-usuario');
-            const current = sel.value;
-            const emails = [...new Set(logsData.map(l => l.email).filter(Boolean))].sort();
-            sel.innerHTML = '<option value="">Todos los usuarios</option>';
-            emails.forEach(e => {
-                const o = document.createElement('option');
-                o.value = e;
-                o.textContent = e;
-                sel.appendChild(o);
-            });
-            sel.value = current;
-        }
-
-        function loadLogs(silent) {
-            const tbody = document.getElementById('logs-tbody');
-            if (!silent) tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Cargando...</td></tr>';
-            authFetch(API_BASE + '/api/logs')
-                .then(r => r.json().then(b => ({ status: r.status, body: b })))
-                .then(({ status, body }) => {
-                    if (status !== 200) {
-                        if (!silent) tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">' + (body.error || 'Error') + '</td></tr>';
-                        return;
-                    }
-                    const logs = Array.isArray(body) ? body : (body.data || body.logs || []);
-                    const snap = JSON.stringify(logs);
-                    if (silent && snap === _lastLogsSnapshot) return;
-                    _lastLogsSnapshot = snap;
-                    logsData = logs;
-                    setLogsUserOptions();
-                    document.getElementById('data-source-badge-logs').innerHTML = '<i class="bi bi-database"></i> Logs · ' + logs.length + ' registros';
-                    renderLogs();
-                })
-                .catch(() => {
-                    if (!silent) tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Error de conexión</td></tr>';
-                });
-        }
-
-        function renderLogs() {
-            const tbody = document.getElementById('logs-tbody');
-            const usuarioF = document.getElementById('logs-filter-usuario').value;
-            const tipoF = document.getElementById('logs-filter-tipo').value;
-            const desdeF = document.getElementById('logs-desde').value;
-            const hastaF = document.getElementById('logs-hasta').value;
-            const texto = (document.getElementById('logs-buscar').value || '').toLowerCase().trim();
-
-            const rows = logsData.filter(log => {
-                if (usuarioF && (log.email || '') !== usuarioF) return false;
-                if (tipoF && categoriaAccion(log.accion) !== tipoF) return false;
-                const fd = fechaLocal(log.created_at);
-                if (desdeF && fd < desdeF) return false;
-                if (hastaF && fd > hastaF) return false;
-                if (texto) {
-                    const hay = (String(log.email || '') + ' ' + (log.accion || '') + ' ' + (log.detalle || '')).toLowerCase();
-                    if (!hay.includes(texto)) return false;
-                }
-                return true;
-            });
-
-            document.getElementById('logs-count').innerText =
-                rows.length + (rows.length !== logsData.length ? ' de ' + logsData.length : '') + ' registros';
-
-            if (!logsData.length) {
-                tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">No hay registros de actividad.</td></tr>';
-                return;
-            }
-            if (!rows.length) {
-                tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">Sin resultados para los filtros aplicados.</td></tr>';
-                return;
-            }
-
-            tbody.innerHTML = '';
-            rows.forEach((log, i) => {
-                const tr = document.createElement('tr');
-                tr.className = 'log-entry';
-                tr.style.animation = 'fadeSlideUp 0.3s ease-out forwards';
-                tr.style.animationDelay = (Math.min(i, 20) * 0.04) + 's';
-
-                const fecha = log.created_at ? new Date(log.created_at).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }) : '—';
-                const badge = badgeClass(log.accion);
-
-                tr.innerHTML = `
-                    <td class="text-muted" style="white-space:nowrap">${fecha}</td>
-                    <td class="fw-medium">${escHtml(log.email || '—')}</td>
-                    <td><span class="badge-accion ${badge}">${escHtml(log.accion || '—')}</span></td>
-                    <td class="text-muted">${escHtml(log.detalle || '')}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const session = getCurrentSession();
-            if (!session) {
-                window.location.href = 'index.html';
-                return;
-            }
-            const isAdmin = session.role === 'admin' || session.role === 'Admin';
-            if (!isAdmin) {
-                window.location.href = 'dashboard.html';
-                return;
-            }
-            const initials = session.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-            document.getElementById('display-avatar').innerText = initials;
-            document.getElementById('display-user-name').innerText = session.name;
-            document.getElementById('nav-avatar').innerText = initials;
-            document.getElementById('nav-user-name').innerText = session.name.split(' ')[0];
-            restoreLogsFilters();
-            loadLogs();
-            setInterval(() => loadLogs(true), 30000);
-        });
-    </script>
+    <script src="assets/js/pages/logs.js"></script>
+    <script src="assets/js/pages/logs-events.js"></script>
 </body>
 
 </html>
