@@ -79,6 +79,10 @@
                         encoding: 'UTF-8',
                         complete: function (results) {
                             document.body.removeChild(input);
+                            if (results.errors?.length || (results.meta?.renamedHeaders && Object.keys(results.meta.renamedHeaders).length)) {
+                                alert('El CSV contiene columnas repetidas o filas con distinta cantidad de celdas. Revisá el archivo antes de importarlo.');
+                                return;
+                            }
                             if (!results.data || !results.data.length) {
                                 alert('El archivo CSV no contiene datos o el formato no es reconocido.');
                                 return;
@@ -100,7 +104,8 @@
         }
 
         function showPreview(data) {
-            const headers = Object.keys(data[0]);
+            const headers = [...new Set(data.flatMap(row => Object.keys(row)))];
+            renderMapping(headers, 'import');
             const previewRows = data.slice(0, 10);
             const totalRows = data.length;
 
@@ -119,7 +124,7 @@
                 tbody.appendChild(extra);
             }
 
-            new bootstrap.Modal(document.getElementById('previewModal')).show();
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('previewModal')).show();
         }
 
         function confirmImport() {
@@ -131,13 +136,14 @@
             authFetch(API_BASE + '/api/informes/import', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ data: pendingImport })
+                body: JSON.stringify({ data: pendingImport, columnMapping: readMapping('import'), dateFormat: document.getElementById('import-date-format').value })
             })
                 .then(r => r.json())
                 .then(res => {
                     if (res.error) return alert(res.error);
                     bootstrap.Modal.getInstance(document.getElementById('previewModal')).hide();
                     pendingImport = null;
+                    showSyncResult(res.sincronizacion, res.message);
                     loadInformes();
                 })
                 .catch(err => alert('Error: ' + err.message))
@@ -159,6 +165,42 @@
                 });
         }
 
+        function renderMapping(columns, prefix) {
+            const detected = InformesColumns.detect(columns);
+            const labels = { grupo: 'Grupo', fecha: 'Fecha de publicación', visualizaciones: 'Visualizaciones', interacciones: 'Interacciones', comentarios: 'Comentarios' };
+            document.getElementById(prefix === 'import' ? 'import-mapping-form' : 'sync-mapping-form').innerHTML =
+                '<div class="row g-2 mb-3">' + Object.entries(labels).map(([field, label]) => {
+                    const compatible = columns.filter(column => InformesColumns.matches(field, column));
+                    return '<div class="col-12 col-md-6"><label class="form-label small" for="' + prefix + '-map-' + field + '">' + label +
+                        '</label><select class="form-select form-select-sm" id="' + prefix + '-map-' + field + '"><option value="">No actualizar / sin columna</option>' +
+                        compatible.map(column => '<option value="' + esc(column) + '"' + (detected[field] === column ? ' selected' : '') + '>' + esc(column) + '</option>').join('') + '</select></div>';
+                }).join('') + '</div><label class="form-label small" for="' + prefix + '-date-format">Formato de las fechas del CSV</label><select class="form-select form-select-sm mb-3" id="' + prefix + '-date-format"><option value="auto">Automático (solo fechas inequívocas)</option><option value="dmy">Día / Mes / Año</option><option value="mdy">Mes / Día / Año (exportación en inglés)</option></select>';
+        }
+
+        function readMapping(prefix) {
+            return Object.fromEntries(['grupo', 'fecha', 'visualizaciones', 'interacciones', 'comentarios'].map(field => [field, document.getElementById(prefix + '-map-' + field).value]).filter(([, value]) => value));
+        }
+
+        function showSyncResult(result, message) {
+            const box = document.getElementById('import-sync-result');
+            box.hidden = false;
+            box.className = 'alert ' + (result?.error || result?.omitida || result?.sinMatch || result?.datosInvalidos ? 'alert-warning' : 'alert-success');
+            box.textContent = message + '\n' + (result?.motivo ||
+                ('Publicaciones actualizadas: ' + (result?.actualizados || 0) + '. Celdas actualizadas: ' + (result?.celdasActualizadas || 0) +
+                '. Filas sin aumentos: ' + (result?.yaActualizados || 0) + '. Sin coincidencia segura: ' + (result?.sinMatch || 0) +
+                '. Valores vacíos o inválidos omitidos: ' + (result?.datosInvalidos || 0) + '.'));
+            if (result?.sinMatchEjemplos?.length) {
+                const list = document.createElement('ul');
+                list.className = 'mb-0 mt-2 small';
+                result.sinMatchEjemplos.forEach(example => {
+                    const item = document.createElement('li');
+                    item.textContent = example.grupo + ' — ' + example.fecha + ': ' + example.motivo;
+                    list.appendChild(item);
+                });
+                box.appendChild(list);
+            }
+        }
+
         function openSyncModal() {
             if (!informesData || !informesData.length) {
                 alert('No hay datos importados para sincronizar.');
@@ -166,45 +208,13 @@
             }
             const columns = Object.keys(informesData[0]).filter(k => k !== 'rowIndex');
 
-            const autoDetect = {
-                grupo: columns.find(c => /(nombre.*p[áa]gina|grupo|page.*name)/i.test(c)) || '',
-                fecha: columns.find(c => /(fecha|date|d[íi]a|post.*date|publicaci[óo]n.*fecha)/i.test(c)) || '',
-                visualizaciones: columns.find(c => /(visualizaciones|views|alcance|reach)/i.test(c)) || '',
-                interacciones: columns.find(c => /(interacciones|interactions|reacciones|engagement)/i.test(c)) || '',
-                comentarios: columns.find(c => /(comentarios|comments)/i.test(c)) || ''
-            };
+            renderMapping(columns, 'sync');
 
-            const fields = [
-                { key: 'grupo', label: 'Grupo / Página *', required: true },
-                { key: 'fecha', label: 'Fecha *', required: true },
-                { key: 'visualizaciones', label: 'Visualizaciones' },
-                { key: 'interacciones', label: 'Interacciones' },
-                { key: 'comentarios', label: 'Comentarios' }
-            ];
-
-            const form = document.getElementById('sync-mapping-form');
-            form.innerHTML = fields.map(f => {
-                const opts = '<option value="">— No mapear —</option>' +
-                    columns.map(c =>
-                        '<option value="' + esc(c) + '"' +
-                        (c === autoDetect[f.key] ? ' selected' : '') +
-                        '>' + esc(c) + '</option>'
-                    ).join('');
-                return '<div class="mb-3"><label class="form-label small fw-medium">' + f.label +
-                    '</label><select class="form-select form-select-sm" id="sync-map-' + f.key + '">' +
-                    opts + '</select></div>';
-            }).join('');
-
-            new bootstrap.Modal(document.getElementById('syncModal')).show();
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('syncModal')).show();
         }
 
         function confirmSync() {
-            const columnMapping = {};
-            ['grupo', 'fecha', 'visualizaciones', 'interacciones', 'comentarios'].forEach(f => {
-                const val = document.getElementById('sync-map-' + f).value;
-                if (val) columnMapping[f] = val;
-            });
-
+            const columnMapping = readMapping('sync');
             if (!columnMapping.grupo || !columnMapping.fecha) {
                 alert('Grupo y Fecha son obligatorios.');
                 return;
@@ -217,27 +227,13 @@
             authFetch(API_BASE + '/api/informes/sync', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ columnMapping })
+                body: JSON.stringify({ columnMapping, dateFormat: document.getElementById('sync-date-format').value })
             })
                 .then(r => r.json())
                 .then(res => {
                     if (res.error) return alert(res.error);
                     bootstrap.Modal.getInstance(document.getElementById('syncModal')).hide();
-                    let msg = 'Sincronización completada.\n\n' +
-                        'Total filas en Informes: ' + res.total + '\n' +
-                        'Actualizadas: ' + res.actualizados + '\n' +
-                        'Sin coincidencia: ' + res.sinMatch + '\n' +
-                        'Ya actualizadas: ' + (res.yaActualizados || 0) + '\n' +
-                        'Fuera de rango (>7 días): ' + (res.fueraRango || 0);
-                    if (res.sinMatch > 0 && res.sinMatchEjemplos && res.sinMatchEjemplos.length) {
-                        msg += '\n\nEjemplos sin match:\n' +
-                            res.sinMatchEjemplos.map(e => '  • ' + e.grupo + ' — ' + e.fecha).join('\n');
-                    }
-                    if (res.metricasKeysMuestra && res.metricasKeysMuestra.length) {
-                        msg += '\n\nClaves en Métricas (muestra):\n' +
-                            res.metricasKeysMuestra.map(k => '  • ' + k).join('\n');
-                    }
-                    alert(msg);
+                    showSyncResult(res, 'Revisión de informes completada.');
                     loadInformes();
                 })
                 .catch(err => alert('Error: ' + err.message))

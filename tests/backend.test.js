@@ -6,6 +6,7 @@ process.env.GOOGLE_SHEET_ID = 'test-sheet';
 
 let activationCodes, users, permissions, operations, sheetRows, missingSheets, sheetFailure, calendarFailure;
 let nextId = 10;
+let syncWriteFailure = false;
 const db = {
   async get(sql, params = []) {
     operations.push({ sql, params });
@@ -91,6 +92,7 @@ const google = {
         return { data: {} };
       },
       async batchUpdate(request) {
+        if (syncWriteFailure) throw new Error('simulated sync write failure');
         operations.push({ google: 'valuesBatch', request });
         return { data: {} };
       }
@@ -111,6 +113,7 @@ after(() => new Promise(resolve => server.close(resolve)));
 beforeEach(() => {
   users = new Map([[1, { id: 1, name: 'Admin', email: 'admin@example.test', role: 'admin', token_version: 0, password: bcrypt.hashSync('old-password', 4) }]]);
   activationCodes = [{id:1,code:'123456',used:0,used_by:null}];
+  syncWriteFailure = false;
   permissions = new Map(); operations = []; missingSheets = []; sheetFailure = false; calendarFailure = false;
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
   sheetRows = {
@@ -245,6 +248,43 @@ test('reports retain numeric zeros and imports preserve columns found in later r
   assert.deepEqual(write.resource.values, [['A', ''], ['B', '0']]);
   assert.equal(write.valueInputOption, 'RAW');
 });
+test('CSV import automatically updates only greater equivalent metrics from that batch', async () => {
+  const date = sheetRows.Metricas[1][0];
+  const res = await request('/api/informes/import', { method: 'POST', body: { data: [{ Grupo: 'Grupo B', Fecha: date, Visualizaciones: 100, Interacción: 1, Comentarios: 2, Alcance: 9999 }] } });
+  assert.equal(res.status, 201);
+  assert.equal(res.data.sincronizacion.actualizados, 1);
+  assert.deepEqual(operations.find(o => o.google === 'valuesBatch').request.resource.data, [
+    { range: 'Metricas!D3', values: [[100]] }, { range: 'Metricas!F3', values: [[2]] }
+  ]);
+  assert.equal(operations.filter(o => o.google === 'append').length, 1);
+});
+
+test('import permissions do not grant permission to change publication metrics', async () => {
+  const user = { id: 55, role: 'colaborador', email: 'editor@example.test', name: 'Editor', token_version: 0 };
+  users.set(55, user);
+  permissions.set('colaborador:edit_informes', true);
+  permissions.set('colaborador:sync_informes', false);
+  const res = await request('/api/informes/import', { method: 'POST', token: signAccessToken(user), body: { data: [{ Grupo: 'Grupo B', Fecha: sheetRows.Metricas[1][0], Vistas: 999 }] } });
+  assert.equal(res.status, 201);
+  assert.equal(res.data.sincronizacion.omitida, true);
+  assert.equal(operations.filter(o => o.google === 'valuesBatch').length, 0);
+});
+
+test('import reports saved data even when automatic synchronization fails', async () => {
+  syncWriteFailure = true;
+  const res = await request('/api/informes/import', { method: 'POST', body: { data: [{ Grupo: 'Grupo B', Fecha: sheetRows.Metricas[1][0], Vistas: 999 }] } });
+  assert.equal(res.status, 201);
+  assert.equal(res.data.sincronizacion.error, true);
+  assert.match(res.data.sincronizacion.motivo, /no vuelvas a importar/);
+  assert.equal(operations.filter(o => o.google === 'append').length, 1);
+});
+
+test('invalid metric mappings are rejected before saving an import', async () => {
+  const res = await request('/api/informes/import', { method: 'POST', body: { data: [{ Grupo: 'Grupo B', Fecha: '2026-10-29', Alcance: 999 }], columnMapping: { grupo: 'Grupo', fecha: 'Fecha', visualizaciones: 'Alcance' } } });
+  assert.equal(res.status, 400);
+  assert.equal(operations.filter(o => o.google).length, 0);
+});
+
 test('sync invalidates previously cached marketing data', async () => {
   assert.equal((await request('/api/marketing?refresh=true')).data.data[0].visualizaciones, 1234);
   await request('/api/informes/sync', { method: 'POST', body: { columnMapping: { grupo: 'Grupo', fecha: 'Fecha', visualizaciones: 'Vistas' } } });
@@ -252,7 +292,9 @@ test('sync invalidates previously cached marketing data', async () => {
   assert.equal((await request('/api/marketing')).data.data[0].visualizaciones, 2345);
 });
 test('sync matches equivalent dates and updates only changed cells with maximum values', async () => {
-  sheetRows.Informes.push(['Grupo Á', sheetRows.Metricas[1][0], 2000]);
+  sheetRows.Informes[0].push('Post ID');
+  sheetRows.Informes[1].push('123');
+  sheetRows.Informes.push(['Grupo Á', sheetRows.Metricas[1][0], 2000, '123']);
   const res = await request('/api/informes/sync', { method: 'POST', body: { columnMapping: { grupo: 'Grupo', fecha: 'Fecha', visualizaciones: 'Vistas' } } });
   assert.equal(res.status, 200);
   const batch = operations.find(o => o.google === 'valuesBatch').request;

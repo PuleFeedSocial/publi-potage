@@ -36,5 +36,6 @@
   "assets/js/pages/register-events.js",
   "assets/js/pages/sucursales.js",
   "assets/css/pages/sucursales.css",
-  "assets/js/pages/sucursales-events.js"
+  "assets/js/pages/sucursales-events.js",
+  "assets/js/pages/informes-columns.js"
 ]

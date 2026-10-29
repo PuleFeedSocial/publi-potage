@@ -108,7 +108,7 @@
                     </button>
                     <div class="page-context">
                         <h1 class="page-title">Informes Importados</h1>
-                        <p class="page-subtitle text-muted">CSVs importados desde Facebook — visualizá y gestioná los datos sin afectar el dashboard</p>
+                        <p class="page-subtitle text-muted">Importá estadísticas de Facebook y actualizá las métricas de Publicaciones</p>
                     </div>
                 </div>
                 <div class="top-navbar-actions">
@@ -134,18 +134,18 @@
             </header>
 
             <div class="view-section">
-                <div class="d-flex justify-content-between align-items-center mb-4">
+                <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-4">
                     <div>
                         <span class="text-muted small" id="data-source-badge-informes">
                             <i class="bi bi-database"></i> Google Sheets
                         </span>
                     </div>
-                    <div class="d-flex gap-2">
+                    <div class="d-flex flex-wrap gap-2">
                         <button data-page-event="informes-7" class="btn btn-sm btn-outline-secondary" title="Recargar">
                             <i class="bi bi-arrow-clockwise"></i> Recargar
                         </button>
                         <button data-page-event="informes-8" class="btn btn-sm btn-outline-primary" title="Sincronizar datos importados con la hoja Métricas">
-                            <i class="bi bi-arrow-left-right me-1"></i> Sincronizar con métricas
+                            <i class="bi bi-arrow-left-right me-1"></i> Reintentar sincronización
                         </button>
                         <button data-page-event="informes-9" class="btn btn-sm btn-action-primary">
                             <i class="bi bi-upload me-1"></i> Importar CSV
@@ -153,6 +153,7 @@
                     </div>
                 </div>
 
+                <div id="import-sync-result" class="alert alert-info" role="status" aria-live="polite" hidden></div>
                 <div class="card data-table-card">
                     <div class="card-header-clean d-flex justify-content-between align-items-center">
                         <div>
@@ -183,6 +184,8 @@
                 </div>
                 <div class="modal-body pt-3">
                     <p class="text-muted small mb-3" id="preview-info">Cargando...</p>
+                    <p class="text-muted small">Al importar, se actualizarán automáticamente las métricas de Publicaciones que sean mayores. Se vinculan por grupo y fecha; las coincidencias ambiguas se omiten. Alcance, impresiones y reacciones no reemplazan otras métricas.</p>
+                    <div id="import-mapping-form"></div>
                     <div class="table-responsive">
                         <table class="table table-sm table-bordered mb-0" id="preview-table">
                             <thead id="preview-thead"></thead>
@@ -205,12 +208,12 @@
             <div class="modal-content custom-modal">
                 <div class="modal-header border-0 pb-0">
                     <h5 class="modal-title fw-semibold text-dark">
-                        <i class="bi bi-arrow-left-right me-2"></i>Sincronizar con Métricas
+                        <i class="bi bi-arrow-left-right me-2"></i>Actualizar Publicaciones
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body pt-3">
-                    <p class="text-muted small mb-3">Asigná qué columnas del CSV importado corresponden a cada campo de la hoja Métricas.</p>
+                    <p class="text-muted small mb-3">Reprocesá los informes guardados. Solo se actualizarán valores mayores en publicaciones con grupo y fecha coincidentes. Las filas agrupadas o ambiguas se omiten.</p>
                     <div id="sync-mapping-form"></div>
                 </div>
                 <div class="modal-footer border-0 pt-0">
@@ -226,6 +229,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="marketing-analysis.js"></script><script src="app.js"></script>
+    <script src="assets/js/pages/informes-columns.js"></script>
     <script src="assets/js/pages/informes.js"></script>
     <script src="assets/js/pages/informes-events.js"></script>
 </body>

@@ -1,14 +1,29 @@
 const express = require('express');
-const { sheets, count, sheetError, mutation, revision, validateRow } = require('../services/sheets');
+const { sheets, sheetError, mutation, validateRow } = require('../services/sheets');
 const router = express.Router();
 const { authenticate, requirePermission } = require('../middleware/auth');
 router.use(authenticate, mutation);
 validateRow(router, 'Informes', 'ZZ');
-const { dateKey } = require('../services/validation');
+const { planSync, validateMapping } = require('../services/informes-sync');
+const getDb = require('../database');
+const { hasPermission } = require('../permissions');
 const { logAction } = require('./logs');
 
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SHEET_NAME = 'Informes';
+
+async function syncReports(s, reports, mapping, importedBatch, dateFormat) {
+  const response = await s.spreadsheets.values.get({
+    spreadsheetId: SHEET_ID, range: 'Metricas!A:I',
+    valueRenderOption: 'UNFORMATTED_VALUE', dateTimeRenderOption: 'FORMATTED_STRING'
+  });
+  const { data, summary } = planSync(response.data.values || [], reports, mapping, { importedBatch, dateFormat });
+  if (data.length) await s.spreadsheets.values.batchUpdate({
+    spreadsheetId: SHEET_ID, resource: { valueInputOption: 'RAW', data }
+  });
+  return summary;
+}
+
 
 
 
@@ -82,6 +97,11 @@ router.post('/import', requirePermission('edit_informes'), async (req, res) => {
     }
     const headers = [...new Set(data.flatMap(row => Object.keys(row)))];
     if (headers.length > 702 || headers.some(h => !h.trim() || ['__proto__', 'prototype', 'constructor', 'rowIndex'].includes(h))) return res.status(400).json({ error: 'Columnas inválidas.' });
+    if (req.body.columnMapping !== undefined) {
+      try { validateMapping(headers, req.body.columnMapping); }
+      catch (err) { return res.status(400).json({ error: err.message }); }
+    }
+    if (req.body.dateFormat !== undefined && !['auto', 'dmy', 'mdy'].includes(req.body.dateFormat)) return res.status(400).json({ error: 'Formato de fecha inválido.' });
     const { s, finalHeaders } = await ensureSheet(headers);
     const values = data.map(row =>
       finalHeaders.map(h => {
@@ -98,7 +118,19 @@ router.post('/import', requirePermission('edit_informes'), async (req, res) => {
 
     logAction(req.user.id, req.user.email, 'Importación de CSV', `${values.length} filas importadas a Informes`, req.ip);
 
-    res.status(201).json({ message: `${values.length} filas importadas correctamente.` });
+    // Un fallo de sincronización no debe invitar a importar otra vez las mismas filas.
+    let sincronizacion;
+    try {
+      const allowed = req.user.role.toLowerCase() === 'admin' || await hasPermission(await getDb(), req.user.role, 'sync_informes');
+      sincronizacion = allowed
+        ? await syncReports(s, data, req.body.columnMapping, true, req.body.dateFormat)
+        : { omitida: true, motivo: 'El informe se guardó. Tu rol no tiene permiso para actualizar Publicaciones.' };
+    } catch (err) {
+      console.error('Sincronización del CSV importado:', err);
+      sincronizacion = { error: true, motivo: 'El informe se guardó, pero no se pudo actualizar Publicaciones. Usá Reintentar sincronización; no vuelvas a importar el CSV.' };
+    }
+    logAction(req.user.id, req.user.email, 'CSV → Publicaciones', JSON.stringify(sincronizacion), req.ip);
+    res.status(201).json({ message: values.length + ' filas importadas correctamente.', sincronizacion });
   } catch (err) {
     sheetError(res, err);
   }
@@ -129,172 +161,21 @@ router.delete('/:rowIndex', requirePermission('edit_informes'), async (req, res)
 
 router.post('/sync', requirePermission('sync_informes'), async (req, res) => {
   try {
-    const { columnMapping } = req.body;
-    if (!columnMapping || !columnMapping.grupo || !columnMapping.fecha) {
-      return res.status(400).json({ error: 'Mapeo incompleto. Grupo y Fecha son obligatorios.' });
-    }
-
     const s = sheets();
     if (!s) return res.status(503).json({ error: 'Google Sheets no configurado.' });
-
-    // Read Metricas sheet
-    const metricasResult = await s.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID, range: 'Metricas!A:I',
-      valueRenderOption: 'UNFORMATTED_VALUE', dateTimeRenderOption: 'FORMATTED_STRING'
-    });
-    const metricasRows = metricasResult.data.values || [];
-    const headerIdx = metricasRows.findIndex(r => r[0] === 'Fecha');
-    if (headerIdx === -1) {
-      return res.status(400).json({ error: 'La hoja Métricas no tiene el formato esperado.' });
-    }
-
-    const norm = value => String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
-    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-    const weekAgo = new Date(today + 'T00:00:00Z');
-    weekAgo.setUTCDate(weekAgo.getUTCDate() - 6);
-    function isWithinLast7Days(value) {
-      const key = dateKey(value);
-      return key && key >= weekAgo.toISOString().slice(0, 10) && key <= today;
-    }
-
-    // Build lookup keyed by (grupo|fecha) — store under both exact and normalized key
-    const metricasMap = Object.create(null);
-    const ambiguous = new Set();
-    const pending = new Map();
-    const metricasKeys = [];
-    for (let i = headerIdx + 1; i < metricasRows.length; i++) {
-      const row = metricasRows[i];
-      if (!row[0] || row[0] === '__DELETED__') continue;
-      const grupo = String(row[1] ?? '').trim();
-      const fecha = String(row[0] ?? '').trim();
-      if (!grupo || !fecha) continue;
-      const exact = grupo.toLowerCase() + '|' + dateKey(fecha);
-      const normalized = norm(grupo) + '|' + dateKey(fecha);
-      const entry = {
-        rowIndex: i + 1,
-        visualizaciones: count(row[3]) ?? 0,
-        interacciones: count(row[4]) ?? 0,
-        comentarios: count(row[5]) ?? 0
-      };
-      if (metricasMap[exact]) ambiguous.add(exact);
-      if (metricasMap[normalized]) ambiguous.add(normalized);
-      metricasMap[exact] = entry;
-      if (normalized !== exact) metricasMap[normalized] = entry;
-      metricasKeys.push(exact);
-    }
-
-    // Read Informes sheet
-    const informesResult = await s.spreadsheets.values.get({
+    const response = await s.spreadsheets.values.get({
       spreadsheetId: SHEET_ID, range: 'Informes!A:ZZ',
       valueRenderOption: 'UNFORMATTED_VALUE', dateTimeRenderOption: 'FORMATTED_STRING'
     });
-    const rows = informesResult.data.values || [];
-    if (rows.length < 2) {
-      return res.json({ total: 0, actualizados: 0, sinMatch: 0, mensaje: 'No hay datos en Informes.' });
-    }
-    const headers = rows[0];
-
-    // Resolve column indices from mapping
-    const colIdx = {
-      grupo: headers.indexOf(columnMapping.grupo),
-      fecha: headers.indexOf(columnMapping.fecha),
-      visualizaciones: headers.indexOf(columnMapping.visualizaciones),
-      interacciones: headers.indexOf(columnMapping.interacciones),
-      comentarios: headers.indexOf(columnMapping.comentarios)
-    };
-    if (colIdx.grupo === -1 || colIdx.fecha === -1) {
-      return res.status(400).json({ error: 'Las columnas mapeadas no existen en Informes.' });
-    }
-
-    let actualizados = 0;
-    let sinMatch = 0;
-    let yaActualizados = 0;
-    let fueraRango = 0;
-    const detalles = [];
-    const sinMatchEjemplos = [];
-
-    for (let i = 1; i < rows.length; i++) {
-      const row = rows[i];
-      if (!row || row[0] === '__DELETED__' || !row.some(c => c !== '' && c != null)) continue;
-
-      const grupo = String(row[colIdx.grupo] ?? '').trim();
-      const fecha = String(row[colIdx.fecha] ?? '').trim();
-      if (!grupo || !fecha) { sinMatch++; continue; }
-
-      // Solo procesar filas de los últimos 7 días (si la fecha se puede parsear)
-      const enRango = isWithinLast7Days(fecha);
-      if (!enRango) { fueraRango++; continue; }
-
-      // Try exact, then normalized
-      const exactKey = grupo.toLowerCase() + '|' + dateKey(fecha);
-      const normKey = norm(grupo) + '|' + dateKey(fecha);
-      let match = ambiguous.has(exactKey) ? null : metricasMap[exactKey];
-      if (!match && !ambiguous.has(normKey)) match = metricasMap[normKey];
-
-      if (!match) {
-        sinMatch++;
-        if (sinMatchEjemplos.length < 10) sinMatchEjemplos.push({ grupo, fecha });
-        continue;
-      }
-
-      // Compare numeric fields
-      const fieldMappings = [
-        { col: colIdx.visualizaciones, field: 'visualizaciones', colNum: 3 },
-        { col: colIdx.interacciones, field: 'interacciones', colNum: 4 },
-        { col: colIdx.comentarios, field: 'comentarios', colNum: 5 }
-      ];
-
-      const updates = {};
-      fieldMappings.forEach(fm => {
-        if (fm.col === -1) return;
-        const csvVal = count(row[fm.col]);
-        if (csvVal === null) return;
-        if (csvVal > match[fm.field]) {
-          updates[fm.field] = { value: csvVal, colNum: fm.colNum };
-        }
-      });
-
-      if (Object.keys(updates).length === 0) {
-        let allEqual = true;
-        fieldMappings.forEach(fm => {
-          if (fm.col === -1) return;
-          const csvVal = count(row[fm.col]);
-          if (csvVal !== match[fm.field]) allEqual = false;
-        });
-        if (allEqual) yaActualizados++;
-        continue;
-      }
-
-      // Update the Metricas row
-      const rowIndex = match.rowIndex;
-      Object.entries(updates).forEach(([field, update]) => {
-        const range = 'Metricas!' + String.fromCharCode(65 + update.colNum) + rowIndex;
-        pending.set(range, { range, values: [[update.value]] });
-        match[field] = update.value;
-      });
-
-      actualizados++;
-      detalles.push({ grupo, fecha, ...Object.fromEntries(Object.entries(updates).map(([k, v]) => [k, v.value])) });
-    }
-
-    if (pending.size) await s.spreadsheets.values.batchUpdate({
-      spreadsheetId: SHEET_ID, resource: { valueInputOption: 'RAW', data: [...pending.values()] }
-    });
-
-    logAction(req.user.id, req.user.email, 'Sincronización Informes → Métricas', actualizados + ' filas actualizadas, ' + sinMatch + ' sin coincidencia', req.ip);
-
-    res.json({
-      total: rows.length - 1,
-      actualizados,
-      sinMatch,
-      yaActualizados,
-      fueraRango,
-      detalles,
-      sinMatchEjemplos,
-      metricasKeysMuestra: metricasKeys.slice(0, 10)
-    });
+    const rows = response.data.values || [];
+    const headers = rows[0] || [];
+    const reports = rows.slice(1).filter(row => row[0] !== '__DELETED__' && row.some(cell => cell !== '' && cell != null))
+      .map(row => Object.fromEntries(headers.map((header, index) => [header, row[index] ?? ''])));
+    const summary = await syncReports(s, reports, req.body.columnMapping, false, req.body.dateFormat);
+    logAction(req.user.id, req.user.email, 'Sincronización Informes → Métricas', summary.actualizados + ' publicaciones actualizadas', req.ip);
+    return res.json(summary);
   } catch (err) {
-    console.error('Sync error:', err);
+    if (/columna de |Formato de fecha inválido|Mapeo inválido|formato esperado|Faltan Grupo/.test(err.message)) return res.status(400).json({ error: err.message });
     sheetError(res, err);
   }
 });

@@ -18,7 +18,7 @@ const CATALOG = [
   { key: 'complete_calendario', label: 'Marcar elementos como realizados', group: 'Calendario', desc: 'Marcar eventos o tareas como realizados o pendientes desde el calendario.' },
 
   { key: 'edit_informes', label: 'Importar / eliminar informes', group: 'Informes', desc: 'Carga y borrado de informes.' },
-  { key: 'sync_informes', label: 'Sincronizar informes desde Google Sheets', group: 'Informes', desc: 'Sincronizar los informes con la planilla.' }
+  { key: 'sync_informes', label: 'Actualizar Publicaciones con informes', group: 'Informes', desc: 'Actualizar automáticamente las métricas mayores al importar CSV y reintentar la sincronización.' }
 ];
 
 const DEFAULT_ROLE_PERMISSIONS = {
