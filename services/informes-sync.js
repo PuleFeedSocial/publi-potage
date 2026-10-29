@@ -39,10 +39,12 @@ function sourceDates(reports, column, format) {
 
 function planSync(targetRows, reports, suppliedMapping, { importedBatch = false, dateFormat = 'auto' } = {}) {
     const headers = [...new Set(reports.flatMap(row => Object.keys(row)))];
-    const mapping = suppliedMapping === undefined ? columns.detect(headers) : suppliedMapping;
+    const mapping = suppliedMapping === undefined ? columns.detect(headers, reports) : suppliedMapping;
     validateMapping(headers, mapping);
     const mappedColumns = field => mapping[field] === columns.AUTO ? headers.filter(header => columns.matches(field, header)) : [mapping[field]];
-    const sourceValues = (row, field) => mappedColumns(field).map(header => String(row[header] ?? '').trim()).filter(Boolean);
+    const sourceValues = (row, field) => mappedColumns(field)
+        .filter(header => field !== 'fecha' || !columns.isSummaryDate(header, row[header]))
+        .map(header => String(row[header] ?? '').trim()).filter(Boolean);
     const sourceDate = sourceDates(reports, mappedColumns('fecha'), dateFormat);
     function reportDate(row) {
         const dates = sourceValues(row, 'fecha').map(sourceDate);
@@ -59,7 +61,7 @@ function planSync(targetRows, reports, suppliedMapping, { importedBatch = false,
         if (mapping.grupo && ['', '-', '--', '—', 'sin grupo', 'no group'].includes(group) && hasPage(row)) return 'perfil estandar';
         return group;
     }
-    const result = { total: reports.length, actualizados: 0, celdasActualizadas: 0, sinMatch: 0, yaActualizados: 0, ambiguos: 0, datosInvalidos: 0, perfilEstandar: 0, sinMatchEjemplos: [], columnMapping: mapping };
+    const result = { total: reports.length, actualizados: 0, celdasActualizadas: 0, sinMatch: 0, yaActualizados: 0, ambiguos: 0, fechasInvalidas: 0, sinPublicacion: 0, datosInvalidos: 0, perfilEstandar: 0, sinMatchEjemplos: [], columnMapping: mapping };
     if (!mapping.grupo || !mapping.fecha || !fields.some(field => mapping[field])) {
         const missing = [!mapping.grupo && 'Grupo o la opción Perfil estándar', !mapping.fecha && 'Fecha de publicación', !fields.some(field => mapping[field]) && 'al menos una métrica equivalente'].filter(Boolean);
         return { data: [], summary: { ...result, omitida: true, motivo: 'Falta identificar: ' + missing.join(', ') + '. Revisá la asignación de columnas en Reintentar sincronización.' } };
@@ -115,7 +117,14 @@ function planSync(targetRows, reports, suppliedMapping, { importedBatch = false,
         if (!group || !date || !match || ambiguous || (pubsColumn >= 0 && count(match.row[pubsColumn]) !== 1)) {
             result.sinMatch++;
             if (ambiguous || match) result.ambiguos++;
-            if (result.sinMatchEjemplos.length < 10) result.sinMatchEjemplos.push({ grupo: group === 'perfil estandar' ? 'Perfil estándar' : sourceValues(report, 'grupo').join(' / '), fecha: sourceValues(report, 'fecha').join(' / '), motivo: !date ? 'Fecha ausente, inválida o contradictoria: revisá la columna y el formato día/mes o mes/día' : !group ? 'Grupo ausente o columnas de grupo contradictorias' : ambiguous || match ? 'Coincidencia ambigua o fila agrupada' : 'Sin publicación coincidente' });
+            if (!date) result.fechasInvalidas++;
+            else if (group && !match && !ambiguous) result.sinPublicacion++;
+            let reason = 'No existe una publicación coincidente por grupo y fecha';
+            if (!date) reason = 'Fecha ausente, inválida o contradictoria: revisá la columna y el formato día/mes o mes/día';
+            else if (!group) reason = 'Grupo ausente o columnas de grupo contradictorias';
+            else if (stats?.ids > 1) reason = 'Hay varias publicaciones distintas del mismo grupo o perfil en esta fecha; no se puede identificar una única publicación';
+            else if (ambiguous || match) reason = 'Hay varias filas coincidentes o una fila que agrupa publicaciones; no se modifica sin una coincidencia única';
+            if (result.sinMatchEjemplos.length < 10) result.sinMatchEjemplos.push({ grupo: group === 'perfil estandar' ? 'Perfil estándar' : sourceValues(report, 'grupo').join(' / '), fecha: sourceValues(report, 'fecha').join(' / '), motivo: reason });
             continue;
         }
         let changed = false, comparable = false;

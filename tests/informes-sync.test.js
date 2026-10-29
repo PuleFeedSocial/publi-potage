@@ -90,6 +90,31 @@ test('automatic identity resolves matching columns but skips contradictory dates
     assert.deepEqual(planSync(rows, [report]).data, []);
 });
 
+test('Meta Fecha=Total is a summary label and Hora de publicación supplies the actual date', () => {
+    const rows = target({ 0: '28/10/2026', 1: 'Perfil Estandar', 3: 20, 4: 0 });
+    const reports = [pageReport({ Fecha: 'Total', 'Hora de publicación': '10/28/2026 09:39', Visualizaciones: '51', Interacciones: '1', Comentarios: '0' })];
+    const detected = detect(Object.keys(reports[0]), reports);
+    assert.equal(detected.fecha, 'Hora de publicación');
+    let result = planSync(rows, reports);
+    assert.equal(result.summary.fechasInvalidas, 0);
+    assert.equal(result.summary.actualizados, 1);
+    assert.deepEqual(result.data, [{ range: 'Metricas!D2', values: [[51]] }, { range: 'Metricas!E2', values: [[1]] }]);
+    // El formulario anterior enviaba AUTO: el servidor también debe corregir ese caso.
+    result = planSync(rows, reports, { grupo: PROFILE, fecha: AUTO, visualizaciones: 'Visualizaciones' });
+    assert.equal(result.summary.actualizados, 1);
+    assert.equal(result.summary.fechasInvalidas, 0);
+    assert.ok(!result.summary.sinMatchEjemplos.some(example => example.fecha.includes('Total')));
+});
+
+test('summary labels cannot invent publication dates or hide malformed real dates', () => {
+    const rows = target({ 0: '28/10/2026', 1: 'Perfil Estandar' });
+    assert.equal(planSync(rows, [{ 'Nombre de la página': 'Potage Srl', Fecha: 'Total', Visualizaciones: 999 }]).summary.omitida, true);
+    const reports = [pageReport({ Fecha: 'dato roto', 'Hora de publicación': '10/28/2026 09:39' })];
+    const result = planSync(rows, reports);
+    assert.deepEqual(result.data, []);
+    assert.equal(result.summary.fechasInvalidas, 1);
+});
+
 test('CSV sync updates only greater individual cells, including historical dates and normalized group names', () => {
     const { data, summary } = planSync(target(), [source({ Interacción: 8, Comentarios: 2 })]);
     assert.deepEqual(data, [{ range: 'Metricas!D2', values: [[200]] }]);

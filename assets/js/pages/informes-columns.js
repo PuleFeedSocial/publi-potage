@@ -19,10 +19,17 @@
         return columns.find(column => names.some(name => normalize(name) === normalize(column)));
     }
     function matches(field, column) { return (aliases[field] || []).some(alias => normalize(alias) === normalize(column)); }
-    function detect(columns) {
+    // En los CSV de Meta, Fecha=Total identifica el período de métricas, no el día del post.
+    function isSummaryDate(column, value) { return ['fecha', 'date'].includes(normalize(column)) && normalize(value) === 'total'; }
+    function detect(columns, rows = []) {
         const mapping = {};
         Object.keys(aliases).forEach(field => {
-            const found = columns.filter(column => matches(field, column));
+            const found = columns.filter(column => {
+                if (!matches(field, column)) return false;
+                if (field !== 'fecha') return true;
+                const populated = rows.map(row => row[column]).filter(value => value != null && String(value).trim());
+                return !populated.length || !populated.every(value => isSummaryDate(column, value));
+            });
             if (found.length === 1) mapping[field] = found[0];
             else if (found.length > 1 && ['grupo', 'fecha'].includes(field)) mapping[field] = AUTO;
         });
@@ -35,5 +42,5 @@
         }
         return mapping;
     }
-    return { normalize, matches, detect, pageColumn, PROFILE, AUTO };
+    return { normalize, matches, detect, pageColumn, isSummaryDate, PROFILE, AUTO };
 }));

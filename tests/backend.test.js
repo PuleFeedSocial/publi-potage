@@ -283,6 +283,17 @@ test('retry processes already imported page reports without importing duplicate 
   assert.deepEqual(operations.find(o => o.google === 'valuesBatch').request.resource.data, [{ range: 'Metricas!D2', values: [[2000]] }]);
 });
 
+test('retry accepts saved Meta reports with Fecha Total even when the previous UI selects both date columns', async () => {
+  sheetRows.Metricas[1][0] = '28/10/2026';
+  sheetRows.Metricas[1][1] = 'Perfil Estandar';
+  sheetRows.Informes = [['Nombre de la página', 'Hora de publicación', 'Fecha', 'Visualizaciones'], ['Potage Srl', '10/28/2026 09:39', 'Total', '2000']];
+  const res = await request('/api/informes/sync', { method: 'POST', body: { columnMapping: { grupo: '__PERFIL_ESTANDAR__', fecha: '__AUTOMATICO_POR_FILA__', visualizaciones: 'Visualizaciones' } } });
+  assert.equal(res.status, 200);
+  assert.equal(res.data.actualizados, 1);
+  assert.equal(res.data.fechasInvalidas, 0);
+  assert.deepEqual(operations.find(o => o.google === 'valuesBatch').request.resource.data, [{ range: 'Metricas!D2', values: [[2000]] }]);
+});
+
 test('import permissions do not grant permission to change publication metrics', async () => {
   const user = { id: 55, role: 'colaborador', email: 'editor@example.test', name: 'Editor', token_version: 0 };
   users.set(55, user);

@@ -45,3 +45,11 @@ test('retry sends profile and automatic date selections and renders automatic op
     assert.match(ui.elements['sync-mapping-form'].innerHTML, new RegExp('value="' + columns.AUTO + '" selected'));
     assert.match(ui.elements['sync-mapping-form'].innerHTML, new RegExp('value="' + columns.PROFILE + '" selected'));
 });
+
+test('Facebook summary labels do not prevent selecting the publication timestamp in the retry form', () => {
+    const ui = page();
+    const reports = [{ 'Nombre de la página': 'Potage Srl', Fecha: 'Total', 'Hora de publicación': '10/28/2026 09:39', Visualizaciones: '51' }];
+    ui.context.renderMapping(Object.keys(reports[0]), 'sync', reports);
+    assert.match(ui.elements['sync-mapping-form'].innerHTML, /value="Hora de publicación" selected/);
+    assert.doesNotMatch(ui.elements['sync-mapping-form'].innerHTML, /value="Fecha" selected/);
+});

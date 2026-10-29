@@ -105,7 +105,7 @@
 
         function showPreview(data) {
             const headers = [...new Set(data.flatMap(row => Object.keys(row)))];
-            renderMapping(headers, 'import');
+            renderMapping(headers, 'import', data);
             const previewRows = data.slice(0, 10);
             const totalRows = data.length;
 
@@ -165,8 +165,8 @@
                 });
         }
 
-        function renderMapping(columns, prefix) {
-            const detected = InformesColumns.detect(columns);
+        function renderMapping(columns, prefix, rows = []) {
+            const detected = InformesColumns.detect(columns, rows);
             const labels = { grupo: 'Grupo', fecha: 'Fecha de publicación', visualizaciones: 'Visualizaciones', interacciones: 'Interacciones', comentarios: 'Comentarios' };
             document.getElementById(prefix === 'import' ? 'import-mapping-form' : 'sync-mapping-form').innerHTML =
                 '<div class="row g-2 mb-3">' + Object.entries(labels).map(([field, label]) => {
@@ -180,7 +180,7 @@
                         '</label><select class="form-select form-select-sm" id="' + prefix + '-map-' + field + '"><option value="">' + emptyLabel + '</option>' +
                         automaticOption + profileOption +
                         compatible.map(column => '<option value="' + esc(column) + '"' + (detected[field] === column ? ' selected' : '') + '>' + esc(column) + '</option>').join('') + '</select></div>';
-                }).join('') + '</div><p class="text-muted small">Las publicaciones de página sin grupo corresponden a Perfil estándar. Si el archivo mezcla grupos y perfil, elegí la columna Grupo: las filas sin grupo con datos de página se reconocerán automáticamente.</p><label class="form-label small" for="' + prefix + '-date-format">Formato de las fechas del CSV</label><select class="form-select form-select-sm mb-3" id="' + prefix + '-date-format"><option value="auto">Automático (solo fechas inequívocas)</option><option value="dmy">Día / Mes / Año</option><option value="mdy">Mes / Día / Año (exportación en inglés)</option></select>';
+                }).join('') + '</div><p class="text-muted small">Las publicaciones de página sin grupo corresponden a Perfil estándar. Si el archivo mezcla grupos y perfil, elegí la columna Grupo: las filas sin grupo con datos de página se reconocerán automáticamente. En exportaciones de Facebook, «Fecha: Total» es una etiqueta de resumen; la fecha real se toma de «Hora de publicación».</p><label class="form-label small" for="' + prefix + '-date-format">Formato de las fechas del CSV</label><select class="form-select form-select-sm mb-3" id="' + prefix + '-date-format"><option value="auto">Automático (solo fechas inequívocas)</option><option value="dmy">Día / Mes / Año</option><option value="mdy">Mes / Día / Año (exportación en inglés)</option></select>';
         }
 
         function readMapping(prefix) {
@@ -194,6 +194,7 @@
             box.textContent = message + '\n' + (result?.motivo ||
                 ('Publicaciones actualizadas: ' + (result?.actualizados || 0) + '. Celdas actualizadas: ' + (result?.celdasActualizadas || 0) +
                 '. Filas sin aumentos: ' + (result?.yaActualizados || 0) + '. Sin coincidencia segura: ' + (result?.sinMatch || 0) +
+                ' (fechas inválidas: ' + (result?.fechasInvalidas || 0) + ', coincidencias ambiguas: ' + (result?.ambiguos || 0) + ', sin publicación registrada: ' + (result?.sinPublicacion || 0) + ')' +
                 '. Valores vacíos o inválidos omitidos: ' + (result?.datosInvalidos || 0) + '.' +
                 (result?.perfilEstandar ? ' Filas identificadas como Perfil estándar: ' + result.perfilEstandar + '.' : '')));
             if (result?.sinMatchEjemplos?.length) {
@@ -215,7 +216,7 @@
             }
             const columns = Object.keys(informesData[0]).filter(k => k !== 'rowIndex');
 
-            renderMapping(columns, 'sync');
+            renderMapping(columns, 'sync', informesData);
 
             bootstrap.Modal.getOrCreateInstance(document.getElementById('syncModal')).show();
         }
