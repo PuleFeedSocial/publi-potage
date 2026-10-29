@@ -10,6 +10,7 @@ const key = (group, date) => JSON.stringify([group, date]);
 function validateMapping(headers, mapping) {
     if (!mapping || typeof mapping !== 'object' || Array.isArray(mapping)) throw new Error('Mapeo inválido.');
     for (const field of ['grupo', 'fecha', ...fields]) {
+        if (field === 'grupo' && mapping[field] === columns.PROFILE) continue;
         if (mapping[field] && (!headers.includes(mapping[field]) || !columns.matches(field, mapping[field]))) {
             throw new Error('La columna de ' + field + ' debe corresponder a esa misma información.');
         }
@@ -40,9 +41,19 @@ function planSync(targetRows, reports, suppliedMapping, { importedBatch = false,
     const mapping = suppliedMapping === undefined ? columns.detect(headers) : suppliedMapping;
     validateMapping(headers, mapping);
     const sourceDate = sourceDates(reports, mapping.fecha, dateFormat);
-    const result = { total: reports.length, actualizados: 0, celdasActualizadas: 0, sinMatch: 0, yaActualizados: 0, ambiguos: 0, datosInvalidos: 0, sinMatchEjemplos: [], columnMapping: mapping };
+    const pageColumns = headers.filter(header => columns.pageColumn([header]));
+    const hasPage = row => pageColumns.some(header => String(row[header] ?? '').trim());
+    function sourceGroup(row) {
+        if (mapping.grupo === columns.PROFILE) return pageColumns.length && !hasPage(row) ? '' : 'perfil estandar';
+        const group = exactGroup(row[mapping.grupo]);
+        // Solo inferir ausencia de grupo en filas con metadatos reales de página.
+        if (mapping.grupo && ['', '-', '--', '—', 'sin grupo', 'no group'].includes(group) && hasPage(row)) return 'perfil estandar';
+        return group;
+    }
+    const result = { total: reports.length, actualizados: 0, celdasActualizadas: 0, sinMatch: 0, yaActualizados: 0, ambiguos: 0, datosInvalidos: 0, perfilEstandar: 0, sinMatchEjemplos: [], columnMapping: mapping };
     if (!mapping.grupo || !mapping.fecha || !fields.some(field => mapping[field])) {
-        return { data: [], summary: { ...result, omitida: true, motivo: 'No se identificaron Grupo, Fecha y al menos una métrica equivalente. Revisá las columnas del CSV.' } };
+        const missing = [!mapping.grupo && 'Grupo o la opción Perfil estándar', !mapping.fecha && 'Fecha de publicación', !fields.some(field => mapping[field]) && 'al menos una métrica equivalente'].filter(Boolean);
+        return { data: [], summary: { ...result, omitida: true, motivo: 'Falta identificar: ' + missing.join(', ') + '. Revisá la asignación de columnas en Reintentar sincronización.' } };
     }
     const headerIndex = targetRows.findIndex(row => columns.matches('fecha', row[0]));
     if (headerIndex < 0) throw new Error('La hoja Métricas no tiene el formato esperado.');
@@ -68,19 +79,21 @@ function planSync(targetRows, reports, suppliedMapping, { importedBatch = false,
     });
     const sources = new Map();
     reports.forEach(row => {
-        const date = sourceDate(row[mapping.fecha]), group = exactGroup(row[mapping.grupo]);
+        const date = sourceDate(row[mapping.fecha]), group = sourceGroup(row);
         if (date && group) add(sources, key(columns.normalize(group), date), row);
     });
     const idColumn = columns.detect(headers).id;
+    const reportId = row => idColumn ? String(row[idColumn] ?? '').trim() : '';
     const sourceStats = new Map([...sources].map(([identity, rows]) => [identity, {
         size: rows.length,
         distinct: new Set(rows.map(row => JSON.stringify(fields.map(field => row[mapping[field]] ?? '')))).size,
-        ids: new Set(rows.map(row => String(row[idColumn] ?? '').trim()).filter(Boolean)).size,
-        missingId: rows.some(row => !String(row[idColumn] ?? '').trim())
+        ids: new Set(rows.map(reportId).filter(Boolean)).size,
+        missingId: rows.some(row => !reportId(row))
     }]));
     const pending = new Map(), changedRows = new Set();
     for (const report of reports) {
-        const group = exactGroup(report[mapping.grupo]), date = sourceDate(report[mapping.fecha]);
+        const group = sourceGroup(report), date = sourceDate(report[mapping.fecha]);
+        if (columns.normalize(group) === 'perfilestandar') result.perfilEstandar++;
         const normalizedGroup = columns.normalize(group);
         const candidates = exact.get(key(group, date)) || (normalizedGroup ? normalized.get(key(normalizedGroup, date)) : null) || [];
         const stats = sourceStats.get(key(columns.normalize(group), date));
@@ -93,7 +106,7 @@ function planSync(targetRows, reports, suppliedMapping, { importedBatch = false,
         if (!group || !date || !match || ambiguous || (pubsColumn >= 0 && count(match.row[pubsColumn]) !== 1)) {
             result.sinMatch++;
             if (ambiguous || match) result.ambiguos++;
-            if (result.sinMatchEjemplos.length < 10) result.sinMatchEjemplos.push({ grupo: report[mapping.grupo] || '', fecha: report[mapping.fecha] || '', motivo: !date ? 'Fecha inválida o formato ambiguo: indicá día/mes o mes/día' : ambiguous || match ? 'Coincidencia ambigua o fila agrupada' : 'Sin publicación coincidente' });
+            if (result.sinMatchEjemplos.length < 10) result.sinMatchEjemplos.push({ grupo: group === 'perfil estandar' ? 'Perfil estándar' : report[mapping.grupo] || '', fecha: report[mapping.fecha] || '', motivo: !date ? 'Fecha inválida o formato ambiguo: indicá día/mes o mes/día' : ambiguous || match ? 'Coincidencia ambigua o fila agrupada' : 'Sin publicación coincidente' });
             continue;
         }
         let changed = false, comparable = false;

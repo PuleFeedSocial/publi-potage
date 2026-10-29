@@ -259,6 +259,30 @@ test('CSV import automatically updates only greater equivalent metrics from that
   assert.equal(operations.filter(o => o.google === 'append').length, 1);
 });
 
+test('Facebook page CSV imports update Perfil Estandar without needing a group column', async () => {
+  sheetRows.Metricas[1][0] = '22/06/2026';
+  sheetRows.Metricas[1][1] = 'Perfil Estandar';
+  const data = [{ 'Identificador de la publicación': '123', 'Nombre de la página': 'Potage Srl', 'Hora de publicación': '06/22/2026 04:01', Visualizaciones: '2000', Interacciones: '5', Comentarios: '6' }];
+  const res = await request('/api/informes/import', { method: 'POST', body: { data } });
+  assert.equal(res.status, 201);
+  assert.equal(res.data.sincronizacion.actualizados, 1);
+  assert.equal(res.data.sincronizacion.perfilEstandar, 1);
+  assert.deepEqual(operations.find(o => o.google === 'valuesBatch').request.resource.data, [
+    { range: 'Metricas!D2', values: [[2000]] }, { range: 'Metricas!F2', values: [[6]] }
+  ]);
+});
+
+test('retry processes already imported page reports without importing duplicate rows', async () => {
+  sheetRows.Metricas[1][0] = '22/06/2026';
+  sheetRows.Metricas[1][1] = 'Perfil Estandar';
+  sheetRows.Informes = [['Nombre de la página', 'Hora de publicación', 'Visualizaciones'], ['Potage Srl', '06/22/2026 04:01', '2000']];
+  const res = await request('/api/informes/sync', { method: 'POST', body: {} });
+  assert.equal(res.status, 200);
+  assert.equal(res.data.actualizados, 1);
+  assert.equal(operations.filter(o => o.google === 'append').length, 0);
+  assert.deepEqual(operations.find(o => o.google === 'valuesBatch').request.resource.data, [{ range: 'Metricas!D2', values: [[2000]] }]);
+});
+
 test('import permissions do not grant permission to change publication metrics', async () => {
   const user = { id: 55, role: 'colaborador', email: 'editor@example.test', name: 'Editor', token_version: 0 };
   users.set(55, user);

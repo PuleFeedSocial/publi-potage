@@ -171,10 +171,13 @@
             document.getElementById(prefix === 'import' ? 'import-mapping-form' : 'sync-mapping-form').innerHTML =
                 '<div class="row g-2 mb-3">' + Object.entries(labels).map(([field, label]) => {
                     const compatible = columns.filter(column => InformesColumns.matches(field, column));
+                    const profileOption = field === 'grupo' ? '<option value="' + InformesColumns.PROFILE + '"' +
+                        (detected.grupo === InformesColumns.PROFILE ? ' selected' : '') + '>Sin grupos: Perfil estándar</option>' : '';
                     return '<div class="col-12 col-md-6"><label class="form-label small" for="' + prefix + '-map-' + field + '">' + label +
                         '</label><select class="form-select form-select-sm" id="' + prefix + '-map-' + field + '"><option value="">No actualizar / sin columna</option>' +
+                        profileOption +
                         compatible.map(column => '<option value="' + esc(column) + '"' + (detected[field] === column ? ' selected' : '') + '>' + esc(column) + '</option>').join('') + '</select></div>';
-                }).join('') + '</div><label class="form-label small" for="' + prefix + '-date-format">Formato de las fechas del CSV</label><select class="form-select form-select-sm mb-3" id="' + prefix + '-date-format"><option value="auto">Automático (solo fechas inequívocas)</option><option value="dmy">Día / Mes / Año</option><option value="mdy">Mes / Día / Año (exportación en inglés)</option></select>';
+                }).join('') + '</div><p class="text-muted small">Las publicaciones de página sin grupo corresponden a Perfil estándar. Si el archivo mezcla grupos y perfil, elegí la columna Grupo: las filas sin grupo con datos de página se reconocerán automáticamente.</p><label class="form-label small" for="' + prefix + '-date-format">Formato de las fechas del CSV</label><select class="form-select form-select-sm mb-3" id="' + prefix + '-date-format"><option value="auto">Automático (solo fechas inequívocas)</option><option value="dmy">Día / Mes / Año</option><option value="mdy">Mes / Día / Año (exportación en inglés)</option></select>';
         }
 
         function readMapping(prefix) {
@@ -188,7 +191,8 @@
             box.textContent = message + '\n' + (result?.motivo ||
                 ('Publicaciones actualizadas: ' + (result?.actualizados || 0) + '. Celdas actualizadas: ' + (result?.celdasActualizadas || 0) +
                 '. Filas sin aumentos: ' + (result?.yaActualizados || 0) + '. Sin coincidencia segura: ' + (result?.sinMatch || 0) +
-                '. Valores vacíos o inválidos omitidos: ' + (result?.datosInvalidos || 0) + '.'));
+                '. Valores vacíos o inválidos omitidos: ' + (result?.datosInvalidos || 0) + '.' +
+                (result?.perfilEstandar ? ' Filas identificadas como Perfil estándar: ' + result.perfilEstandar + '.' : '')));
             if (result?.sinMatchEjemplos?.length) {
                 const list = document.createElement('ul');
                 list.className = 'mb-0 mt-2 small';

@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { planSync } = require('../services/informes-sync');
-const { detect } = require('../assets/js/pages/informes-columns');
+const { detect, PROFILE } = require('../assets/js/pages/informes-columns');
 
 const headers = ['Fecha', 'Grupo', 'Publicaciones', 'Visualizaciones', 'Interacciones', 'Comentarios', 'Mensajes', 'Zona', 'Estatus'];
 function target(overrides = {}) {
@@ -15,8 +15,57 @@ test('CSV sync maps equivalent metrics, including singular Interacción, without
     assert.deepEqual(detect(['Grupo', 'Fecha', 'Visualizaciones', 'Interacción', 'Comentarios', 'Alcance', 'Reacciones']), {
         grupo: 'Grupo', fecha: 'Fecha', visualizaciones: 'Visualizaciones', interacciones: 'Interacción', comentarios: 'Comentarios'
     });
-    assert.deepEqual(detect(['Nombre de la página', 'Título', 'Alcance', 'Espectadores', 'Impresiones', 'Reacciones']), {});
+    assert.deepEqual(detect(['Nombre de la página', 'Título', 'Alcance', 'Espectadores', 'Impresiones', 'Reacciones']), { grupo: PROFILE });
     assert.throws(() => planSync(target(), [source({ Alcance: 999 })], { grupo: 'Grupo', fecha: 'Fecha', visualizaciones: 'Alcance' }), /misma información/);
+});
+
+const pageReport = extra => ({
+    'Identificador de la publicación': '122110462707357558',
+    'Identificador de la página': '61590726743329',
+    'Nombre de la página': 'Potage Srl',
+    'Hora de publicación': '06/22/2026 04:01',
+    'Enlace permanente': 'https://www.facebook.com/permalink/122110462707357558',
+    Visualizaciones: '200', Interacciones: '15', Comentarios: '3', ...extra
+});
+
+test('Facebook page export maps to Perfil Estandar and recognizes the screenshot month/day timestamps', () => {
+    const rows = target({ 0: '22/06/2026', 1: 'Perfil Estandar' });
+    const { data, summary } = planSync(rows, [pageReport()]);
+    assert.equal(summary.columnMapping.grupo, PROFILE);
+    assert.equal(summary.perfilEstandar, 1);
+    assert.equal(summary.actualizados, 1);
+    assert.deepEqual(data.map(cell => cell.values[0][0]), [200, 15, 3]);
+    const otherDate = pageReport({ 'Hora de publicación': '06/03/2026 14:04', 'Identificador de la publicación': 'other' });
+    rows.push(['03/06/2026', 'Perfil Estándar', 1, 100, 10, 2]);
+    assert.equal(planSync(rows, [pageReport(), otherDate]).summary.actualizados, 2);
+});
+
+test('mixed and stored report schemas preserve group matches and only map empty Facebook groups to the profile', () => {
+    const rows = target({ 0: '22/06/2026' });
+    rows.push(['22/06/2026', 'Perfil Estandar', 1, 100, 10, 2]);
+    const reports = [pageReport({ Grupo: 'Grupo A' }), pageReport({ Grupo: '', 'Identificador de la publicación': 'profile' })];
+    const result = planSync(rows, reports);
+    assert.equal(result.summary.actualizados, 2);
+    assert.equal(result.summary.perfilEstandar, 1);
+    assert.equal(result.summary.columnMapping.grupo, 'Grupo');
+    assert.deepEqual(planSync(rows, [source({ Grupo: '', Fecha: '22/06/2026' })]).data, []);
+});
+
+test('page names do not match marketing group names and an explicitly omitted identity stays omitted', () => {
+    assert.deepEqual(planSync(target({ 0: '22/06/2026', 1: 'Potage Srl' }), [pageReport()]).data, []);
+    assert.equal(planSync(target(), [pageReport()], { fecha: 'Hora de publicación', visualizaciones: 'Visualizaciones' }).summary.omitida, true);
+    assert.equal(planSync(target({ 0: '22/06/2026', 1: 'Perfil Estandar' }), [{ Fecha: '22/06/2026', Vistas: 900 }], { grupo: PROFILE, fecha: 'Fecha', visualizaciones: 'Vistas' }).summary.actualizados, 1);
+    assert.deepEqual(planSync(target({ 0: '22/06/2026', 1: 'Perfil Estandar' }), [pageReport({ 'Nombre de la página': '', 'Identificador de la página': '' })]).data, []);
+});
+
+test('profile matches never update multiple branches or different posts on the same day', () => {
+    const rows = target({ 0: '22/06/2026', 1: 'Perfil Estandar' });
+    rows.push([...rows[1].slice(0, 7), 'Otra sucursal', 'PUBLICADA']);
+    assert.deepEqual(planSync(rows, [pageReport()]).data, []);
+    rows.pop();
+    const second = pageReport({ 'Identificador de la publicación': 'other' });
+    assert.deepEqual(planSync(rows, [pageReport(), second]).data, []);
+    assert.equal(detect(Object.keys(pageReport())).id, 'Identificador de la publicación');
 });
 
 test('CSV sync updates only greater individual cells, including historical dates and normalized group names', () => {
