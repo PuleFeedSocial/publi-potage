@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { planSync } = require('../services/informes-sync');
-const { detect, PROFILE } = require('../assets/js/pages/informes-columns');
+const { detect, PROFILE, AUTO } = require('../assets/js/pages/informes-columns');
 
 const headers = ['Fecha', 'Grupo', 'Publicaciones', 'Visualizaciones', 'Interacciones', 'Comentarios', 'Mensajes', 'Zona', 'Estatus'];
 function target(overrides = {}) {
@@ -66,6 +66,28 @@ test('profile matches never update multiple branches or different posts on the s
     const second = pageReport({ 'Identificador de la publicación': 'other' });
     assert.deepEqual(planSync(rows, [pageReport(), second]).data, []);
     assert.equal(detect(Object.keys(pageReport())).id, 'Identificador de la publicación');
+});
+
+test('stored report union selects publication dates per row without requiring a manual column choice', () => {
+    const rows = target({ 0: '22/06/2026', 1: 'Perfil Estandar' });
+    rows.push(['23/06/2026', 'Grupo A', 1, 100, 10, 2]);
+    const reports = [pageReport({ Grupo: '', Fecha: '' }), {
+        Grupo: 'Grupo A', Fecha: '2026-06-23', 'Hora de publicación': '', Visualizaciones: '300'
+    }];
+    const { data, summary } = planSync(rows, reports);
+    assert.equal(summary.columnMapping.fecha, AUTO);
+    assert.equal(summary.actualizados, 2);
+    assert.deepEqual(data.filter(cell => cell.range.startsWith('Metricas!D')).map(cell => cell.values[0][0]), [200, 300]);
+});
+
+test('automatic identity resolves matching columns but skips contradictory dates or groups', () => {
+    const rows = target({ 0: '22/06/2026' });
+    let report = source({ Fecha: '2026-06-22', 'Hora de publicación': '2026-06-23', 'Nombre del grupo': 'Grupo A' });
+    assert.deepEqual(planSync(rows, [report]).data, []);
+    report['Hora de publicación'] = '2026-06-22';
+    assert.equal(planSync(rows, [report]).summary.actualizados, 1);
+    report['Nombre del grupo'] = 'Otro grupo';
+    assert.deepEqual(planSync(rows, [report]).data, []);
 });
 
 test('CSV sync updates only greater individual cells, including historical dates and normalized group names', () => {

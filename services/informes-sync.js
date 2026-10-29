@@ -11,6 +11,7 @@ function validateMapping(headers, mapping) {
     if (!mapping || typeof mapping !== 'object' || Array.isArray(mapping)) throw new Error('Mapeo inválido.');
     for (const field of ['grupo', 'fecha', ...fields]) {
         if (field === 'grupo' && mapping[field] === columns.PROFILE) continue;
+        if (['grupo', 'fecha'].includes(field) && mapping[field] === columns.AUTO && headers.some(header => columns.matches(field, header))) continue;
         if (mapping[field] && (!headers.includes(mapping[field]) || !columns.matches(field, mapping[field]))) {
             throw new Error('La columna de ' + field + ' debe corresponder a esa misma información.');
         }
@@ -20,11 +21,11 @@ function validateMapping(headers, mapping) {
 function sourceDates(reports, column, format) {
     if (!['auto', 'dmy', 'mdy'].includes(format)) throw new Error('Formato de fecha inválido.');
     const evidence = new Set();
-    reports.forEach(row => {
-        const match = /^(\d{1,2})[/. -](\d{1,2})[/. -]\d{4}(?:\s|$)/.exec(String(row[column] ?? '').trim());
+    reports.forEach(row => (Array.isArray(column) ? column : [column]).forEach(header => {
+        const match = /^(\d{1,2})[/. -](\d{1,2})[/. -]\d{4}(?:\s|$)/.exec(String(row[header] ?? '').trim());
         if (match && Number(match[1]) > 12) evidence.add('dmy');
         if (match && Number(match[2]) > 12) evidence.add('mdy');
-    });
+    }));
     const resolved = format === 'auto' ? (evidence.size === 1 ? [...evidence][0] : null) : format;
     return value => {
         const text = String(value ?? '').trim();
@@ -40,12 +41,20 @@ function planSync(targetRows, reports, suppliedMapping, { importedBatch = false,
     const headers = [...new Set(reports.flatMap(row => Object.keys(row)))];
     const mapping = suppliedMapping === undefined ? columns.detect(headers) : suppliedMapping;
     validateMapping(headers, mapping);
-    const sourceDate = sourceDates(reports, mapping.fecha, dateFormat);
+    const mappedColumns = field => mapping[field] === columns.AUTO ? headers.filter(header => columns.matches(field, header)) : [mapping[field]];
+    const sourceValues = (row, field) => mappedColumns(field).map(header => String(row[header] ?? '').trim()).filter(Boolean);
+    const sourceDate = sourceDates(reports, mappedColumns('fecha'), dateFormat);
+    function reportDate(row) {
+        const dates = sourceValues(row, 'fecha').map(sourceDate);
+        return dates.length && dates.every(Boolean) && new Set(dates).size === 1 ? dates[0] : null;
+    }
     const pageColumns = headers.filter(header => columns.pageColumn([header]));
     const hasPage = row => pageColumns.some(header => String(row[header] ?? '').trim());
     function sourceGroup(row) {
         if (mapping.grupo === columns.PROFILE) return pageColumns.length && !hasPage(row) ? '' : 'perfil estandar';
-        const group = exactGroup(row[mapping.grupo]);
+        const groups = [...new Set(sourceValues(row, 'grupo').map(exactGroup))];
+        if (groups.length > 1) return '';
+        const group = groups[0] || '';
         // Solo inferir ausencia de grupo en filas con metadatos reales de página.
         if (mapping.grupo && ['', '-', '--', '—', 'sin grupo', 'no group'].includes(group) && hasPage(row)) return 'perfil estandar';
         return group;
@@ -79,7 +88,7 @@ function planSync(targetRows, reports, suppliedMapping, { importedBatch = false,
     });
     const sources = new Map();
     reports.forEach(row => {
-        const date = sourceDate(row[mapping.fecha]), group = sourceGroup(row);
+        const date = reportDate(row), group = sourceGroup(row);
         if (date && group) add(sources, key(columns.normalize(group), date), row);
     });
     const idColumn = columns.detect(headers).id;
@@ -92,7 +101,7 @@ function planSync(targetRows, reports, suppliedMapping, { importedBatch = false,
     }]));
     const pending = new Map(), changedRows = new Set();
     for (const report of reports) {
-        const group = sourceGroup(report), date = sourceDate(report[mapping.fecha]);
+        const group = sourceGroup(report), date = reportDate(report);
         if (columns.normalize(group) === 'perfilestandar') result.perfilEstandar++;
         const normalizedGroup = columns.normalize(group);
         const candidates = exact.get(key(group, date)) || (normalizedGroup ? normalized.get(key(normalizedGroup, date)) : null) || [];
@@ -106,7 +115,7 @@ function planSync(targetRows, reports, suppliedMapping, { importedBatch = false,
         if (!group || !date || !match || ambiguous || (pubsColumn >= 0 && count(match.row[pubsColumn]) !== 1)) {
             result.sinMatch++;
             if (ambiguous || match) result.ambiguos++;
-            if (result.sinMatchEjemplos.length < 10) result.sinMatchEjemplos.push({ grupo: group === 'perfil estandar' ? 'Perfil estándar' : report[mapping.grupo] || '', fecha: report[mapping.fecha] || '', motivo: !date ? 'Fecha inválida o formato ambiguo: indicá día/mes o mes/día' : ambiguous || match ? 'Coincidencia ambigua o fila agrupada' : 'Sin publicación coincidente' });
+            if (result.sinMatchEjemplos.length < 10) result.sinMatchEjemplos.push({ grupo: group === 'perfil estandar' ? 'Perfil estándar' : sourceValues(report, 'grupo').join(' / '), fecha: sourceValues(report, 'fecha').join(' / '), motivo: !date ? 'Fecha ausente, inválida o contradictoria: revisá la columna y el formato día/mes o mes/día' : !group ? 'Grupo ausente o columnas de grupo contradictorias' : ambiguous || match ? 'Coincidencia ambigua o fila agrupada' : 'Sin publicación coincidente' });
             continue;
         }
         let changed = false, comparable = false;

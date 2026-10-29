@@ -4,6 +4,7 @@
 }(typeof globalThis !== 'undefined' ? globalThis : this, function () {
     const normalize = value => String(value || '').replace(/^\uFEFF/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
     const PROFILE = '__PERFIL_ESTANDAR__';
+    const AUTO = '__AUTOMATICO_POR_FILA__';
     // Alcance, espectadores, impresiones y reacciones son métricas distintas.
     const aliases = {
         grupo: ['grupo', 'nombre del grupo', 'nombre de grupo', 'group', 'group name'],
@@ -23,6 +24,7 @@
         Object.keys(aliases).forEach(field => {
             const found = columns.filter(column => matches(field, column));
             if (found.length === 1) mapping[field] = found[0];
+            else if (found.length > 1 && ['grupo', 'fecha'].includes(field)) mapping[field] = AUTO;
         });
         // Las páginas sin grupo se registran como Perfil Estandar en Publicaciones.
         // El nombre de una página nunca se convierte en el nombre de un grupo.
@@ -33,5 +35,5 @@
         }
         return mapping;
     }
-    return { normalize, matches, detect, pageColumn, PROFILE };
+    return { normalize, matches, detect, pageColumn, PROFILE, AUTO };
 }));
