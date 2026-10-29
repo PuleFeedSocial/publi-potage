@@ -6,7 +6,7 @@ process.env.GOOGLE_SHEET_ID = 'test-sheet';
 
 let activationCodes, users, permissions, operations, sheetRows, missingSheets, sheetFailure, calendarFailure;
 let nextId = 10;
-let syncWriteFailure = false;
+let sheetReads = [];
 const db = {
   async get(sql, params = []) {
     operations.push({ sql, params });
@@ -75,6 +75,7 @@ const google = {
     async batchUpdate(request) { operations.push({ google: 'structure', request }); return { data: {} }; },
     values: {
       async get({ range }) {
+        sheetReads.push(range);
         if (sheetFailure) throw Object.assign(new Error('sensitive upstream detail'), { code: 403 });
         const [name, cells] = range.split('!');
         const rows = sheetRows[name] || [];
@@ -92,7 +93,6 @@ const google = {
         return { data: {} };
       },
       async batchUpdate(request) {
-        if (syncWriteFailure) throw new Error('simulated sync write failure');
         operations.push({ google: 'valuesBatch', request });
         return { data: {} };
       }
@@ -113,7 +113,7 @@ after(() => new Promise(resolve => server.close(resolve)));
 beforeEach(() => {
   users = new Map([[1, { id: 1, name: 'Admin', email: 'admin@example.test', role: 'admin', token_version: 0, password: bcrypt.hashSync('old-password', 4) }]]);
   activationCodes = [{id:1,code:'123456',used:0,used_by:null}];
-  syncWriteFailure = false;
+  sheetReads = [];
   permissions = new Map(); operations = []; missingSheets = []; sheetFailure = false; calendarFailure = false;
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
   sheetRows = {
@@ -248,100 +248,34 @@ test('reports retain numeric zeros and imports preserve columns found in later r
   assert.deepEqual(write.resource.values, [['A', ''], ['B', '0']]);
   assert.equal(write.valueInputOption, 'RAW');
 });
-test('CSV import automatically updates only greater equivalent metrics from that batch', async () => {
+test('CSV imports only save raw reports and never read or update publication metrics', async () => {
+  const before = structuredClone(sheetRows.Metricas);
   const date = sheetRows.Metricas[1][0];
-  const res = await request('/api/informes/import', { method: 'POST', body: { data: [{ Grupo: 'Grupo B', Fecha: date, Visualizaciones: 100, Interacción: 1, Comentarios: 2, Alcance: 9999 }] } });
+  const data = [{ Grupo: 'Grupo Á', Fecha: date, Visualizaciones: 99999, Interacciones: 999, Comentarios: 99, Mensajes: 88 }];
+  const res = await request('/api/informes/import', { method: 'POST', body: { data,
+    columnMapping: { grupo: 'Grupo', fecha: 'Fecha', visualizaciones: 'Visualizaciones' }, dateFormat: 'mdy' } });
   assert.equal(res.status, 201);
-  assert.equal(res.data.sincronizacion.actualizados, 1);
-  assert.deepEqual(operations.find(o => o.google === 'valuesBatch').request.resource.data, [
-    { range: 'Metricas!D3', values: [[100]] }, { range: 'Metricas!F3', values: [[2]] }
-  ]);
-  assert.equal(operations.filter(o => o.google === 'append').length, 1);
+  assert.deepEqual(res.data, { message: '1 filas importadas correctamente.' });
+  assert.deepEqual(sheetRows.Metricas, before);
+  assert.ok(sheetReads.every(range => range.startsWith('Informes!')));
+  const writes = operations.filter(o => o.google);
+  assert.ok(writes.every(o => o.request.range?.startsWith('Informes!')));
+  assert.equal(writes.filter(o => o.google === 'append').length, 1);
+  assert.equal(writes.filter(o => o.google === 'valuesBatch').length, 0);
 });
 
-test('Facebook page CSV imports update Perfil Estandar without needing a group column', async () => {
-  sheetRows.Metricas[1][0] = '22/06/2026';
-  sheetRows.Metricas[1][1] = 'Perfil Estandar';
-  const data = [{ 'Identificador de la publicación': '123', 'Nombre de la página': 'Potage Srl', 'Hora de publicación': '06/22/2026 04:01', Visualizaciones: '2000', Interacciones: '5', Comentarios: '6' }];
-  const res = await request('/api/informes/import', { method: 'POST', body: { data } });
-  assert.equal(res.status, 201);
-  assert.equal(res.data.sincronizacion.actualizados, 1);
-  assert.equal(res.data.sincronizacion.perfilEstandar, 1);
-  assert.deepEqual(operations.find(o => o.google === 'valuesBatch').request.resource.data, [
-    { range: 'Metricas!D2', values: [[2000]] }, { range: 'Metricas!F2', values: [[6]] }
-  ]);
-});
-
-test('retry processes already imported page reports without importing duplicate rows', async () => {
-  sheetRows.Metricas[1][0] = '22/06/2026';
-  sheetRows.Metricas[1][1] = 'Perfil Estandar';
-  sheetRows.Informes = [['Nombre de la página', 'Hora de publicación', 'Visualizaciones'], ['Potage Srl', '06/22/2026 04:01', '2000']];
+test('the retired report sync endpoint cannot read or change publication data', async () => {
+  const before = structuredClone(sheetRows.Metricas);
   const res = await request('/api/informes/sync', { method: 'POST', body: {} });
-  assert.equal(res.status, 200);
-  assert.equal(res.data.actualizados, 1);
-  assert.equal(operations.filter(o => o.google === 'append').length, 0);
-  assert.deepEqual(operations.find(o => o.google === 'valuesBatch').request.resource.data, [{ range: 'Metricas!D2', values: [[2000]] }]);
-});
-
-test('retry accepts saved Meta reports with Fecha Total even when the previous UI selects both date columns', async () => {
-  sheetRows.Metricas[1][0] = '28/10/2026';
-  sheetRows.Metricas[1][1] = 'Perfil Estandar';
-  sheetRows.Informes = [['Nombre de la página', 'Hora de publicación', 'Fecha', 'Visualizaciones'], ['Potage Srl', '10/28/2026 09:39', 'Total', '2000']];
-  const res = await request('/api/informes/sync', { method: 'POST', body: { columnMapping: { grupo: '__PERFIL_ESTANDAR__', fecha: '__AUTOMATICO_POR_FILA__', visualizaciones: 'Visualizaciones' } } });
-  assert.equal(res.status, 200);
-  assert.equal(res.data.actualizados, 1);
-  assert.equal(res.data.fechasInvalidas, 0);
-  assert.deepEqual(operations.find(o => o.google === 'valuesBatch').request.resource.data, [{ range: 'Metricas!D2', values: [[2000]] }]);
-});
-
-test('import permissions do not grant permission to change publication metrics', async () => {
-  const user = { id: 55, role: 'colaborador', email: 'editor@example.test', name: 'Editor', token_version: 0 };
-  users.set(55, user);
-  permissions.set('colaborador:edit_informes', true);
-  permissions.set('colaborador:sync_informes', false);
-  const res = await request('/api/informes/import', { method: 'POST', token: signAccessToken(user), body: { data: [{ Grupo: 'Grupo B', Fecha: sheetRows.Metricas[1][0], Vistas: 999 }] } });
-  assert.equal(res.status, 201);
-  assert.equal(res.data.sincronizacion.omitida, true);
-  assert.equal(operations.filter(o => o.google === 'valuesBatch').length, 0);
-});
-
-test('import reports saved data even when automatic synchronization fails', async () => {
-  syncWriteFailure = true;
-  const res = await request('/api/informes/import', { method: 'POST', body: { data: [{ Grupo: 'Grupo B', Fecha: sheetRows.Metricas[1][0], Vistas: 999 }] } });
-  assert.equal(res.status, 201);
-  assert.equal(res.data.sincronizacion.error, true);
-  assert.match(res.data.sincronizacion.motivo, /no vuelvas a importar/);
-  assert.equal(operations.filter(o => o.google === 'append').length, 1);
-});
-
-test('invalid metric mappings are rejected before saving an import', async () => {
-  const res = await request('/api/informes/import', { method: 'POST', body: { data: [{ Grupo: 'Grupo B', Fecha: '2026-10-29', Alcance: 999 }], columnMapping: { grupo: 'Grupo', fecha: 'Fecha', visualizaciones: 'Alcance' } } });
-  assert.equal(res.status, 400);
+  assert.equal(res.status, 404);
+  assert.deepEqual(sheetRows.Metricas, before);
+  assert.equal(sheetReads.length, 0);
   assert.equal(operations.filter(o => o.google).length, 0);
+  permissions.set('admin:sync_informes', true);
+  const currentPermissions = await request('/api/auth/permissions');
+  assert.equal(Object.hasOwn(currentPermissions.data.permissions, 'sync_informes'), false);
 });
 
-test('sync invalidates previously cached marketing data', async () => {
-  assert.equal((await request('/api/marketing?refresh=true')).data.data[0].visualizaciones, 1234);
-  await request('/api/informes/sync', { method: 'POST', body: { columnMapping: { grupo: 'Grupo', fecha: 'Fecha', visualizaciones: 'Vistas' } } });
-  sheetRows.Metricas[1][3] = 2345;
-  assert.equal((await request('/api/marketing')).data.data[0].visualizaciones, 2345);
-});
-test('sync matches equivalent dates and updates only changed cells with maximum values', async () => {
-  sheetRows.Informes[0].push('Post ID');
-  sheetRows.Informes[1].push('123');
-  sheetRows.Informes.push(['Grupo Á', sheetRows.Metricas[1][0], 2000, '123']);
-  const res = await request('/api/informes/sync', { method: 'POST', body: { columnMapping: { grupo: 'Grupo', fecha: 'Fecha', visualizaciones: 'Vistas' } } });
-  assert.equal(res.status, 200);
-  const batch = operations.find(o => o.google === 'valuesBatch').request;
-  assert.deepEqual(batch.resource.data, [{ range: 'Metricas!D2', values: [[2345]] }]);
-  assert.equal(batch.resource.valueInputOption, 'RAW');
-});
-test('sync avoids ambiguous duplicate publication matches', async () => {
-  sheetRows.Metricas.push([...sheetRows.Metricas[1]]);
-  const res = await request('/api/informes/sync', { method: 'POST', body: { columnMapping: { grupo: 'Grupo', fecha: 'Fecha', visualizaciones: 'Vistas' } } });
-  assert.equal(res.data.sinMatch, 1);
-  assert.equal(operations.filter(o => o.google === 'valuesBatch').length, 0);
-});
 test('Google failures are not reported as empty successful reports or leaked details', async () => {
   sheetFailure = true;
   const res = await request('/api/informes');

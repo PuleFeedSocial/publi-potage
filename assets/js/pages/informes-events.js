@@ -21,16 +21,10 @@
   { const element = document.querySelector("[data-page-event=\"informes-7\"]");
     if (element && !element.onclick) element.onclick = function(event) { loadInformes() };
   }
-  { const element = document.querySelector("[data-page-event=\"informes-8\"]");
-    if (element && !element.onclick) element.onclick = function(event) { openSyncModal() };
-  }
   { const element = document.querySelector("[data-page-event=\"informes-9\"]");
     if (element && !element.onclick) element.onclick = function(event) { importCSV() };
   }
   { const element = document.querySelector("[data-page-event=\"informes-10\"]");
     if (element && !element.onclick) element.onclick = function(event) { confirmImport() };
-  }
-  { const element = document.querySelector("[data-page-event=\"informes-11\"]");
-    if (element && !element.onclick) element.onclick = function(event) { confirmSync() };
   }
 })();

@@ -108,7 +108,7 @@
                     </button>
                     <div class="page-context">
                         <h1 class="page-title">Informes Importados</h1>
-                        <p class="page-subtitle text-muted">Importá estadísticas de Facebook y actualizá las métricas de Publicaciones</p>
+                        <p class="page-subtitle text-muted">Importá y consultá tus informes CSV de Facebook</p>
                     </div>
                 </div>
                 <div class="top-navbar-actions">
@@ -144,16 +144,13 @@
                         <button data-page-event="informes-7" class="btn btn-sm btn-outline-secondary" title="Recargar">
                             <i class="bi bi-arrow-clockwise"></i> Recargar
                         </button>
-                        <button data-page-event="informes-8" class="btn btn-sm btn-outline-primary" title="Sincronizar datos importados con la hoja Métricas">
-                            <i class="bi bi-arrow-left-right me-1"></i> Reintentar sincronización
-                        </button>
                         <button data-page-event="informes-9" class="btn btn-sm btn-action-primary">
                             <i class="bi bi-upload me-1"></i> Importar CSV
                         </button>
                     </div>
                 </div>
 
-                <div id="import-sync-result" class="alert alert-info" role="status" aria-live="polite" hidden></div>
+                <div id="import-result" class="alert alert-success" role="status" aria-live="polite" hidden></div>
                 <div class="card data-table-card">
                     <div class="card-header-clean d-flex justify-content-between align-items-center">
                         <div>
@@ -184,8 +181,6 @@
                 </div>
                 <div class="modal-body pt-3">
                     <p class="text-muted small mb-3" id="preview-info">Cargando...</p>
-                    <p class="text-muted small">Al importar, se actualizarán automáticamente las métricas de Publicaciones que sean mayores. Se vinculan por grupo y fecha; las publicaciones sin grupo se vinculan a Perfil estándar. Las coincidencias ambiguas se omiten. Alcance, impresiones y reacciones no reemplazan otras métricas.</p>
-                    <div id="import-mapping-form"></div>
                     <div class="table-responsive">
                         <table class="table table-sm table-bordered mb-0" id="preview-table">
                             <thead id="preview-thead"></thead>
@@ -203,33 +198,9 @@
         </div>
     </div>
 
-    <div class="modal fade" id="syncModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content custom-modal">
-                <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-semibold text-dark">
-                        <i class="bi bi-arrow-left-right me-2"></i>Actualizar Publicaciones
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body pt-3">
-                    <p class="text-muted small mb-3">Reprocesá los informes guardados. Solo se actualizarán valores mayores en publicaciones con grupo y fecha coincidentes. Las filas agrupadas o ambiguas se omiten.</p>
-                    <div id="sync-mapping-form"></div>
-                </div>
-                <div class="modal-footer border-0 pt-0">
-                    <button type="button" class="btn btn-sm btn-light-muted" data-bs-dismiss="modal">Cancelar</button>
-                    <button data-page-event="informes-11" type="button" class="btn btn-sm btn-action-primary">
-                        <i class="bi bi-arrow-left-right me-1"></i>Sincronizar
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="marketing-analysis.js"></script><script src="app.js"></script>
-    <script src="assets/js/pages/informes-columns.js"></script>
     <script src="assets/js/pages/informes.js"></script>
     <script src="assets/js/pages/informes-events.js"></script>
 </body>

@@ -4,28 +4,10 @@ const router = express.Router();
 const { authenticate, requirePermission } = require('../middleware/auth');
 router.use(authenticate, mutation);
 validateRow(router, 'Informes', 'ZZ');
-const { planSync, validateMapping } = require('../services/informes-sync');
-const getDb = require('../database');
-const { hasPermission } = require('../permissions');
 const { logAction } = require('./logs');
 
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SHEET_NAME = 'Informes';
-
-async function syncReports(s, reports, mapping, importedBatch, dateFormat) {
-  const response = await s.spreadsheets.values.get({
-    spreadsheetId: SHEET_ID, range: 'Metricas!A:I',
-    valueRenderOption: 'UNFORMATTED_VALUE', dateTimeRenderOption: 'FORMATTED_STRING'
-  });
-  const { data, summary } = planSync(response.data.values || [], reports, mapping, { importedBatch, dateFormat });
-  if (data.length) await s.spreadsheets.values.batchUpdate({
-    spreadsheetId: SHEET_ID, resource: { valueInputOption: 'RAW', data }
-  });
-  return summary;
-}
-
-
-
 
 async function ensureSheet(headers) {
   const s = sheets();
@@ -97,11 +79,6 @@ router.post('/import', requirePermission('edit_informes'), async (req, res) => {
     }
     const headers = [...new Set(data.flatMap(row => Object.keys(row)))];
     if (headers.length > 702 || headers.some(h => !h.trim() || ['__proto__', 'prototype', 'constructor', 'rowIndex'].includes(h))) return res.status(400).json({ error: 'Columnas inválidas.' });
-    if (req.body.columnMapping !== undefined) {
-      try { validateMapping(headers, req.body.columnMapping); }
-      catch (err) { return res.status(400).json({ error: err.message }); }
-    }
-    if (req.body.dateFormat !== undefined && !['auto', 'dmy', 'mdy'].includes(req.body.dateFormat)) return res.status(400).json({ error: 'Formato de fecha inválido.' });
     const { s, finalHeaders } = await ensureSheet(headers);
     const values = data.map(row =>
       finalHeaders.map(h => {
@@ -118,19 +95,7 @@ router.post('/import', requirePermission('edit_informes'), async (req, res) => {
 
     logAction(req.user.id, req.user.email, 'Importación de CSV', `${values.length} filas importadas a Informes`, req.ip);
 
-    // Un fallo de sincronización no debe invitar a importar otra vez las mismas filas.
-    let sincronizacion;
-    try {
-      const allowed = req.user.role.toLowerCase() === 'admin' || await hasPermission(await getDb(), req.user.role, 'sync_informes');
-      sincronizacion = allowed
-        ? await syncReports(s, data, req.body.columnMapping, true, req.body.dateFormat)
-        : { omitida: true, motivo: 'El informe se guardó. Tu rol no tiene permiso para actualizar Publicaciones.' };
-    } catch (err) {
-      console.error('Sincronización del CSV importado:', err);
-      sincronizacion = { error: true, motivo: 'El informe se guardó, pero no se pudo actualizar Publicaciones. Usá Reintentar sincronización; no vuelvas a importar el CSV.' };
-    }
-    logAction(req.user.id, req.user.email, 'CSV → Publicaciones', JSON.stringify(sincronizacion), req.ip);
-    res.status(201).json({ message: values.length + ' filas importadas correctamente.', sincronizacion });
+    res.status(201).json({ message: values.length + ' filas importadas correctamente.' });
   } catch (err) {
     sheetError(res, err);
   }
@@ -155,27 +120,6 @@ router.delete('/:rowIndex', requirePermission('edit_informes'), async (req, res)
 
     res.json({ message: 'Fila eliminada correctamente.' });
   } catch (err) {
-    sheetError(res, err);
-  }
-});
-
-router.post('/sync', requirePermission('sync_informes'), async (req, res) => {
-  try {
-    const s = sheets();
-    if (!s) return res.status(503).json({ error: 'Google Sheets no configurado.' });
-    const response = await s.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID, range: 'Informes!A:ZZ',
-      valueRenderOption: 'UNFORMATTED_VALUE', dateTimeRenderOption: 'FORMATTED_STRING'
-    });
-    const rows = response.data.values || [];
-    const headers = rows[0] || [];
-    const reports = rows.slice(1).filter(row => row[0] !== '__DELETED__' && row.some(cell => cell !== '' && cell != null))
-      .map(row => Object.fromEntries(headers.map((header, index) => [header, row[index] ?? ''])));
-    const summary = await syncReports(s, reports, req.body.columnMapping, false, req.body.dateFormat);
-    logAction(req.user.id, req.user.email, 'Sincronización Informes → Métricas', summary.actualizados + ' publicaciones actualizadas', req.ip);
-    return res.json(summary);
-  } catch (err) {
-    if (/columna de |Formato de fecha inválido|Mapeo inválido|formato esperado|Faltan Grupo/.test(err.message)) return res.status(400).json({ error: err.message });
     sheetError(res, err);
   }
 });

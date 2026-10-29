@@ -2,54 +2,50 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const columns = require('../assets/js/pages/informes-columns');
 
-function page(values = {}) {
-    const elements = Object.fromEntries(['grupo', 'fecha', 'visualizaciones', 'interacciones', 'comentarios'].map(field => ['sync-map-' + field, { value: values[field] || '' }]));
-    elements['sync-date-format'] = { value: 'auto' };
-    elements['sync-mapping-form'] = {};
-    elements['import-sync-result'] = {};
+function page(response) {
+    const elements = { previewModal: {}, 'import-result': { hidden: true } };
     const button = {};
     const requests = [], alerts = [];
+    let closed = false, reloads = 0;
     const context = vm.createContext({
-        InformesColumns: columns, API_BASE: '',
+        API_BASE: '',
         document: { getElementById: id => elements[id], querySelector: () => button, addEventListener() {} },
-        bootstrap: { Modal: { getInstance: () => ({ hide() {} }) } },
+        bootstrap: { Modal: { getInstance: () => ({ hide() { closed = true; } }) } },
         alert: message => alerts.push(message),
         authFetch: async (url, request) => {
-            requests.push(JSON.parse(request.body));
-            return { json: async () => ({ omitida: true, motivo: 'Falta identificar: Fecha de publicación.' }) };
+            requests.push({ url, body: JSON.parse(request.body) });
+            return { json: async () => response };
         }
     });
     vm.runInContext(fs.readFileSync(require.resolve('../assets/js/pages/informes'), 'utf8'), context);
-    context.loadInformes = () => {};
-    return { context, elements, requests, alerts };
+    vm.runInContext('pendingImport = [{ "Hora de publicación": "10/28/2026 09:39", Fecha: "Total", Visualizaciones: 0 }];', context);
+    context.loadInformes = () => { reloads++; };
+    return { context, elements, button, requests, alerts, closed: () => closed, reloads: () => reloads };
 }
 
-test('retry does not block page reports with the obsolete mandatory group and date alert', async () => {
-    const ui = page();
-    ui.context.confirmSync();
+test('CSV confirmation sends only raw data, including Total labels and zero values, and displays import success', async () => {
+    const ui = page({ message: '1 filas importadas correctamente.' });
+    ui.context.confirmImport();
     await new Promise(resolve => setImmediate(resolve));
-    assert.equal(ui.requests.length, 1);
+    assert.deepEqual(ui.requests, [{ url: '/api/informes/import', body: {
+        data: [{ 'Hora de publicación': '10/28/2026 09:39', Fecha: 'Total', Visualizaciones: 0 }]
+    } }]);
+    assert.equal(ui.elements['import-result'].textContent, '1 filas importadas correctamente.');
+    assert.equal(ui.elements['import-result'].hidden, false);
+    assert.equal(ui.closed(), true);
+    assert.equal(ui.reloads(), 1);
+    assert.equal(vm.runInContext('pendingImport', ui.context), null);
     assert.deepEqual(ui.alerts, []);
-    assert.match(ui.elements['import-sync-result'].textContent, /Falta identificar: Fecha de publicación/);
 });
 
-test('retry sends profile and automatic date selections and renders automatic options for stored schemas', async () => {
-    const ui = page({ grupo: columns.PROFILE, fecha: columns.AUTO, visualizaciones: 'Visualizaciones' });
-    ui.context.confirmSync();
+test('failed CSV imports keep the preview and pending data available for retry', async () => {
+    const ui = page({ error: 'No se pudo guardar el informe.' });
+    ui.context.confirmImport();
     await new Promise(resolve => setImmediate(resolve));
-    assert.equal(ui.requests[0].columnMapping.grupo, columns.PROFILE);
-    assert.equal(ui.requests[0].columnMapping.fecha, columns.AUTO);
-    ui.context.renderMapping(['Nombre de la página', 'Fecha', 'Hora de publicación', 'Visualizaciones'], 'sync');
-    assert.match(ui.elements['sync-mapping-form'].innerHTML, new RegExp('value="' + columns.AUTO + '" selected'));
-    assert.match(ui.elements['sync-mapping-form'].innerHTML, new RegExp('value="' + columns.PROFILE + '" selected'));
-});
-
-test('Facebook summary labels do not prevent selecting the publication timestamp in the retry form', () => {
-    const ui = page();
-    const reports = [{ 'Nombre de la página': 'Potage Srl', Fecha: 'Total', 'Hora de publicación': '10/28/2026 09:39', Visualizaciones: '51' }];
-    ui.context.renderMapping(Object.keys(reports[0]), 'sync', reports);
-    assert.match(ui.elements['sync-mapping-form'].innerHTML, /value="Hora de publicación" selected/);
-    assert.doesNotMatch(ui.elements['sync-mapping-form'].innerHTML, /value="Fecha" selected/);
+    assert.deepEqual(ui.alerts, ['No se pudo guardar el informe.']);
+    assert.equal(ui.closed(), false);
+    assert.equal(ui.reloads(), 0);
+    assert.equal(vm.runInContext('pendingImport.length', ui.context), 1);
+    assert.equal(ui.button.disabled, false);
 });

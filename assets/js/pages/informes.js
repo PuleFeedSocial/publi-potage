@@ -105,7 +105,6 @@
 
         function showPreview(data) {
             const headers = [...new Set(data.flatMap(row => Object.keys(row)))];
-            renderMapping(headers, 'import', data);
             const previewRows = data.slice(0, 10);
             const totalRows = data.length;
 
@@ -136,14 +135,16 @@
             authFetch(API_BASE + '/api/informes/import', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ data: pendingImport, columnMapping: readMapping('import'), dateFormat: document.getElementById('import-date-format').value })
+                body: JSON.stringify({ data: pendingImport })
             })
                 .then(r => r.json())
                 .then(res => {
                     if (res.error) return alert(res.error);
                     bootstrap.Modal.getInstance(document.getElementById('previewModal')).hide();
                     pendingImport = null;
-                    showSyncResult(res.sincronizacion, res.message);
+                    const result = document.getElementById('import-result');
+                    result.textContent = res.message;
+                    result.hidden = false;
                     loadInformes();
                 })
                 .catch(err => alert('Error: ' + err.message))
@@ -162,88 +163,6 @@
                 .then(res => {
                     if (res.error) return alert(res.error);
                     loadInformes();
-                });
-        }
-
-        function renderMapping(columns, prefix, rows = []) {
-            const detected = InformesColumns.detect(columns, rows);
-            const labels = { grupo: 'Grupo', fecha: 'Fecha de publicación', visualizaciones: 'Visualizaciones', interacciones: 'Interacciones', comentarios: 'Comentarios' };
-            document.getElementById(prefix === 'import' ? 'import-mapping-form' : 'sync-mapping-form').innerHTML =
-                '<div class="row g-2 mb-3">' + Object.entries(labels).map(([field, label]) => {
-                    const compatible = columns.filter(column => InformesColumns.matches(field, column));
-                    const automaticOption = ['grupo', 'fecha'].includes(field) && compatible.length ?
-                        '<option value="' + InformesColumns.AUTO + '"' + (detected[field] === InformesColumns.AUTO ? ' selected' : '') + '>Automático según cada fila</option>' : '';
-                    const profileOption = field === 'grupo' ? '<option value="' + InformesColumns.PROFILE + '"' +
-                        (detected.grupo === InformesColumns.PROFILE ? ' selected' : '') + '>Sin grupos: Perfil estándar</option>' : '';
-                    const emptyLabel = ['grupo', 'fecha'].includes(field) ? 'Sin identificar: revisar columnas' : 'No actualizar / sin columna';
-                    return '<div class="col-12 col-md-6"><label class="form-label small" for="' + prefix + '-map-' + field + '">' + label +
-                        '</label><select class="form-select form-select-sm" id="' + prefix + '-map-' + field + '"><option value="">' + emptyLabel + '</option>' +
-                        automaticOption + profileOption +
-                        compatible.map(column => '<option value="' + esc(column) + '"' + (detected[field] === column ? ' selected' : '') + '>' + esc(column) + '</option>').join('') + '</select></div>';
-                }).join('') + '</div><p class="text-muted small">Las publicaciones de página sin grupo corresponden a Perfil estándar. Si el archivo mezcla grupos y perfil, elegí la columna Grupo: las filas sin grupo con datos de página se reconocerán automáticamente. En exportaciones de Facebook, «Fecha: Total» es una etiqueta de resumen; la fecha real se toma de «Hora de publicación».</p><label class="form-label small" for="' + prefix + '-date-format">Formato de las fechas del CSV</label><select class="form-select form-select-sm mb-3" id="' + prefix + '-date-format"><option value="auto">Automático (solo fechas inequívocas)</option><option value="dmy">Día / Mes / Año</option><option value="mdy">Mes / Día / Año (exportación en inglés)</option></select>';
-        }
-
-        function readMapping(prefix) {
-            return Object.fromEntries(['grupo', 'fecha', 'visualizaciones', 'interacciones', 'comentarios'].map(field => [field, document.getElementById(prefix + '-map-' + field).value]).filter(([, value]) => value));
-        }
-
-        function showSyncResult(result, message) {
-            const box = document.getElementById('import-sync-result');
-            box.hidden = false;
-            box.className = 'alert ' + (result?.error || result?.omitida || result?.sinMatch || result?.datosInvalidos ? 'alert-warning' : 'alert-success');
-            box.textContent = message + '\n' + (result?.motivo ||
-                ('Publicaciones actualizadas: ' + (result?.actualizados || 0) + '. Celdas actualizadas: ' + (result?.celdasActualizadas || 0) +
-                '. Filas sin aumentos: ' + (result?.yaActualizados || 0) + '. Sin coincidencia segura: ' + (result?.sinMatch || 0) +
-                ' (fechas inválidas: ' + (result?.fechasInvalidas || 0) + ', coincidencias ambiguas: ' + (result?.ambiguos || 0) + ', sin publicación registrada: ' + (result?.sinPublicacion || 0) + ')' +
-                '. Valores vacíos o inválidos omitidos: ' + (result?.datosInvalidos || 0) + '.' +
-                (result?.perfilEstandar ? ' Filas identificadas como Perfil estándar: ' + result.perfilEstandar + '.' : '')));
-            if (result?.sinMatchEjemplos?.length) {
-                const list = document.createElement('ul');
-                list.className = 'mb-0 mt-2 small';
-                result.sinMatchEjemplos.forEach(example => {
-                    const item = document.createElement('li');
-                    item.textContent = example.grupo + ' — ' + example.fecha + ': ' + example.motivo;
-                    list.appendChild(item);
-                });
-                box.appendChild(list);
-            }
-        }
-
-        function openSyncModal() {
-            if (!informesData || !informesData.length) {
-                alert('No hay datos importados para sincronizar.');
-                return;
-            }
-            const columns = Object.keys(informesData[0]).filter(k => k !== 'rowIndex');
-
-            renderMapping(columns, 'sync', informesData);
-
-            bootstrap.Modal.getOrCreateInstance(document.getElementById('syncModal')).show();
-        }
-
-        function confirmSync() {
-            const columnMapping = readMapping('sync');
-
-            const btn = document.querySelector('#syncModal .btn-action-primary');
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Sincronizando...';
-
-            authFetch(API_BASE + '/api/informes/sync', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ columnMapping, dateFormat: document.getElementById('sync-date-format').value })
-            })
-                .then(r => r.json())
-                .then(res => {
-                    if (res.error) return alert(res.error);
-                    bootstrap.Modal.getInstance(document.getElementById('syncModal')).hide();
-                    showSyncResult(res, 'Revisión de informes completada.');
-                    loadInformes();
-                })
-                .catch(err => alert('Error: ' + err.message))
-                .finally(() => {
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="bi bi-arrow-left-right me-1"></i>Sincronizar';
                 });
         }
 

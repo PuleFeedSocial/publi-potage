@@ -17,8 +17,7 @@ const CATALOG = [
 
   { key: 'complete_calendario', label: 'Marcar elementos como realizados', group: 'Calendario', desc: 'Marcar eventos o tareas como realizados o pendientes desde el calendario.' },
 
-  { key: 'edit_informes', label: 'Importar / eliminar informes', group: 'Informes', desc: 'Carga y borrado de informes.' },
-  { key: 'sync_informes', label: 'Actualizar Publicaciones con informes', group: 'Informes', desc: 'Actualizar automáticamente las métricas mayores al importar CSV y reintentar la sincronización.' }
+  { key: 'edit_informes', label: 'Importar / eliminar informes', group: 'Informes', desc: 'Carga y borrado de informes.' }
 ];
 
 const DEFAULT_ROLE_PERMISSIONS = {
@@ -36,7 +35,6 @@ const DEFAULT_ROLE_PERMISSIONS = {
     edit_zonas: false,
     edit_sucursales: true,
     edit_informes: true,
-    sync_informes: true,
     complete_calendario: true
   }
 };
@@ -68,7 +66,7 @@ async function getRolePermissions(db, role) {
   const map = {};
   for (const item of CATALOG) map[item.key] = role === 'admin' || DEFAULT_ROLE_PERMISSIONS[role]?.[item.key] === true;
   const rows = await db.all('SELECT permission, enabled FROM role_permissions WHERE role = ?', [role]);
-  rows.forEach(r => { map[r.permission] = r.enabled === true || r.enabled === 1 || r.enabled === 'true'; });
+  rows.forEach(r => { if (CATALOG.some(item => item.key === r.permission)) map[r.permission] = r.enabled === true || r.enabled === 1 || r.enabled === 'true'; });
   return map;
 }
 
