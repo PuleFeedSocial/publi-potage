@@ -1,4 +1,4 @@
-const CACHE = 'potage-v84';
+const CACHE = 'potage-v85';
 const STATIC = [
   "/assets/css/pages/account-settings.css",
   "/assets/js/pages/account-settings-events.js",

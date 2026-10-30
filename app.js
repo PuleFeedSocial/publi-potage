@@ -1080,9 +1080,10 @@ function renderDashboard(data, chartData, periodLimit) {
   });
 
   // KPIs por zona
+  const activeZones = new Set(zonasData.filter(zone => zone.activo === true || zone.activo === 1).map(zone => normFilterVal(zone.nombre)));
   const zoneNames = new Map();
   kpiData.forEach(row => { const name = String(row.zona || 'Sin sucursal').trim() || 'Sin sucursal'; if (!zoneNames.has(normFilterVal(name))) zoneNames.set(normFilterVal(name), name); });
-  const zonas = [...zoneNames.values()].sort((a,b)=>a.localeCompare(b,'es'));
+  const zonas = [...zoneNames.values()].filter(name => activeZones.has(normFilterVal(name))).sort((a,b)=>a.localeCompare(b,'es'));
   const zoneContainer = document.getElementById('zone-kpis-container');
   if (zoneContainer) {
     if (!zonas.length) { zoneContainer.innerHTML = ''; } else {
@@ -1651,6 +1652,7 @@ function loadZonas(silent) {
       _appLastZonasSnapshot = snap;
       zonasData = newData;
       renderZonas();
+      if (document.getElementById('marketing-table-body')) applyFilters(false);
       // Poblar select de filtro en vista zonas
       const sel = document.getElementById('filter-zona-zonas');
       if (sel) {

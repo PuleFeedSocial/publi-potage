@@ -145,48 +145,6 @@
                         <i class="bi bi-arrow-clockwise"></i> Recargar datos
                     </button>
                 </div>
-                <div class="card filter-card mb-3">
-                    <div class="card-body py-2">
-                        <div class="row g-2 align-items-end">
-                            <div class="col-6 col-md-2">
-                                <label for="filter-grupo" class="form-label small mb-1 text-secondary">Grupo</label>
-                                <select data-page-event="dashboard-9" class="form-select form-select-sm" id="filter-grupo">
-                                    <option value="">Todos</option>
-                                </select>
-                            </div>
-                            <div class="col-6 col-md-2">
-                                <label for="filter-zona" class="form-label small mb-1 text-secondary">Sucursal</label>
-                                <select data-page-event="dashboard-10" class="form-select form-select-sm" id="filter-zona">
-                                    <option value="">Todas</option>
-                                </select>
-                            </div>
-                            <div class="col-6 col-md-2">
-                                <label class="form-label small mb-1 text-secondary">Período</label>
-                                <div class="btn-group btn-group-sm w-100" role="group">
-                                    <button data-page-event="dashboard-11" type="button" class="btn btn-outline-secondary filter-period active" data-period="all">Todo</button>
-                                    <button data-page-event="dashboard-12" type="button" class="btn btn-outline-secondary filter-period" data-period="7">7d</button>
-                                    <button data-page-event="dashboard-13" type="button" class="btn btn-outline-secondary filter-period" data-period="15">15d</button>
-                                    <button data-page-event="dashboard-14" type="button" class="btn btn-outline-secondary filter-period" data-period="30">30d</button>
-                                </div>
-                            </div>
-                            <div class="col-6 col-md-3">
-                                <label for="filter-fecha" class="form-label small mb-1 text-secondary">Fecha exacta</label>
-                                <input data-page-event="dashboard-15" type="date" class="form-control form-control-sm" id="filter-fecha">
-                            </div>
-                            <div class="col-6 col-md-2">
-                                <label for="filter-search" class="form-label small mb-1 text-secondary">Buscar</label>
-                                <input data-page-event="dashboard-16" type="text" class="form-control form-control-sm" id="filter-search"
-                                    placeholder="Grupo, sucursal o estatus">
-                            </div>
-                            <div class="col-6 col-md-1 d-flex align-items-end">
-                                <button data-page-event="dashboard-17" class="btn btn-sm btn-outline-secondary w-100">
-                                    <i class="bi bi-x-lg me-1"></i>Limpiar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <p id="dashboard-filter-summary" class="small text-muted mb-3" role="status" aria-live="polite"></p>
                 <div class="row row-cols-2 row-cols-md-3 row-cols-xl-5 g-3 g-md-4 mb-4" id="kpi-container">
                     <div class="col">
@@ -254,6 +212,48 @@
                             <div class="chart-wrapper">
                                 <canvas id="chartComparativo" role="img" aria-label="Evolución de mensajes"></canvas>
                                 <p id="chartComparativo-empty" class="dashboard-chart-empty text-muted small" hidden>No hay datos para estos filtros.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card filter-card mb-3">
+                    <div class="card-body py-2">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-6 col-md-2">
+                                <label for="filter-grupo" class="form-label small mb-1 text-secondary">Grupo</label>
+                                <select data-page-event="dashboard-9" class="form-select form-select-sm" id="filter-grupo">
+                                    <option value="">Todos</option>
+                                </select>
+                            </div>
+                            <div class="col-6 col-md-2">
+                                <label for="filter-zona" class="form-label small mb-1 text-secondary">Sucursal</label>
+                                <select data-page-event="dashboard-10" class="form-select form-select-sm" id="filter-zona">
+                                    <option value="">Todas</option>
+                                </select>
+                            </div>
+                            <div class="col-6 col-md-2">
+                                <label class="form-label small mb-1 text-secondary">Período</label>
+                                <div class="btn-group btn-group-sm w-100" role="group">
+                                    <button data-page-event="dashboard-11" type="button" class="btn btn-outline-secondary filter-period active" data-period="all">Todo</button>
+                                    <button data-page-event="dashboard-12" type="button" class="btn btn-outline-secondary filter-period" data-period="7">7d</button>
+                                    <button data-page-event="dashboard-13" type="button" class="btn btn-outline-secondary filter-period" data-period="15">15d</button>
+                                    <button data-page-event="dashboard-14" type="button" class="btn btn-outline-secondary filter-period" data-period="30">30d</button>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <label for="filter-fecha" class="form-label small mb-1 text-secondary">Fecha exacta</label>
+                                <input data-page-event="dashboard-15" type="date" class="form-control form-control-sm" id="filter-fecha">
+                            </div>
+                            <div class="col-6 col-md-2">
+                                <label for="filter-search" class="form-label small mb-1 text-secondary">Buscar</label>
+                                <input data-page-event="dashboard-16" type="text" class="form-control form-control-sm" id="filter-search"
+                                    placeholder="Grupo, sucursal o estatus">
+                            </div>
+                            <div class="col-6 col-md-1 d-flex align-items-end">
+                                <button data-page-event="dashboard-17" class="btn btn-sm btn-outline-secondary w-100">
+                                    <i class="bi bi-x-lg me-1"></i>Limpiar
+                                </button>
                             </div>
                         </div>
                     </div>
