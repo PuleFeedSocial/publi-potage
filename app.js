@@ -998,7 +998,6 @@ function loadMarketingData(silent) {
       if (silent && snap === _appLastMarketingSnapshot) return;
       _appLastMarketingSnapshot = snap;
       marketingData = newData;
-      if (!silent) document.getElementById('filter-fecha').value = '';
       populateFilterDropdowns();
     })
     .catch((err) => {
@@ -1033,29 +1032,16 @@ function saludZonaClass(rows) {
   return 'zone-health-bueno';
 }
 
-function tendenciaKpiHtml(rows, key) {
-  const valid = rows.filter(r => r[key] !== undefined && r[key] !== null);
-  if (valid.length < 4) return '';
-  const sorted = [...valid].sort((a, b) => {
-    const da = parseDate(a.fecha), db = parseDate(b.fecha);
-    if (!da || !db) return 0;
-    return da - db;
-  });
-  const mid = Math.floor(sorted.length / 2);
-  const prev = sorted.slice(0, mid);
-  const recent = sorted.slice(mid);
-  const p = prev.reduce((s, r) => s + (r[key] || 0), 0);
-  const n = recent.reduce((s, r) => s + (r[key] || 0), 0);
-  if (p === 0 && n === 0) return '';
-  if (p === 0) return '<span class="kpi-trend trend-up">nuevo</span>';
-  const diff = ((n - p) / p) * 100;
-  const rounded = Math.round(diff);
-  if (Math.abs(diff) < 0.5) return '<span class="kpi-trend">estable</span>';
-  const icono = rounded > 0 ? '↗' : '↘';
-  const cls = rounded > 0 ? 'trend-up' : 'trend-down';
-  return '<span class="kpi-trend ' + cls + '">' + icono + ' ' + Math.abs(rounded) + '%</span>';
+function tendenciaKpiHtml(comparison, key) {
+  if (!comparison) return '';
+  const previous = comparison.previous[key], current = comparison.current[key];
+  if (!previous && !current) return '';
+  const title = 'vs. los ' + comparison.days + ' días anteriores, con los mismos filtros';
+  if (!previous) return '<span class="kpi-trend" title="' + title + '">Sin base previa</span>';
+  const difference = Math.round((current - previous) / previous * 100);
+  if (!difference) return '<span class="kpi-trend" title="' + title + '">estable</span>';
+  return '<span class="kpi-trend ' + (difference > 0 ? 'trend-up' : 'trend-down') + '" title="' + title + '">' + (difference > 0 ? '↗ ' : '↘ ') + Math.abs(difference) + '%</span>';
 }
-
 
 function renderDashboard(data, chartData, periodLimit) {
   data = data || marketingData;
@@ -1068,7 +1054,8 @@ function renderDashboard(data, chartData, periodLimit) {
     return db - da;
   });
 
-  const kpiData = data.filter(r => normFilterVal(r.grupo) !== 'perfil estandar' && isEstatusActivo(r.estatus) && zonaActiva(r.zona));
+  const kpiData = data;
+  const comparison = MarketingAnalysis.comparison(marketingData, dashboardFilters());
   const grupos = [...new Set(kpiData.map(r => normFilterVal(r.grupo)).filter(Boolean))];
   const totalPubs = kpiData.reduce((s, r) => s + MarketingAnalysis.number(r.publicaciones), 0);
   const totalVis = kpiData.reduce((s, r) => s + MarketingAnalysis.number(r.visualizaciones), 0);
@@ -1089,16 +1076,18 @@ function renderDashboard(data, chartData, periodLimit) {
   };
   Object.keys(trendEls).forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.innerHTML = tendenciaKpiHtml(kpiData, trendEls[id]);
+    if (el) el.innerHTML = tendenciaKpiHtml(comparison, trendEls[id]);
   });
 
   // KPIs por zona
-  const zonas = [...new Set(kpiData.map(r => r.zona).filter(Boolean))].sort();
+  const zoneNames = new Map();
+  kpiData.forEach(row => { const name = String(row.zona || 'Sin sucursal').trim() || 'Sin sucursal'; if (!zoneNames.has(normFilterVal(name))) zoneNames.set(normFilterVal(name), name); });
+  const zonas = [...zoneNames.values()].sort((a,b)=>a.localeCompare(b,'es'));
   const zoneContainer = document.getElementById('zone-kpis-container');
   if (zoneContainer) {
     if (!zonas.length) { zoneContainer.innerHTML = ''; } else {
       zoneContainer.innerHTML = zonas.map(z => {
-        const rows = kpiData.filter(r => r.zona === z);
+        const rows = kpiData.filter(r => normFilterVal(r.zona || 'Sin sucursal') === normFilterVal(z));
         const zp = rows.reduce((s, r) => s + MarketingAnalysis.number(r.publicaciones), 0);
         const zv = rows.reduce((s, r) => s + MarketingAnalysis.number(r.visualizaciones), 0);
         const zi = rows.reduce((s, r) => s + MarketingAnalysis.number(r.interacciones), 0);
@@ -1127,7 +1116,7 @@ function renderDashboard(data, chartData, periodLimit) {
   if (pagInfo) pagInfo.innerText = totalPages > 1 ? `Página ${pageActual} de ${totalPages} (${data.length} registros)` : `${data.length} registros`;
 
   const tbody = document.getElementById('marketing-table-body');
-  tbody.innerHTML = '';
+  tbody.innerHTML = pageData.length ? '' : '<tr><td colspan="9" class="text-center text-muted py-4">No hay publicaciones que coincidan. Probá limpiar los filtros.</td></tr>';
   pageData.forEach(row => {
     let zClass = (row.zona || '').toLowerCase().replace(/ /g, '-');
     const tr = document.createElement('tr');
@@ -1218,10 +1207,9 @@ function populateFilterDropdowns() {
     if (current && [...selZona.options].some(o => o.value === current)) selZona.value = current;
   }
 
-  refreshGruposByZona();
-
   const filterFecha = document.getElementById('filter-fecha');
   if (filterFecha) filterFecha.value = localStorage.getItem('dashFecha') || '';
+  refreshGruposByZona();
 }
 
 function normFilterVal(v) { return MarketingAnalysis.norm(v); }
@@ -1237,10 +1225,10 @@ function refreshGruposByZona() {
   let grupos;
   if (zonaNorm) {
     grupos = [...new Set(gruposData.filter(g => normFilterVal(g.zona) === zonaNorm).map(g => g.nombre).filter(Boolean))];
-    grupos = [...new Set([...grupos, ...marketingData.filter(r => normFilterVal(r.zona) === zonaNorm && r.grupo !== 'Perfil Estandar').map(r => r.grupo).filter(Boolean)])];
+    grupos = [...new Set([...grupos, ...marketingData.filter(r => normFilterVal(r.zona) === zonaNorm).map(r => r.grupo).filter(Boolean)])];
   } else {
     grupos = [...new Set(gruposData.map(r => r.nombre).filter(Boolean))];
-    grupos = [...new Set([...grupos, ...marketingData.filter(r => r.grupo !== 'Perfil Estandar').map(r => r.grupo).filter(Boolean)])];
+    grupos = [...new Set([...grupos, ...marketingData.map(r => r.grupo).filter(Boolean)])];
   }
 
   // Eliminar duplicados que solo difieren en mayúsculas/espacios
@@ -1258,7 +1246,8 @@ function refreshGruposByZona() {
     opt.value = v; opt.textContent = v;
     sel.appendChild(opt);
   });
-  if ([...sel.options].some(o => o.value === current)) sel.value = current;
+  const matchingOption = [...sel.options].find(option => normFilterVal(option.value) === normFilterVal(current));
+  if (matchingOption) sel.value = matchingOption.value;
 
   applyFilters();
 }
@@ -1281,6 +1270,7 @@ function isoToDate(iso) {
 }
 
 function setPeriod(days) {
+  days = String(days);
   filterPeriod = days;
   localStorage.setItem('dashPeriod', days);
   document.querySelectorAll('.filter-period').forEach(b => {
@@ -1350,17 +1340,12 @@ function historialSetPeriodo(periodLimit) {
 
 function applyFilters(resetPage) {
   if (resetPage !== false) pageActual = 1;
-  const grupo = document.getElementById('filter-grupo').value;
-  const zona = document.getElementById('filter-zona').value;
-  const rawFecha = document.getElementById('filter-fecha').value;
-  const fecha = rawFecha ? isoToDate(rawFecha) : '';
-  const searchEl = document.getElementById('filter-search');
-  const searchText = searchEl ? (searchEl.value || '').trim().toLowerCase() : '';
-
+  const filters = dashboardFilters();
   const periodLimit = buildPeriodLimit();
-  const filtered = MarketingAnalysis.select(marketingData,{period:filterPeriod,grupo,zona,fecha,search:searchText});
-  const chartBase = filtered.filter(r=>normFilterVal(r.grupo)!=='perfil estandar'&&isEstatusActivo(r.estatus)&&zonaActiva(r.zona));
-  renderDashboard(filtered, chartBase, periodLimit);
+  const filtered = MarketingAnalysis.select(marketingData, filters);
+  renderDashboard(filtered, filtered, periodLimit);
+  const summary = document.getElementById('dashboard-filter-summary');
+  if (summary) summary.textContent = (filterPeriod === 'all' ? 'Historial completo' : 'Últimos ' + filterPeriod + ' días') + ' · ' + filtered.length + ' registros · Contadores y gráficos incluyen todas las filas filtradas, todos los estados y Perfil estándar.';
   saveDashboardFilters();
   const countEl = document.getElementById('results-count');
   if (countEl) {
@@ -1393,12 +1378,14 @@ function fmtNum(n) {
   return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
-function dashboardReportFilters(){return {period:filterPeriod==='all'?'30':filterPeriod,grupo:document.getElementById('filter-grupo').value,zona:document.getElementById('filter-zona').value,fecha:document.getElementById('filter-fecha').value,search:document.getElementById('filter-search')?.value||''};}
+function dashboardFilters(){return {period:filterPeriod,grupo:document.getElementById('filter-grupo')?.value||'',zona:document.getElementById('filter-zona')?.value||'',fecha:document.getElementById('filter-fecha')?.value||'',search:document.getElementById('filter-search')?.value||''};}
+function dashboardReportFilters(){return dashboardFilters();}
 function buildInformeTexto(){
  const filters=dashboardReportFilters(),result=MarketingAnalysis.report(marketingData||[],zonasData||[],filters);
  if(!result.rows.length)return '';
  const show=d=>d.toLocaleDateString('es-AR');const from=MarketingAnalysis.start(filters.period);
- let msg='Informe de publicaciones · '+show(from)+' al '+show(new Date())+' (fecha de publicación).\n';
+ const dates=result.rows.map(row=>parseDate(row.fecha)).sort((a,b)=>a-b);
+ let msg='Informe de publicaciones · '+(from?show(from)+' al '+show(new Date()):'Historial completo: '+show(dates[0])+' al '+show(dates[dates.length-1]))+' (fecha de publicación).\n';
  if(filters.zona||filters.grupo||filters.fecha||filters.search)msg+='Filtros: '+[filters.zona&&'Sucursal: '+filters.zona,filters.grupo&&'Grupo: '+filters.grupo,filters.fecha&&'Fecha: '+filters.fecha,filters.search&&'Búsqueda: '+filters.search].filter(Boolean).join(' · ')+'.\n';
  msg+='Solo publicaciones activas de sucursales activas; se excluye Perfil Estándar.\n';
  msg+='Métricas acumuladas actuales de las publicaciones incluidas; no representan aumentos de métricas dentro del período.\n\n';
@@ -2439,61 +2426,49 @@ function renderZonasDashboardInner(grupos, zonaFilter, periodLimit) {
   makeBar('chartZonasInts', PALZ.ints, intsData);
 }
 
-function initCharts(chartData, periodLimit) {
-  Object.values(chartsInstances).forEach(c => { try { c.destroy(); } catch {} });
-  chartsInstances = {};
-
-  const rows=periodLimit?chartData.filter(r=>MarketingAnalysis.within(r.fecha,periodLimit)):chartData;
-  const dates=[...new Set(rows.map(r=>parseDate(r.fecha)?.getTime()).filter(v=>v!==undefined))].sort((a,b)=>a-b);
-  const labels=dates.map(time=>{const d=new Date(time);return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0');});
-  const series=field=>dates.map(time=>rows.filter(r=>parseDate(r.fecha)?.getTime()===time).reduce((sum,r)=>sum+MarketingAnalysis.number(r[field]),0));
-  const pubsLabels=[...labels],pubsVals=series('publicaciones');
-  const intsSeries={labels:[...labels],values:series('interacciones')};
-  const msjsSeries={labels:[...labels],values:series('mensajes')};
-  // Padding para un solo punto
-  if (pubsLabels.length === 1) { pubsLabels.unshift(''); pubsLabels.push(''); pubsVals.unshift(null); pubsVals.push(null); }
-  if (intsSeries.labels.length === 1) { intsSeries.labels.unshift(''); intsSeries.labels.push(''); intsSeries.values.unshift(null); intsSeries.values.push(null); }
-  if (msjsSeries.labels.length === 1) { msjsSeries.labels.unshift(''); msjsSeries.labels.push(''); msjsSeries.values.unshift(null); msjsSeries.values.push(null); }
-
-  function makeChart(id, color, bg, dataArr, labels, label) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const PAL = chartPalette();
+function initCharts(chartData) {
+  const monthly = MarketingAnalysis.monthly(chartData);
+  const summary = document.getElementById('chart-period-summary');
+  if (summary) summary.textContent = 'Totales por mes y año dentro de los filtros seleccionados. Métricas acumuladas por fecha de publicación.' + (monthly.invalidDates ? ' ' + monthly.invalidDates + ' registros sin fecha válida no se representan en los gráficos.' : '');
+  applyChartThemeDefaults();
+  const palette = chartPalette();
+  const definitions = [
+    ['chartPublicaciones', 'publicaciones', 'Publicaciones', palette.pubs, 'bar'],
+    ['chartInteracciones', 'interacciones', 'Interacciones', palette.ints, 'line'],
+    ['chartComparativo', 'mensajes', 'Mensajes', palette.msjs, 'bar']
+  ];
+  for (const [id, field, label, color, type] of definitions) {
+    const canvas = document.getElementById(id);
+    if (!canvas) continue;
+    if (chartsInstances[id]) { chartsInstances[id].destroy(); delete chartsInstances[id]; }
+    const empty = document.getElementById(id + '-empty');
+    if (empty) { empty.hidden = monthly.keys.length > 0; empty.textContent = 'No hay datos para estos filtros.'; }
     try {
-      chartsInstances[id] = new Chart(el, {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [{
-            label: label || undefined,
-            data: dataArr,
-            borderColor: color,
-            backgroundColor: bg || 'transparent',
-            borderWidth: 2,
-            tension: 0.3,
-            fill: !!bg,
-            pointRadius: 4,
-            pointHitRadius: 10
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
+      chartsInstances[id] = new Chart(canvas, {
+        type,
+        data: { labels: monthly.labels, datasets: [{ label, data: monthly.series[field], borderColor: color,
+          backgroundColor: type === 'bar' ? color + 'c0' : color + '18', borderWidth: 2,
+          borderRadius: 5, maxBarThickness: 38, tension: .25, fill: type === 'line', pointRadius: monthly.keys.length > 18 ? 2 : 4, pointHitRadius: 12 }] },
+        options: { responsive: true, maintainAspectRatio: false, animation: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: context => label + ': ' + fmtNum(context.parsed.y) } } },
           scales: {
-            y: { beginAtZero: true, grid: { color: PAL.grid }, ticks: { color: PAL.tick, precision: 0 } },
-            x: { grid: { color: PAL.grid }, ticks: { color: PAL.tick } }
+            y: { beginAtZero: true, grid: { color: palette.grid }, ticks: { color: palette.tick, precision: 0, maxTicksLimit: 5 } },
+            x: { grid: { display: false }, ticks: { color: palette.tick, maxRotation: 0, autoSkip: false,
+              callback(value, index) {
+                const budget = Math.max(2, Math.min(6, Math.floor(this.chart.width / 85)));
+                const step = Math.max(1, Math.ceil((monthly.labels.length - 1) / (budget - 1)));
+                return index === 0 || index === monthly.labels.length - 1 || index % step === 0 ? monthly.labels[index] : '';
+              }
+            } }
           }
         }
       });
-    } catch (e) { console.warn('Chart error ' + id + ':', e); }
+    } catch (error) {
+      console.warn('Chart error ' + id + ':', error);
+      if (empty) { empty.hidden = false; empty.textContent = 'No se pudo cargar el gráfico. Recargá la página.'; }
+    }
   }
-
-  applyChartThemeDefaults();
-  const PALI = chartPalette();
-  makeChart('chartPublicaciones', PALI.pubs, null, pubsVals, pubsLabels, 'Publicaciones');
-  makeChart('chartInteracciones', PALI.ints, 'rgba(16, 185, 129, 0.1)', intsSeries.values, intsSeries.labels, 'Interacciones');
-  makeChart('chartComparativo', PALI.msjs, 'rgba(99, 102, 241, 0.1)', msjsSeries.values, msjsSeries.labels, 'Mensajes');
 }
 function loadUsers() {
   apiFetch('/api/auth/users').then(({ status, body }) => {

@@ -145,10 +145,53 @@
                         <i class="bi bi-arrow-clockwise"></i> Recargar datos
                     </button>
                 </div>
+                <div class="card filter-card mb-3">
+                    <div class="card-body py-2">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-6 col-md-2">
+                                <label for="filter-grupo" class="form-label small mb-1 text-secondary">Grupo</label>
+                                <select data-page-event="dashboard-9" class="form-select form-select-sm" id="filter-grupo">
+                                    <option value="">Todos</option>
+                                </select>
+                            </div>
+                            <div class="col-6 col-md-2">
+                                <label for="filter-zona" class="form-label small mb-1 text-secondary">Sucursal</label>
+                                <select data-page-event="dashboard-10" class="form-select form-select-sm" id="filter-zona">
+                                    <option value="">Todas</option>
+                                </select>
+                            </div>
+                            <div class="col-6 col-md-2">
+                                <label class="form-label small mb-1 text-secondary">Período</label>
+                                <div class="btn-group btn-group-sm w-100" role="group">
+                                    <button data-page-event="dashboard-11" type="button" class="btn btn-outline-secondary filter-period active" data-period="all">Todo</button>
+                                    <button data-page-event="dashboard-12" type="button" class="btn btn-outline-secondary filter-period" data-period="7">7d</button>
+                                    <button data-page-event="dashboard-13" type="button" class="btn btn-outline-secondary filter-period" data-period="15">15d</button>
+                                    <button data-page-event="dashboard-14" type="button" class="btn btn-outline-secondary filter-period" data-period="30">30d</button>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <label for="filter-fecha" class="form-label small mb-1 text-secondary">Fecha exacta</label>
+                                <input data-page-event="dashboard-15" type="date" class="form-control form-control-sm" id="filter-fecha">
+                            </div>
+                            <div class="col-6 col-md-2">
+                                <label for="filter-search" class="form-label small mb-1 text-secondary">Buscar</label>
+                                <input data-page-event="dashboard-16" type="text" class="form-control form-control-sm" id="filter-search"
+                                    placeholder="Grupo, sucursal o estatus">
+                            </div>
+                            <div class="col-6 col-md-1 d-flex align-items-end">
+                                <button data-page-event="dashboard-17" class="btn btn-sm btn-outline-secondary w-100">
+                                    <i class="bi bi-x-lg me-1"></i>Limpiar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <p id="dashboard-filter-summary" class="small text-muted mb-3" role="status" aria-live="polite"></p>
                 <div class="row row-cols-2 row-cols-md-3 row-cols-xl-5 g-3 g-md-4 mb-4" id="kpi-container">
                     <div class="col">
                         <div class="kpi-card">
-                            <span class="kpi-title">Total Grupos</span>
+                            <span class="kpi-title">Grupos / canales</span>
                             <span class="kpi-value text-dark" id="kpi-grupos">—</span>
                         </div>
                     </div>
@@ -185,70 +228,32 @@
                 <!-- KPIs por Zona -->
                 <div id="zone-kpis-container" class="row g-2 g-md-3 mb-4"></div>
 
+                <p id="chart-period-summary" class="small text-muted mb-2"></p>
                 <div class="row g-3 g-md-4 mb-4">
                     <div class="col-md-6 col-lg-4">
                         <div class="chart-container-card">
-                            <h5 class="chart-card-title">Publicaciones en el Tiempo</h5>
+                            <h5 class="chart-card-title">Publicaciones por mes</h5>
                             <div class="chart-wrapper">
                                 <canvas id="chartPublicaciones" role="img" aria-label="Evolución de publicaciones"></canvas>
+                                <p id="chartPublicaciones-empty" class="dashboard-chart-empty text-muted small" hidden>No hay datos para estos filtros.</p>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-6 col-lg-4">
                         <div class="chart-container-card">
-                            <h5 class="chart-card-title">Interacciones</h5>
+                            <h5 class="chart-card-title">Interacciones por mes</h5>
                             <div class="chart-wrapper">
                                 <canvas id="chartInteracciones" role="img" aria-label="Evolución de interacciones"></canvas>
+                                <p id="chartInteracciones-empty" class="dashboard-chart-empty text-muted small" hidden>No hay datos para estos filtros.</p>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-6 col-lg-4">
                         <div class="chart-container-card">
-                            <h5 class="chart-card-title">Mensajes en el Tiempo</h5>
+                            <h5 class="chart-card-title">Mensajes por mes</h5>
                             <div class="chart-wrapper">
                                 <canvas id="chartComparativo" role="img" aria-label="Evolución de mensajes"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card filter-card mb-3">
-                    <div class="card-body py-2">
-                        <div class="row g-2 align-items-end">
-                            <div class="col-6 col-md-2">
-                                <label class="form-label small mb-1 text-secondary">Grupo</label>
-                                <select data-page-event="dashboard-9" class="form-select form-select-sm" id="filter-grupo">
-                                    <option value="">Todos</option>
-                                </select>
-                            </div>
-                            <div class="col-6 col-md-2">
-                                <label class="form-label small mb-1 text-secondary">Sucursal</label>
-                                <select data-page-event="dashboard-10" class="form-select form-select-sm" id="filter-zona">
-                                    <option value="">Todas</option>
-                                </select>
-                            </div>
-                            <div class="col-6 col-md-2">
-                                <label class="form-label small mb-1 text-secondary">Período</label>
-                                <div class="btn-group btn-group-sm w-100" role="group">
-                                    <button data-page-event="dashboard-11" type="button" class="btn btn-outline-secondary filter-period active" data-period="all">Todo</button>
-                                    <button data-page-event="dashboard-12" type="button" class="btn btn-outline-secondary filter-period" data-period="7">7d</button>
-                                    <button data-page-event="dashboard-13" type="button" class="btn btn-outline-secondary filter-period" data-period="15">15d</button>
-                                    <button data-page-event="dashboard-14" type="button" class="btn btn-outline-secondary filter-period" data-period="30">30d</button>
-                                </div>
-                            </div>
-                            <div class="col-6 col-md-3">
-                                <label class="form-label small mb-1 text-secondary">Fecha exacta</label>
-                                <input data-page-event="dashboard-15" type="date" class="form-control form-control-sm" id="filter-fecha">
-                            </div>
-                            <div class="col-6 col-md-2">
-                                <label class="form-label small mb-1 text-secondary">Buscar</label>
-                                <input data-page-event="dashboard-16" type="text" class="form-control form-control-sm" id="filter-search"
-                                    placeholder="Grupo, sucursal o estatus">
-                            </div>
-                            <div class="col-6 col-md-1 d-flex align-items-end">
-                                <button data-page-event="dashboard-17" class="btn btn-sm btn-outline-secondary w-100">
-                                    <i class="bi bi-x-lg me-1"></i>Limpiar
-                                </button>
+                                <p id="chartComparativo-empty" class="dashboard-chart-empty text-muted small" hidden>No hay datos para estos filtros.</p>
                             </div>
                         </div>
                     </div>
@@ -838,7 +843,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
                 <div class="modal-body pt-3">
-                    <p class="small text-muted">Usa los filtros de Publicaciones y el período elegido (30 días cuando seleccionás Todo). Las métricas son acumuladas de esas publicaciones, no incrementos dentro del período.</p>
+                    <p class="small text-muted">Usa los filtros de Publicaciones y el período elegido; Todo incluye el historial completo. Este informe conserva su alcance de publicaciones activas de sucursales activas, excluyendo Perfil estándar. Las métricas son acumuladas de esas publicaciones, no incrementos dentro del período.</p>
                     <textarea id="informe-texto" class="form-control page-dashboard-inline-6" rows="16" readonly></textarea>
                 </div>
                 <div class="modal-footer border-0 pt-0">

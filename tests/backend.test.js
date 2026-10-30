@@ -202,6 +202,17 @@ test('Sheets reads preserve metric magnitudes and dates', async () => {
   assert.equal(result.data.data[0].visualizaciones, 1234);
   assert.equal(result.data.data[1].rowIndex, 3);
 });
+
+test('publication reads return the full sheet history without a two-month cutoff or hidden status exclusions', async () => {
+  sheetRows.Metricas.push(['05/01/2024', 'Perfil Estandar', 2, 10, 3, 1, 0, 'Inactiva', 'ELIMINADA']);
+  sheetRows.Metricas.push(['10/01/2025', 'Grupo antiguo', 3, 20, 4, 0, 1, 'Centro', 'PUBLICADA']);
+  const result = await request('/api/marketing?refresh=true');
+  assert.equal(result.status, 200);
+  assert.equal(result.data.data.length, 4);
+  assert.equal(result.data.data[2].fecha, '05/01/2024');
+  assert.equal(result.data.data[2].estatus, 'ELIMINADA');
+  assert.equal(result.data.data[3].publicaciones, 3);
+});
 test('Sheets writes reject invalid metrics and save formula-like strings literally', async () => {
   const body = { fecha: '20/10/2026', grupo: '=IMPORTXML("https://example.test")', visualizaciones: '1.234' };
   assert.equal((await request('/api/marketing', { method: 'POST', body: { ...body, visualizaciones: -1 } })).status, 400);
