@@ -43,10 +43,11 @@ const PUBLIC_FILES = new Set([
   'index.html', 'login.html', 'register.html', 'dashboard.html', 'grupos.html',
   'informes.html', 'sucursales.html', 'calendario.html', 'logs.html', 'ayuda.html',
   'account-settings.html', 'productos.html', 'productos.js', 'productos.css', 'egg-prices.js', 'regiones.html', 'regiones.js',
-  'price-artwork.js', 'price-artwork-ui.js', 'social-artwork.js', 'price-text.js', 'chicken-catalog.js', 'sheet-labels.js', 'img/precios/pollos.png', 'img/precios/amba.jpg', 'img/precios/costa.jpg',
+  'price-artwork.js', 'price-artwork-ui.js', 'social-artwork.js', 'company-templates.js', 'price-text.js', 'chicken-catalog.js', 'sheet-labels.js', 'img/precios/pollos.png', 'img/precios/amba.jpg', 'img/precios/costa.jpg',
   'app.js', 'marketing-analysis.js', 'account.js', 'theme.js', 'style.css', 'sw.js', 'manifest.json',
   'output/pdf/politicas-privacidad-atlas.pdf', 'output/pdf/terminos-condiciones-atlas.pdf'
 ]);
+const PUBLIC_IMAGE = /^\/img\/(?:[a-zA-Z0-9_-]+\.(?:png|jpg|jpeg|webp|svg|ico)|plantillas\/[a-z0-9-]+\/[a-z0-9_-]+\.(?:png|jpg|jpeg|webp))$/i;
 const servePublic = express.static(__dirname, {
   index: false, dotfiles: 'deny', redirect: false,
   setHeaders(res, filePath) {
@@ -59,7 +60,7 @@ const servePublic = express.static(__dirname, {
 app.use((req, res, next) => {
   let pathname;
   try { pathname = decodeURIComponent(req.path); } catch { return res.sendStatus(400); }
-  if (PUBLIC_FILES.has(pathname.slice(1)) || /^\/img\/[a-zA-Z0-9_-]+\.(png|jpg|jpeg|svg|ico)$/.test(pathname)) {
+  if (PUBLIC_FILES.has(pathname.slice(1)) || PUBLIC_IMAGE.test(pathname)) {
     return servePublic(req, res, next);
   }
   next();

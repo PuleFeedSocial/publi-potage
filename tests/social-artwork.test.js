@@ -1,5 +1,5 @@
 const {test}=require('node:test');const assert=require('node:assert/strict');const social=require('../social-artwork');
-function draw(count,kind='huevos',customBranches){
+function draw(count,kind='huevos',customBranches,options={}){
  const pages=[];
  const branches=customBranches||Array.from({length:count},(_,i)=>({ubicacion:'Sucursal '+i,direccion:'Avenida Ejemplo '+(1000+i),contacto:'+54 9 11 1234-'+String(i).padStart(4,'0')}));
  const factory=()=>{
@@ -18,7 +18,7 @@ function draw(count,kind='huevos',customBranches){
   const canvas={getContext:()=>ctx};pages.push({canvas,calls,positions,scales});return canvas;
  };
  const rows=kind==='pollos'?Array.from({length:7},(_,i)=>({producto:'Pollo '+i,presentacion:'5 kg',precio:29000+i*1000})):Array.from({length:6},(_,i)=>({tipo_huevo:(i<3?'B':'C')+(i%3+1),precio_maple:4900,precio_cajon:58800}));
- const canvases=social.render({canvasFactory:factory,kind,region:'AMBA',branches,rows,assets:{logo:{},source:{}}});return {pages,canvases,branches};
+ const canvases=social.render({canvasFactory:factory,kind,region:'AMBA',branches,rows,assets:{logo:{},source:{},...(options.assets||{})},template:options.template});return {pages,canvases,branches};
 }
 test('feed exports use a native 1440 by 1800 4:5 canvas for eggs and chicken at every branch count',()=>{
  for(const kind of ['huevos','pollos'])for(const n of [1,3,4,6,7,18]){
@@ -42,3 +42,17 @@ test('long branch details fit inside the export rather than clipping the brand o
  assert.doesNotThrow(()=>draw(3,'huevos',branches));
 });
 test('administrative region names never appear in exported artwork',()=>{for(const page of draw(3).pages)assert.ok(!page.calls.some(text=>text.includes('AMBA')));});
+test('company templates replace the wordmark without changing the branch rule',()=>{
+ const {pages}=draw(3,'huevos',undefined,{template:{brand:'Pluma Blanca',subtitle:'— S.R.L. —'}});
+ assert.ok(pages[0].calls.includes('Pluma Blanca'));
+ assert.ok(!pages[0].calls.includes('Potage'));
+ assert.ok(pages[0].calls.includes('Avenida Ejemplo 1000'));
+});
+test('a company background switches to the artwork layout and keeps prices and contacts',()=>{
+ const {pages}=draw(3,'huevos',undefined,{template:{showTitle:false,showBrand:false},assets:{background:{width:1080,height:1350}}});
+ assert.ok(!pages[0].calls.includes('LISTA DE'));
+ assert.ok(pages[0].calls.includes('Sede Sucursal 0'));
+ assert.ok(pages[0].calls.includes('Avenida Ejemplo 1000'));
+ assert.ok(pages[0].calls.includes('B1'));
+});
+

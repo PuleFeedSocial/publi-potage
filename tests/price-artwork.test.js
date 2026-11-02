@@ -27,3 +27,16 @@ test('regional template allows explicitly empty slots but never all empty or mis
  assert.throws(()=>artwork.rows(data,'A',['','',''],{allowEmpty:true}));
  data.huevos[0].precio_cajon='';assert.throws(()=>artwork.rows(data,'A',['B1','',''],{allowEmpty:true}));
 });
+test('company selection isolates branches and lists the companies present',()=>{
+ const data=fixture();
+ data.locales=[{region_id:'A',local_id:'1'},{region_id:'A',local_id:'2'},{region_id:'A',local_id:'3'},{region_id:'A',local_id:'4'}];
+ const directory=[
+  {id:'1',empresa:'Potage SRL',ubicacion:'Merlo',direccion:'Calle 1',contacto:'111',activo:true},
+  {id:'2',empresa:'Pluma Blanca SRL',ubicacion:'Centro',direccion:'Calle 2',contacto:'222',activo:true},
+  {id:'3',empresa:'pluma blanca s.r.l.',ubicacion:'Norte',direccion:'Calle 3',contacto:'333',activo:true},
+  {id:'4',empresa:'La Sorpresa SRL',ubicacion:'Sur',direccion:'Calle 4',contacto:'444',activo:false}
+ ];
+ assert.deepEqual(artwork.branches(data,'A',directory,'Pluma Blanca SRL').map(b=>b.id),['2','3']);
+ assert.deepEqual(artwork.companies(data,'A',directory).map(c=>c.slug),['pluma-blanca','potage']);
+ assert.throws(()=>artwork.branches(data,'A',directory,'La Sorpresa SRL'),/no tiene sucursales activas/);
+});

@@ -1,4 +1,4 @@
-const CACHE = 'potage-v85';
+const CACHE = 'potage-v86';
 const STATIC = [
   "/assets/css/pages/account-settings.css",
   "/assets/js/pages/account-settings-events.js",
@@ -42,7 +42,7 @@ const STATIC = [
   '/grupos.html', '/informes.html', '/logs.html', '/account-settings.html',
   '/sucursales.html', '/ayuda.html', '/calendario.html',
   '/productos.html', '/productos.js', '/productos.css', '/egg-prices.js', '/regiones.html', '/regiones.js',
-  '/price-artwork.js', '/price-artwork-ui.js', '/social-artwork.js', '/img/icon-512.png', '/price-text.js', '/chicken-catalog.js', '/img/precios/pollos.png', '/img/precios/amba.jpg', '/img/precios/costa.jpg',
+  '/price-artwork.js', '/price-artwork-ui.js', '/social-artwork.js', '/company-templates.js', '/img/icon-512.png', '/price-text.js', '/chicken-catalog.js', '/img/precios/pollos.png', '/img/precios/amba.jpg', '/img/precios/costa.jpg',
   '/app.js', '/marketing-analysis.js', '/account.js', '/theme.js', '/style.css', '/manifest.json', '/sw.js'
 ];
 
@@ -73,8 +73,10 @@ self.addEventListener('fetch', (e) => {
   e.respondWith(
     fetch(e.request)
       .then((res) => {
-        const clone = res.clone();
-        caches.open(CACHE).then((cache) => cache.put(e.request, clone));
+        if (res.ok) {
+          const clone = res.clone();
+          caches.open(CACHE).then((cache) => cache.put(e.request, clone));
+        }
         return res;
       })
       .catch(() => caches.match(e.request))
