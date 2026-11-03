@@ -23,11 +23,11 @@ function draw(count,kind='huevos',customBranches,options={}){
  const rows=kind==='pollos'?Array.from({length:7},(_,i)=>({producto:'Pollo '+i,presentacion:'5 kg',precio:29000+i*1000})):Array.from({length:6},(_,i)=>({tipo_huevo:(i<3?'B':'C')+(i%3+1),precio_maple:4900,precio_cajon:58800}));
  const canvases=social.render({canvasFactory:factory,kind,region:'AMBA',branches,rows,assets:{logo:{},source:{},...(options.assets||{})},template:options.template});return {pages,canvases,branches};
 }
-test('feed exports use a native 1440 by 1800 4:5 canvas for eggs and chicken at every branch count',()=>{
+test('feed exports use a native 2240 by 1880 horizontal canvas for eggs and chicken at every branch count',()=>{
  for(const kind of ['huevos','pollos'])for(const n of [1,3,4,6,7,18]){
   const {canvases,pages}=draw(n,kind);assert.equal(canvases.length,Math.ceil(n/6));
-  for(const canvas of canvases){assert.equal(canvas.width,1440);assert.equal(canvas.height,1800);assert.equal(canvas.width/canvas.height,4/5);}
-  for(const page of pages)assert.deepEqual(page.scales,[[4/3,4/3]]);
+  for(const canvas of canvases){assert.equal(canvas.width,2240);assert.equal(canvas.height,1880);assert.equal(canvas.width/canvas.height,2240/1880);}
+  for(const page of pages)assert.deepEqual(page.scales,[[1,1]]);
  }
 });
 test('the complete price heading is centered on the canvas for both product templates',()=>{
@@ -52,23 +52,23 @@ test('company templates replace the wordmark without changing the branch rule',(
  assert.ok(pages[0].calls.includes('Avenida Ejemplo 1000'));
 });
 test('a company background switches to the artwork layout and keeps prices and contacts',()=>{
- const {pages}=draw(3,'huevos',undefined,{template:{showTitle:false,showBrand:false},assets:{background:{width:1080,height:1350}}});
+ const {pages}=draw(3,'huevos',undefined,{template:{showTitle:false,showBrand:false},assets:{background:{width:2240,height:1880}}});
  assert.ok(!pages[0].calls.includes('LISTA DE'));
  assert.ok(pages[0].calls.includes('Sede Sucursal 0'));
  assert.ok(pages[0].calls.includes('Avenida Ejemplo 1000'));
  assert.ok(pages[0].calls.includes('B1'));
 });
-test('the product generator exposes only the vertical 1440 by 1800 export',()=>{
- assert.equal(social.WIDTH,1440);assert.equal(social.HEIGHT,1800);
- assert.equal(social.ASPECT_RATIO,4/5);assert.equal(social.WIDTH/social.HEIGHT,4/5);
+test('the product generator exposes only the horizontal 2240 by 1880 export',()=>{
+ assert.equal(social.WIDTH,2240);assert.equal(social.HEIGHT,1880);
+ assert.equal(social.ASPECT_RATIO,2240/1880);assert.equal(social.WIDTH/social.HEIGHT,2240/1880);
  for(const file of ['social-artwork.js','price-artwork-ui.js']){
   const source=fs.readFileSync(path.join(__dirname,'..',file),'utf8');
   assert.doesNotMatch(source,/WIDTH\s*=\s*1080\s*,\s*HEIGHT\s*=\s*1080/,file);
   assert.doesNotMatch(source,/canvas\.width\s*=\s*1080[\s\S]{0,80}canvas\.height\s*=\s*1080/,file);
   assert.doesNotMatch(source,/1080\s*[×x]\s*1080/,file);
+  assert.doesNotMatch(source,/1440\s*[×x]\s*1800/,file);
  }
  const ui=fs.readFileSync(path.join(__dirname,'..','price-artwork-ui.js'),'utf8');
  assert.match(ui,/SocialArtwork\.verifyPngBlob\(blob\)/);
  assert.doesNotMatch(ui,/toDataURL/);
 });
-

@@ -47,7 +47,7 @@ function selectArtworkCompany(){
 function buildArtworkSelections(){
  const company=currentArtworkCompany();
  const rule='Hasta 3 sedes: dirección y contacto. Más de 3: sede y teléfono.';
- ae('artwork-description').textContent=company.name+' · '+(ae('artwork-template').value==='pollos'?'Pollos: 7 presentaciones, sin mezclar con huevos. '+rule+' Formato vertical 4:5 · 1440 × 1800 px. Cada presentación mantiene su precio independiente.':'Elegí los huevos estándar que se publicarán; podés dejar filas sin producto. '+rule+' Formato vertical 4:5 · 1440 × 1800 px. Maple de 30 huevos · cajón de 12 maples.');
+ ae('artwork-description').textContent=company.name+' · '+(ae('artwork-template').value==='pollos'?'Pollos: 7 presentaciones, sin mezclar con huevos. '+rule+' Formato horizontal 2240 × 1880 px. Cada presentación mantiene su precio independiente.':'Elegí los huevos estándar que se publicarán; podés dejar filas sin producto. '+rule+' Formato horizontal 2240 × 1880 px. Maple de 30 huevos · cajón de 12 maples.');
  artworkVersion++;artworkReady=false;ae('artwork-download').disabled=true;
  if(ae('artwork-template').value==='pollos'){ae('artwork-selections').replaceChildren();renderChickenArtwork();return;}
  const template=PriceArtwork.templates[ae('artwork-template').value],root=ae('artwork-selections');root.replaceChildren();
@@ -126,7 +126,7 @@ document.addEventListener('DOMContentLoaded',()=>{
    const url=URL.createObjectURL(blob),link=document.createElement('a');
    link.href=url;link.download=base+'-'+size.width+'x'+size.height+'.png';link.click();
    setTimeout(()=>URL.revokeObjectURL(url),30000);
-   ae('artwork-status').textContent='PNG verificado: '+size.width+' × '+size.height+' px · Relación 4:5.';
+   ae('artwork-status').textContent='PNG verificado: '+size.width+' × '+size.height+' px · Horizontal 2240:1880.';
   }catch(error){
    ae('artwork-status').textContent=error.message||'No se pudo descargar el PNG. Volvé a intentar.';
   }finally{ae('artwork-download').disabled=false;}

@@ -1,8 +1,7 @@
 (function(root){
- const LAYOUT_WIDTH=1080,LAYOUT_HEIGHT=1350,SCALE=4/3;
- const WIDTH=1440,HEIGHT=1800,PAGE_SIZE=6;
- const ASPECT_RATIO=4/5,SAFE_MARGIN=36,SAFE_MARGIN_PX=SAFE_MARGIN*SCALE;
- const FORMAT_LABEL='1440 × 1800 px · Vertical 4:5';
+ const WIDTH=2240,HEIGHT=1880,SCALE=1,PAGE_SIZE=6;
+ const ASPECT_RATIO=WIDTH/HEIGHT,SAFE_MARGIN=96,SAFE_MARGIN_PX=SAFE_MARGIN*SCALE;
+ const FORMAT_LABEL='2240 × 1880 px · Horizontal 1.19:1';
  const PNG_SIGNATURE=[137,80,78,71,13,10,26,10];
  const DEFAULT_COLORS={
   pageEggs:'#ffe36d',pageChicken:'#ffdda5',
@@ -15,19 +14,19 @@
   divider:'#dfb560',note:'#6a4834',eggFootnote:'#78421e',
   chickenLabel:'#943b1d',chickenHead:'#f3bf85',chickenRow:'#fff0d5'
  };
- // Zonas con margen de seguridad de 36 unidades de diseño (48 px finales).
+ // Zonas del diseño horizontal (2240 × 1880) con 96 px de margen seguro.
  const DEFAULT_ZONES={
-  eggs:{x:40,y:260,w:1000,h:660},
-  chicken:{x:40,y:248,w:1000,h:632},
-  branches:{x:40,y:930,w:1000,h:340},
-  brand:{x:748,y:1234,w:292,h:80}
+  eggs:{x:96,y:390,w:2048,h:820},
+  chicken:{x:96,y:390,w:2048,h:820},
+  branches:{x:96,y:1248,w:2048,h:396},
+  brand:{x:96,y:96,w:300,h:260}
  };
- // Área que ocupa cada bloque del diseño para escalarlo dentro de una zona.
+ // Área que ocupa cada bloque dentro de su zona; permite reutilizar plantillas con fondo.
  const BLOCK_BOUNDS={
-  eggs:{x:40,y:268,w:992,h:660},
-  chicken:{x:40,y:248,w:1000,h:632},
-  branches:{x:40,y:940,w:1000,h:390},
-  brand:{x:772,y:1236,w:272,h:78}
+  eggs:{x:96,y:390,w:2048,h:820},
+  chicken:{x:96,y:390,w:2048,h:820},
+  branches:{x:96,y:1248,w:2048,h:396},
+  brand:{x:96,y:96,w:300,h:260}
  };
  function normalizeTemplate(template){
   const source=template||{};
@@ -62,7 +61,7 @@
  }
  function text(ctx,value,x,y,width,size=28,{bold=false,color='#382719',align='left',family='Arial'}={}){
   ctx.fillStyle=color;ctx.textAlign=align;ctx.textBaseline='top';ctx.font=(bold?'700 ':'')+size+'px '+family;
-  while(ctx.measureText(String(value)).width>width&&size>17){size--;ctx.font=(bold?'700 ':'')+size+'px '+family;}
+  while(ctx.measureText(String(value)).width>width&&size>12){size--;ctx.font=(bold?'700 ':'')+size+'px '+family;}
   if(ctx.measureText(String(value)).width>width)throw Error('El texto es demasiado largo para publicar: '+value);
   ctx.fillText(String(value),x,y);
  }
@@ -75,97 +74,148 @@
   ctx.drawImage(image,x+(w-dw)/2,y+(h-dh)/2,dw,dh);
   if(clip)ctx.restore();
  }
+ function contain(ctx,image,x,y,w,h){
+  const iw=image.naturalWidth||image.width,ih=image.naturalHeight||image.height;
+  if(!iw||!ih)return;
+  const scale=Math.min(w/iw,h/ih),dw=iw*scale,dh=ih*scale;
+  ctx.drawImage(image,x+(w-dw)/2,y+(h-dh)/2,dw,dh);
+ }
+ // Recorta una foto de la plantilla original sin deformarla ni estirarla.
+ function cropContain(ctx,image,crop,x,y,w,h){
+  const [sx,sy,sw,sh]=crop;
+  const scale=Math.min(w/sw,h/sh),dw=sw*scale,dh=sh*scale;
+  ctx.drawImage(image,sx,sy,sw,sh,x+(w-dw)/2,y+(h-dh)/2,dw,dh);
+ }
  function brand(ctx,logo,theme){
+  const x=SAFE_MARGIN,y=SAFE_MARGIN,w=300,cx=x+w/2;
   if(logo){
-   ctx.drawImage(logo,124,102,264,286,772,1236,72,78);
-   text(ctx,theme.brand,858,1242,186,43,{bold:true,color:theme.colors.brand});
-   if(theme.subtitle)text(ctx,theme.subtitle,945,1291,180,16,{bold:true,color:theme.colors.brand,align:'center'});
+   contain(ctx,logo,cx-85,y,170,170);
+   text(ctx,theme.brand,cx,y+182,w,40,{bold:true,color:theme.colors.brand,align:'center'});
+   if(theme.subtitle)text(ctx,theme.subtitle,cx,y+232,w,20,{bold:true,color:theme.colors.brand,align:'center'});
   }else{
-   text(ctx,theme.brand,772,1238,272,46,{bold:true,color:theme.colors.brand});
-   if(theme.subtitle)text(ctx,theme.subtitle,772,1291,272,16,{bold:true,color:theme.colors.brand});
+   text(ctx,theme.brand,cx,y+58,w,56,{bold:true,color:theme.colors.brand,align:'center'});
+   if(theme.subtitle)text(ctx,theme.subtitle,cx,y+132,w,26,{bold:true,color:theme.colors.brand,align:'center'});
   }
  }
+ // Datos de sucursal en tarjetas: legibles y con ajuste automático de tamaño.
  function contact(ctx,branch,x,y,w,h,{compact,single},theme){
   let layout;
-  for(let size=single?32:compact?26:28;size>=17;size--){
+  const maxSize=single?44:compact?30:34;
+  const minSize=compact?20:24;
+  for(let size=maxSize;size>=minSize;size--){
    ctx.font='700 '+size+'px Arial';
-   const name=wrap(ctx,'Sede '+branch.ubicacion,compact||single?w:w*.51);
-   const phone=wrap(ctx,branch.contacto,compact||single?w:w*.45);
+   const name=wrap(ctx,'Sede '+branch.ubicacion,w);
+   const phone=wrap(ctx,branch.contacto,w);
    ctx.font=size+'px Arial';
    const address=compact?[]:wrap(ctx,branch.direccion,w);
-   const lines=compact||single?name.length+address.length+phone.length:Math.max(name.length,phone.length)+address.length;
-   const height=lines*(size+4)+12;
-   if(height<=h){layout={size,name,address,phone,height};break;}
+   const lineHeight=size+Math.max(4,Math.round(size*.18));
+   const height=(name.length+address.length+phone.length)*lineHeight+8;
+   if(height<=h){layout={size,name,address,phone,lineHeight,height};break;}
   }
   if(!layout)throw Error('La información de '+branch.ubicacion+' es demasiado extensa. Revisá nombre, dirección y contacto en Sucursales.');
-  let ty=y+(h-layout.height)/2+6;
-  function lines(values,tx,top,bold,align='left'){
-   ctx.font=(bold?'700 ':'')+layout.size+'px Arial';ctx.fillStyle=bold?theme.colors.branchName:theme.colors.branchText;ctx.textAlign=align;ctx.textBaseline='top';
-   for(const line of values){ctx.fillText(line,tx,top);top+=layout.size+4;}return top;
+  const align=single?'center':'left',tx=single?x+w/2:x;
+  let ty=y+(h-layout.height)/2;
+  function lines(values,top,bold){
+   ctx.font=(bold?'700 ':'')+layout.size+'px Arial';
+   ctx.fillStyle=bold?theme.colors.branchName:theme.colors.branchText;
+   ctx.textAlign=align;ctx.textBaseline='top';
+   for(const line of values){ctx.fillText(line,tx,top);top+=layout.lineHeight;}return top;
   }
-  if(single){
-   ty=lines(layout.name,x+w/2,ty,true,'center');ty=lines(layout.address,x+w/2,ty,false,'center');lines(layout.phone,x+w/2,ty,true,'center');
-  }else if(compact){
-   ty=lines(layout.name,x,ty,true);lines(layout.phone,x,ty,true);
-  }else{
-   lines(layout.name,x,ty,true);lines(layout.phone,x+w,ty,true,'right');
-   ty+=Math.max(layout.name.length,layout.phone.length)*(layout.size+4);lines(layout.address,x,ty,false);
-  }
+  ty=lines(layout.name,ty,true);
+  if(layout.address.length)ty=lines(layout.address,ty,false);
+  lines(layout.phone,ty,true);
  }
  function footer(ctx,branches,compact,page,total,theme){
-  text(ctx,theme.footerTitle,40,940,1000,20,{bold:true,color:theme.colors.footerTitle});
-  const cols=compact?2:1,gap=24,rowGap=12,w=(1000-(cols-1)*gap)/cols;
-  const rowCount=Math.ceil(branches.length/cols),h=(260-(rowCount-1)*rowGap)/rowCount;
+  text(ctx,theme.footerTitle,WIDTH/2,1248,1800,38,{bold:true,color:theme.colors.footerTitle,align:'center'});
+  const top=1302,height=342,gap=compact?28:32;
+  const cols=compact?3:branches.length,rowCount=Math.ceil(branches.length/cols);
+  const cardW=(WIDTH-SAFE_MARGIN*2-(cols-1)*gap)/cols;
+  const cardH=compact?(height-(rowCount-1)*20)/rowCount:height;
   branches.forEach((branch,i)=>{
-   const x=40+(i%cols)*(w+gap),y=968+Math.floor(i/cols)*(h+rowGap);
-   contact(ctx,branch,x,y,w,h,{compact,single:!compact&&branches.length===1},theme);
-   if(Math.floor(i/cols)<rowCount-1)box(ctx,x,y+h+rowGap/2,w,1,theme.colors.divider);
+   const x=SAFE_MARGIN+(i%cols)*(cardW+gap),y=top+Math.floor(i/cols)*(cardH+20);
+   box(ctx,x,y,cardW,cardH,theme.panel);
+   box(ctx,x,y,cardW,6,theme.colors.divider);
+   contact(ctx,branch,x+24,y+20,cardW-48,cardH-40,{compact,single:!compact&&branches.length===1},theme);
   });
-  if(theme.footnote)text(ctx,theme.footnote,40,1294,690,18,{color:theme.colors.note});
-  if(total>1)text(ctx,page+' / '+total,40,1252,80,18,{color:theme.colors.note});
+  if(theme.footnote)text(ctx,theme.footnote,SAFE_MARGIN,1676,1400,26,{color:theme.colors.note});
+  if(total>1)text(ctx,page+' / '+total,WIDTH-SAFE_MARGIN,1676,200,26,{color:theme.colors.note,align:'right'});
  }
  function header(ctx,theme){
   if(theme.tagline.length){
-   ctx.save();ctx.translate(100,105);ctx.rotate(-.65);box(ctx,-205,-46,410,92,theme.colors.tagline);
-   theme.tagline.slice(0,2).forEach((line,i)=>text(ctx,line,0,-34+i*36,320,30,{align:'center',color:theme.colors.taglineText}));
-   ctx.restore();
+   const lines=theme.tagline.slice(0,2),tagW=340,tagX=WIDTH-SAFE_MARGIN-tagW;
+   box(ctx,tagX,112,tagW,124,theme.colors.tagline);
+   lines.forEach((line,i)=>text(ctx,line,tagX+tagW/2,128+i*46,tagW-32,36,{align:'center',color:theme.colors.taglineText}));
   }
-  text(ctx,theme.titleTop,LAYOUT_WIDTH/2,58,650,72,{align:'center',color:theme.colors.title,family:'Georgia'});
-  text(ctx,theme.titleBottom,LAYOUT_WIDTH/2,137,650,88,{align:'center',color:theme.colors.titleAccent,family:'"Brush Script MT", "Segoe Script", cursive'});
+  // El título completo queda centrado sobre el ancho total del lienzo.
+  text(ctx,theme.titleTop,WIDTH/2,96,1200,96,{align:'center',color:theme.colors.title,family:'Georgia'});
+  text(ctx,theme.titleBottom,WIDTH/2,196,1200,148,{align:'center',color:theme.colors.titleAccent,family:'"Brush Script MT", "Segoe Script", cursive'});
+  box(ctx,SAFE_MARGIN,364,WIDTH-SAFE_MARGIN*2,4,theme.colors.divider);
  }
  function eggs(ctx,rows,source,theme,custom){
+  const panelW=1000,panelH=820,y=390,gap=48;
   for(let group=0;group<2;group++){
-   const x=40+group*512;box(ctx,x,268,488,610,theme.colors.eggPanel);
-   text(ctx,'Huevos',x+16,313,185,34,{color:theme.colors.eggText});text(ctx,group?'colorados':'blancos',x+16,356,185,34,{color:theme.colors.eggText});
+   const x=SAFE_MARGIN+group*(panelW+gap);
+   box(ctx,x,y,panelW,panelH,theme.colors.eggPanel);
+   box(ctx,x,y,panelW,10,theme.colors.title);
+   text(ctx,'Huevos',x+36,y+34,430,64,{color:theme.colors.eggText});
+   text(ctx,group?'colorados':'blancos',x+36,y+104,430,64,{color:theme.colors.eggText});
    if(source){
-    if(custom)cover(ctx,source,x+200,292,276,162,true);
-    else{const crop=group?[650,185,260,145]:[190,200,220,130];ctx.drawImage(source,...crop,x+200,292,276,162);}
+    if(custom)contain(ctx,source,x+540,y+32,420,250);
+    else cropContain(ctx,source,group?[650,185,260,145]:[190,200,220,130],x+540,y+32,420,250);
    }
-   const columns=[[x+12,144],[x+168,144],[x+324,148]];
-   ['TAMAÑO','MAPLE','CAJÓN'].forEach((label,i)=>{const [cx,width]=columns[i];box(ctx,cx,476,width,76,theme.colors.tableHead);text(ctx,label,cx+width/2,500,width-12,25,{bold:true,align:'center'});});
+   const tableX=x+24,tableW=panelW-48,columnGap=10;
+   const widths=[240,300,tableW-240-300-columnGap*2];
+   const columns=[];let cursor=tableX;
+   for(const width of widths){columns.push([cursor,width]);cursor+=width+columnGap;}
+   ['TAMAÑO','MAPLE','CAJÓN'].forEach((label,i)=>{
+    const [cx,width]=columns[i];
+    box(ctx,cx,y+300,width,82,theme.colors.tableHead);
+    text(ctx,label,cx+width/2,y+322,width-16,36,{bold:true,align:'center'});
+   });
    for(let i=0;i<3;i++){
-    const row=rows[group*3+i],y=572+i*92;
+    const row=rows[group*3+i],ry=y+400+i*126;
     const labels=[row?.tipo_huevo||'—',row?money(row.precio_maple):'—',row?money(row.precio_cajon):'—'];
-    labels.forEach((label,col)=>{const [cx,width]=columns[col];box(ctx,cx,y,width,78,theme.colors.tableRow);text(ctx,label,cx+width/2,y+23,width-12,31,{bold:true,align:'center'});});
+    labels.forEach((label,col)=>{
+     const [cx,width]=columns[col];
+     box(ctx,cx,ry,width,116,theme.colors.tableRow);
+     text(ctx,label,cx+width/2,ry+32,width-16,50,{bold:true,align:'center'});
+    });
    }
+   text(ctx,'Maple: 30 huevos · Cajón: 12 maples',x+panelW/2,y+782,panelW-40,24,{color:theme.colors.eggFootnote,align:'center'});
   }
-  text(ctx,'Maple: 30 huevos · Cajón: 12 maples',40,900,1000,22,{color:theme.colors.eggFootnote});
  }
  function chicken(ctx,rows,source,theme,custom){
+  const y=390,panelH=820,panelW=680;
+  box(ctx,SAFE_MARGIN,y,panelW,panelH,theme.colors.chickenRow);
+  box(ctx,SAFE_MARGIN,y,panelW,10,theme.colors.chickenLabel);
+  const frameX=SAFE_MARGIN+40,frameY=y+30,frameW=600,frameH=520;
+  box(ctx,frameX,frameY,frameW,frameH,theme.colors.eggPanel);
   if(source){
-   if(custom)cover(ctx,source,40,322,290,540,true);
-   else{ctx.save();ctx.beginPath();ctx.rect(40,322,290,540);ctx.clip();ctx.drawImage(source,130,162,215,400,40,322,290,540);ctx.restore();}
+   if(custom)contain(ctx,source,frameX+10,frameY+10,frameW-20,frameH-20);
+   else cropContain(ctx,source,[130,162,215,400],frameX+10,frameY+10,frameW-20,frameH-20);
   }
-  text(ctx,'POLLOS',354,248,660,24,{bold:true,color:theme.colors.chickenLabel});
-  box(ctx,350,286,690,54,theme.colors.chickenHead);text(ctx,'PRODUCTO / PRESENTACIÓN',366,303,440,21,{bold:true});text(ctx,'PRECIO',1024,303,180,21,{bold:true,align:'right'});
+  const centerX=SAFE_MARGIN+panelW/2;
+  text(ctx,'POLLOS',centerX,y+590,600,74,{bold:true,color:theme.colors.chickenLabel,align:'center'});
+  text(ctx,'7 presentaciones',centerX,y+684,600,42,{color:theme.colors.chickenLabel,align:'center'});
+  text(ctx,'producción propia',centerX,y+740,600,42,{color:theme.colors.titleAccent,align:'center'});
+  const tx=824,tw=1320;
+  box(ctx,tx,y,tw,panelH,theme.colors.chickenRow);
+  box(ctx,tx,y,tw,10,theme.colors.chickenLabel);
+  box(ctx,tx+20,y+30,tw-40,84,theme.colors.chickenHead);
+  text(ctx,'PRODUCTO / PRESENTACIÓN',tx+40,y+52,800,34,{bold:true});
+  text(ctx,'PRECIO',tx+tw-40,y+52,300,34,{bold:true,align:'right'});
   rows.forEach((row,i)=>{
-   const y=358+i*76;box(ctx,350,y,690,66,theme.colors.chickenRow);
-   text(ctx,row.producto+' x '+row.presentacion,366,y+20,432,27,{family:'Georgia'});text(ctx,money(row.precio),1024,y+18,210,31,{bold:true,align:'right'});
+   const ry=y+140+i*94;
+   box(ctx,tx+20,ry,tw-40,88,theme.colors.tableRow);
+   text(ctx,row.producto+' x '+row.presentacion,tx+40,ry+16,860,38,{family:'Georgia'});
+   text(ctx,money(row.precio),tx+tw-40,ry+12,320,42,{bold:true,align:'right'});
   });
  }
  function renderDefault(ctx,kind,branches,rows,assets,theme,page,total,compact){
-  box(ctx,0,0,LAYOUT_WIDTH,LAYOUT_HEIGHT,kind==='pollos'?theme.colors.pageChicken:theme.colors.pageEggs);header(ctx,theme);
-  if(kind==='pollos')chicken(ctx,rows,assets.source,theme,assets.sourceCustom);else eggs(ctx,rows,assets.source,theme,assets.sourceCustom);
+  box(ctx,0,0,WIDTH,HEIGHT,kind==='pollos'?theme.colors.pageChicken:theme.colors.pageEggs);
+  header(ctx,theme);
+  if(kind==='pollos')chicken(ctx,rows,assets.source,theme,assets.sourceCustom);
+  else eggs(ctx,rows,assets.source,theme,assets.sourceCustom);
   footer(ctx,branches,compact,page,total,theme);
   brand(ctx,assets.logo,theme);
  }
@@ -178,12 +228,13 @@
   ctx.save();ctx.translate(ox,oy);ctx.scale(scale,scale);ctx.translate(-bounds.x,-bounds.y);draw();ctx.restore();
  }
  function renderArtwork(ctx,kind,branches,rows,assets,theme,page,total,compact){
-  ctx.fillStyle='#ffffff';ctx.fillRect(0,0,LAYOUT_WIDTH,LAYOUT_HEIGHT);
-  cover(ctx,assets.background,0,0,LAYOUT_WIDTH,LAYOUT_HEIGHT,false);
+  ctx.fillStyle='#ffffff';ctx.fillRect(0,0,WIDTH,HEIGHT);
+  cover(ctx,assets.background,0,0,WIDTH,HEIGHT,false);
   if(theme.showTitle)header(ctx,theme);
   const priceKey=kind==='pollos'?'chicken':'eggs';
   placeBlock(ctx,theme.zones[priceKey],BLOCK_BOUNDS[priceKey],theme.panel,()=>{
-   if(kind==='pollos')chicken(ctx,rows,assets.source,theme,assets.sourceCustom);else eggs(ctx,rows,assets.source,theme,assets.sourceCustom);
+   if(kind==='pollos')chicken(ctx,rows,assets.source,theme,assets.sourceCustom);
+   else eggs(ctx,rows,assets.source,theme,assets.sourceCustom);
   });
   placeBlock(ctx,theme.zones.branches,BLOCK_BOUNDS.branches,theme.panel,()=>footer(ctx,branches,compact,page,total,theme));
   if(theme.showBrand)placeBlock(ctx,theme.zones.brand,BLOCK_BOUNDS.brand,null,()=>brand(ctx,assets.logo,theme));

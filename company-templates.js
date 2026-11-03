@@ -14,13 +14,13 @@
   divider:'#dfb560',note:'#6a4834',eggFootnote:'#78421e',
   chickenLabel:'#943b1d',chickenHead:'#f3bf85',chickenRow:'#fff0d5'
  };
- // Zonas del diseño con fondo propio (coordenadas del lienzo 1080 × 1350).
- // Conservan 36 unidades (48 px finales) de margen seguro en todos los bordes.
+ // Zonas del diseño horizontal (2240 × 1880).
+ // Conservan 96 px de margen seguro en todos los bordes.
  const DEFAULT_ZONES={
-  eggs:{x:40,y:260,w:1000,h:660},
-  chicken:{x:40,y:248,w:1000,h:632},
-  branches:{x:40,y:930,w:1000,h:340},
-  brand:{x:748,y:1234,w:292,h:80}
+  eggs:{x:96,y:390,w:2048,h:820},
+  chicken:{x:96,y:390,w:2048,h:820},
+  branches:{x:96,y:1248,w:2048,h:396},
+  brand:{x:96,y:96,w:300,h:260}
  };
  const COMPANIES=[
   {slug:'potage',name:'Potage SRL',brand:'Potage',subtitle:'— S.R.L. —',aliases:['potage','potage srl','potage s.r.l.'],logoFallback:true},

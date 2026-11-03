@@ -29,7 +29,7 @@ Las escrituras usan RAW para no interpretar texto como fórmulas. Antes de modif
 
 ### Imágenes para redes
 
-Productos → Generar imagen consulta precios y catálogo de Sucursales actuales antes de preparar un PNG de 1440 × 1800 px (4:5), el formato recomendado para feed de Facebook. El modal pide la empresa y el tipo de producto (Huevos o Pollos). La empresa se toma de la columna `Empresa` de las sucursales vinculadas a la región: si una región tuviera sucursales de varias empresas, se genera una imagen por empresa y nunca se mezclan. Cada empresa usa su propia plantilla; si todavía no tiene una imagen de fondo, se usa el diseño estándar con su nombre. Cada fila de huevos es seleccionable y puede quedar vacía (se representa con guiones), pero debe seleccionarse al menos un producto. Solo se admiten huevos estándar de la lista GENERAL de la región seleccionada. Los especiales y las carnes requieren otras plantillas.
+Productos → Generar imagen consulta precios y catálogo de Sucursales actuales antes de preparar un PNG horizontal de 2240 × 1880 px (1.19:1), el formato recomendado para feed de Facebook. El modal pide la empresa y el tipo de producto (Huevos o Pollos). La empresa se toma de la columna `Empresa` de las sucursales vinculadas a la región: si una región tuviera sucursales de varias empresas, se genera una imagen por empresa y nunca se mezclan. Cada empresa usa su propia plantilla; si todavía no tiene una imagen de fondo, se usa el diseño estándar con su nombre. Cada fila de huevos es seleccionable y puede quedar vacía (se representa con guiones), pero debe seleccionarse al menos un producto. Solo se admiten huevos estándar de la lista GENERAL de la región seleccionada. Los especiales y las carnes requieren otras plantillas.
 
 La descarga se bloquea si no hay productos seleccionados, hay productos repetidos, precios incompletos o incompatibles con 12 maples por cajón, o si la región/huevos están desactivados. Actualizar precios consulta nuevamente precios y sucursales. El pie muestra las sucursales activas vinculadas a la región y a la empresa elegida: hasta tres sedes incluyen nombre, dirección y contacto; con más de tres se muestran únicamente nombre de sede y teléfono. Si hay más de seis sedes se generan páginas numeradas de hasta seis sedes cada una. No se buscan coincidencias por nombre: si una asociación está desactualizada, faltan datos de contacto o no hay sucursales activas, se indica cómo corregirlo y se bloquea la descarga. Las líneas se ajustan y la altura aumenta para no recortar contactos. No se publica automáticamente ni se modifica la hoja.
 
@@ -67,15 +67,15 @@ La misma hoja de producción mantiene sus pestañas y posiciones de columnas. El
 
 ## Imágenes para el feed de Facebook
 
-Huevos y Pollos se dibujan en proporción 4:5, PNG de 1440 × 1800 px, con márgenes de seguridad de 48 px para que los datos no queden pegados al borde. El formato sirve para feed de Facebook; la miniatura cuadrada del perfil puede recortar los extremos, por eso los precios y la marca se mantienen centrados.
+Huevos y Pollos se dibujan en un lienzo horizontal de 2240 × 1880 px, con márgenes de seguridad de 96 px para que los datos no queden pegados al borde. La composición se rediseñó para ese formato: título centrado, tablas amplias, imágenes integradas y sucursales en tarjetas. El formato sirve para feed de Facebook; la miniatura cuadrada del perfil puede recortar los extremos, por eso los precios y la marca se mantienen dentro del margen seguro.
 
-La previsualización usa la misma relación 4:5 y solo reduce el tamaño visual; nunca cambia el lienzo de descarga. Antes de iniciar la descarga, el navegador lee el encabezado IHDR del PNG y bloquea el archivo si no mide exactamente 1440 × 1800 px. No existe un camino alternativo cuadrado en el generador de Productos. Las pruebas `tests/artwork-png.test.js` generan PNG reales con un canvas nativo, verifican el encabezado, la relación 4:5, el centrado del título y el rechazo de un archivo 1080 × 1080.
+La previsualización usa la misma relación 2240:1880 y solo reduce el tamaño visual; nunca cambia el lienzo de descarga. Antes de iniciar la descarga, el navegador lee el encabezado IHDR del PNG y bloquea el archivo si no mide exactamente 2240 × 1880 px. No existe un camino alternativo cuadrado o vertical en el generador de Productos. Las pruebas `tests/artwork-png.test.js` generan PNG reales con un canvas nativo, verifican el encabezado, la relación 1.19:1, el centrado del título y el rechazo de archivos antiguos de 1080 × 1080 y 1440 × 1800.
 
 El service worker usa una versión de caché nueva y los archivos del generador se piden primero a la red. Si una publicación de Facebook ya fue subida con una imagen anterior, esa publicación conserva el archivo viejo: hay que descargar una imagen nueva después del deploy y volver a subirla.
 
 La imagen se elige por empresa: Potage SRL, Pluma Blanca SRL, El Triangulo SA y La Sorpresa SRL. La comparación ignora mayúsculas, tildes y puntos (por ejemplo `Potage S.R.L.` equivale a `Potage SRL`). Cada empresa puede aportar su plantilla en `img/plantillas/<slug>/`:
 
-- `fondo.png` o `fondo.jpg`: diseño completo 1080 × 1350 o 1440 × 1800, sin precios ni datos variables.
+- `fondo.png` o `fondo.jpg`: diseño completo horizontal de 2240 × 1880, sin precios ni datos variables.
 - `logo.png`: logo con transparencia (opcional; Potage usa `img/icon-512.png` como respaldo).
 - `huevos.png` / `pollos.png`: fotografías propias para la tabla (opcionales).
 
