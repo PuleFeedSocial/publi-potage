@@ -1,6 +1,7 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const companies=require('../company-templates');
+const social=require('../social-artwork');
 test('resolves the four companies with accents, dots and legal suffixes',()=>{
  const cases=[
   ['Potage SRL','potage'],['POTAGE S.R.L.','potage'],['Potage','potage'],
@@ -28,4 +29,14 @@ test('companies are discovered without mixing repeated names',()=>{
  const list=companies.companiesForBranches([{empresa:'Potage SRL'},{empresa:'Potage S.R.L.'},{empresa:'La Sorpresa SRL'},{empresa:''}]);
  assert.deepEqual(list.map(c=>c.slug),['la-sorpresa','potage']);
  assert.equal(list[1].empresa,'Potage SRL');
+});
+test('company artwork zones keep the same safe area as the generator',()=>{
+ assert.deepEqual(companies.DEFAULT_ZONES,social.DEFAULT_ZONES);
+ const width=social.WIDTH/social.SCALE,height=social.HEIGHT/social.SCALE;
+ for(const [name,zone] of Object.entries(social.DEFAULT_ZONES)){
+  assert.ok(zone.x>=social.SAFE_MARGIN,name+' left');
+  assert.ok(zone.y>=social.SAFE_MARGIN,name+' top');
+  assert.ok(zone.x+zone.w<=width-social.SAFE_MARGIN,name+' right');
+  assert.ok(zone.y+zone.h<=height-social.SAFE_MARGIN,name+' bottom');
+ }
 });

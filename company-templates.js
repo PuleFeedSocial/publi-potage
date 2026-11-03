@@ -15,12 +15,12 @@
   chickenLabel:'#943b1d',chickenHead:'#f3bf85',chickenRow:'#fff0d5'
  };
  // Zonas del diseño con fondo propio (coordenadas del lienzo 1080 × 1350).
- // Se pueden ajustar por empresa cuando llegue cada plantilla.
+ // Conservan 36 unidades (48 px finales) de margen seguro en todos los bordes.
  const DEFAULT_ZONES={
   eggs:{x:40,y:260,w:1000,h:660},
   chicken:{x:40,y:248,w:1000,h:632},
-  branches:{x:40,y:940,w:1000,h:390},
-  brand:{x:748,y:1244,w:292,h:94}
+  branches:{x:40,y:930,w:1000,h:340},
+  brand:{x:748,y:1234,w:292,h:80}
  };
  const COMPANIES=[
   {slug:'potage',name:'Potage SRL',brand:'Potage',subtitle:'— S.R.L. —',aliases:['potage','potage srl','potage s.r.l.'],logoFallback:true},

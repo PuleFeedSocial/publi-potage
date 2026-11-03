@@ -1,7 +1,9 @@
 (function(root){
  const LAYOUT_WIDTH=1080,LAYOUT_HEIGHT=1350,SCALE=4/3;
  const WIDTH=1440,HEIGHT=1800,PAGE_SIZE=6;
+ const ASPECT_RATIO=4/5,SAFE_MARGIN=36,SAFE_MARGIN_PX=SAFE_MARGIN*SCALE;
  const FORMAT_LABEL='1440 × 1800 px · Vertical 4:5';
+ const PNG_SIGNATURE=[137,80,78,71,13,10,26,10];
  const DEFAULT_COLORS={
   pageEggs:'#ffe36d',pageChicken:'#ffdda5',
   eggPanel:'#ffeda6',eggText:'#161616',
@@ -13,18 +15,19 @@
   divider:'#dfb560',note:'#6a4834',eggFootnote:'#78421e',
   chickenLabel:'#943b1d',chickenHead:'#f3bf85',chickenRow:'#fff0d5'
  };
+ // Zonas con margen de seguridad de 36 unidades de diseño (48 px finales).
  const DEFAULT_ZONES={
   eggs:{x:40,y:260,w:1000,h:660},
   chicken:{x:40,y:248,w:1000,h:632},
-  branches:{x:40,y:940,w:1000,h:390},
-  brand:{x:748,y:1244,w:292,h:94}
+  branches:{x:40,y:930,w:1000,h:340},
+  brand:{x:748,y:1234,w:292,h:80}
  };
  // Área que ocupa cada bloque del diseño para escalarlo dentro de una zona.
  const BLOCK_BOUNDS={
   eggs:{x:40,y:268,w:992,h:660},
   chicken:{x:40,y:248,w:1000,h:632},
   branches:{x:40,y:940,w:1000,h:390},
-  brand:{x:772,y:1250,w:276,h:80}
+  brand:{x:772,y:1236,w:272,h:78}
  };
  function normalizeTemplate(template){
   const source=template||{};
@@ -74,12 +77,12 @@
  }
  function brand(ctx,logo,theme){
   if(logo){
-   ctx.drawImage(logo,124,102,264,286,772,1250,72,78);
-   text(ctx,theme.brand,858,1256,190,43,{bold:true,color:theme.colors.brand});
-   if(theme.subtitle)text(ctx,theme.subtitle,945,1305,180,16,{bold:true,color:theme.colors.brand,align:'center'});
+   ctx.drawImage(logo,124,102,264,286,772,1236,72,78);
+   text(ctx,theme.brand,858,1242,186,43,{bold:true,color:theme.colors.brand});
+   if(theme.subtitle)text(ctx,theme.subtitle,945,1291,180,16,{bold:true,color:theme.colors.brand,align:'center'});
   }else{
-   text(ctx,theme.brand,772,1252,290,46,{bold:true,color:theme.colors.brand});
-   if(theme.subtitle)text(ctx,theme.subtitle,772,1305,290,16,{bold:true,color:theme.colors.brand});
+   text(ctx,theme.brand,772,1238,272,46,{bold:true,color:theme.colors.brand});
+   if(theme.subtitle)text(ctx,theme.subtitle,772,1291,272,16,{bold:true,color:theme.colors.brand});
   }
  }
  function contact(ctx,branch,x,y,w,h,{compact,single},theme){
@@ -118,8 +121,8 @@
    contact(ctx,branch,x,y,w,h,{compact,single:!compact&&branches.length===1},theme);
    if(Math.floor(i/cols)<rowCount-1)box(ctx,x,y+h+rowGap/2,w,1,theme.colors.divider);
   });
-  if(theme.footnote)text(ctx,theme.footnote,40,1310,690,18,{color:theme.colors.note});
-  if(total>1)text(ctx,page+' / '+total,40,1268,80,18,{color:theme.colors.note});
+  if(theme.footnote)text(ctx,theme.footnote,40,1294,690,18,{color:theme.colors.note});
+  if(total>1)text(ctx,page+' / '+total,40,1252,80,18,{color:theme.colors.note});
  }
  function header(ctx,theme){
   if(theme.tagline.length){
@@ -194,13 +197,27 @@
   if(theme.layout==='artwork'&&!hasBackground)throw Error('Falta la imagen de fondo de la plantilla de esta empresa.');
   return chunks.map((chunk,index)=>{
    const canvas=canvasFactory();canvas.width=WIDTH;canvas.height=HEIGHT;
+   if(canvas.width!==WIDTH||canvas.height!==HEIGHT)throw Error('El lienzo de exportación debe medir '+WIDTH+' × '+HEIGHT+' px.');
    const ctx=canvas.getContext('2d');ctx.scale(SCALE,SCALE);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
    if(useBackground)renderArtwork(ctx,kind,chunk,rows,assets,theme,index+1,chunks.length,compact);
    else renderDefault(ctx,kind,chunk,rows,assets,theme,index+1,chunks.length,compact);
+   if(canvas.width!==WIDTH||canvas.height!==HEIGHT)throw Error('El lienzo cambió de tamaño durante el dibujo.');
    return canvas;
   });
  }
  function money(value){return '$'+value.toLocaleString('es-AR',{maximumFractionDigits:2});}
- const api={WIDTH,HEIGHT,SCALE,PAGE_SIZE,FORMAT_LABEL,DEFAULT_ZONES,pages,wrap,render};
+ function pngDimensions(buffer){
+  const bytes=buffer instanceof Uint8Array?buffer:new Uint8Array(buffer);
+  if(bytes.length<24||PNG_SIGNATURE.some((value,index)=>bytes[index]!==value))throw Error('El archivo descargado no es un PNG válido.');
+  const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
+  return {width:view.getUint32(16),height:view.getUint32(20)};
+ }
+ async function verifyPngBlob(blob){
+  if(!blob||blob.type!=='image/png')throw Error('La descarga no se generó como PNG.');
+  const {width,height}=pngDimensions(await blob.arrayBuffer());
+  if(width!==WIDTH||height!==HEIGHT)throw Error('El PNG descargado mide '+width+' × '+height+' px; debe medir '+WIDTH+' × '+HEIGHT+' px.');
+  return {width,height,ratio:width/height};
+ }
+ const api={WIDTH,HEIGHT,SCALE,ASPECT_RATIO,SAFE_MARGIN,SAFE_MARGIN_PX,PAGE_SIZE,FORMAT_LABEL,DEFAULT_ZONES,pages,wrap,render,pngDimensions,verifyPngBlob};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.SocialArtwork=api;
  })(typeof globalThis!=='undefined'?globalThis:this);

@@ -67,7 +67,11 @@ La misma hoja de producción mantiene sus pestañas y posiciones de columnas. El
 
 ## Imágenes para el feed de Facebook
 
-Huevos y Pollos se dibujan en proporción 4:5, PNG de 1440 × 1800 px, con márgenes de seguridad para que los datos no queden pegados al borde. El formato sirve para feed de Facebook; la miniatura cuadrada del perfil puede recortar los extremos, por eso los precios y la marca se mantienen centrados.
+Huevos y Pollos se dibujan en proporción 4:5, PNG de 1440 × 1800 px, con márgenes de seguridad de 48 px para que los datos no queden pegados al borde. El formato sirve para feed de Facebook; la miniatura cuadrada del perfil puede recortar los extremos, por eso los precios y la marca se mantienen centrados.
+
+La previsualización usa la misma relación 4:5 y solo reduce el tamaño visual; nunca cambia el lienzo de descarga. Antes de iniciar la descarga, el navegador lee el encabezado IHDR del PNG y bloquea el archivo si no mide exactamente 1440 × 1800 px. No existe un camino alternativo cuadrado en el generador de Productos. Las pruebas `tests/artwork-png.test.js` generan PNG reales con un canvas nativo, verifican el encabezado, la relación 4:5, el centrado del título y el rechazo de un archivo 1080 × 1080.
+
+El service worker usa una versión de caché nueva y los archivos del generador se piden primero a la red. Si una publicación de Facebook ya fue subida con una imagen anterior, esa publicación conserva el archivo viejo: hay que descargar una imagen nueva después del deploy y volver a subirla.
 
 La imagen se elige por empresa: Potage SRL, Pluma Blanca SRL, El Triangulo SA y La Sorpresa SRL. La comparación ignora mayúsculas, tildes y puntos (por ejemplo `Potage S.R.L.` equivale a `Potage SRL`). Cada empresa puede aportar su plantilla en `img/plantillas/<slug>/`:
 

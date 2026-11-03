@@ -1,4 +1,4 @@
-const {test}=require('node:test');const assert=require('node:assert/strict');const social=require('../social-artwork');
+const {test}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const path=require('node:path');const social=require('../social-artwork');
 function draw(count,kind='huevos',customBranches,options={}){
  const pages=[];
  const branches=customBranches||Array.from({length:count},(_,i)=>({ubicacion:'Sucursal '+i,direccion:'Avenida Ejemplo '+(1000+i),contacto:'+54 9 11 1234-'+String(i).padStart(4,'0')}));
@@ -10,8 +10,11 @@ function draw(count,kind='huevos',customBranches,options={}){
     const text=String(value),size=Number(this.font.match(/(\d+)px/)?.[1])||20;
     if(!['producción','propia'].includes(text)){
      const width=this.measureText(text).width,left=this.textAlign==='center'?x-width/2:this.textAlign==='right'?x-width:x;
-     assert.ok(left>=0&&left+width<=social.WIDTH/social.SCALE,'horizontal bounds: '+text);
-     assert.ok(y>=0&&y+size<=social.HEIGHT/social.SCALE,'vertical bounds: '+text);
+     const layoutWidth=social.WIDTH/social.SCALE,layoutHeight=social.HEIGHT/social.SCALE;
+     assert.ok(left>=social.SAFE_MARGIN,'safe left margin: '+text);
+     assert.ok(left+width<=layoutWidth-social.SAFE_MARGIN,'safe right margin: '+text);
+     assert.ok(y>=social.SAFE_MARGIN,'safe top margin: '+text);
+     assert.ok(y+size<=layoutHeight-social.SAFE_MARGIN,'safe bottom margin: '+text);
     }
     calls.push(text);positions.push({text,x,y,size,align:this.textAlign});
    }};
@@ -54,5 +57,18 @@ test('a company background switches to the artwork layout and keeps prices and c
  assert.ok(pages[0].calls.includes('Sede Sucursal 0'));
  assert.ok(pages[0].calls.includes('Avenida Ejemplo 1000'));
  assert.ok(pages[0].calls.includes('B1'));
+});
+test('the product generator exposes only the vertical 1440 by 1800 export',()=>{
+ assert.equal(social.WIDTH,1440);assert.equal(social.HEIGHT,1800);
+ assert.equal(social.ASPECT_RATIO,4/5);assert.equal(social.WIDTH/social.HEIGHT,4/5);
+ for(const file of ['social-artwork.js','price-artwork-ui.js']){
+  const source=fs.readFileSync(path.join(__dirname,'..',file),'utf8');
+  assert.doesNotMatch(source,/WIDTH\s*=\s*1080\s*,\s*HEIGHT\s*=\s*1080/,file);
+  assert.doesNotMatch(source,/canvas\.width\s*=\s*1080[\s\S]{0,80}canvas\.height\s*=\s*1080/,file);
+  assert.doesNotMatch(source,/1080\s*[×x]\s*1080/,file);
+ }
+ const ui=fs.readFileSync(path.join(__dirname,'..','price-artwork-ui.js'),'utf8');
+ assert.match(ui,/SocialArtwork\.verifyPngBlob\(blob\)/);
+ assert.doesNotMatch(ui,/toDataURL/);
 });
 

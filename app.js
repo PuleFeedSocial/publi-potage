@@ -3075,17 +3075,18 @@ function enterApp(user) {
 
 if ('serviceWorker' in navigator) {
   let swReloaded = false;
-  navigator.serviceWorker.register('/sw.js').catch(() => {});
-  navigator.serviceWorker.ready.then(() => {
-    if (navigator.serviceWorker.controller) {
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (!swReloaded) {
-          swReloaded = true;
-          window.location.reload();
-        }
-      });
-    }
-  });
+  if (navigator.serviceWorker.controller) {
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!swReloaded) {
+        swReloaded = true;
+        window.location.reload();
+      }
+    });
+  }
+  navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then((registration) => {
+    // Busca una versión nueva en cada carga para no quedarse con el generador anterior.
+    registration.update().catch(() => {});
+  }).catch(() => {});
 }
 
 /* Shared navigation: desktop preference and accessible mobile drawer. */

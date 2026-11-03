@@ -109,13 +109,27 @@ document.addEventListener('DOMContentLoaded',()=>{
  ae('artwork-refresh').onclick=refreshPriceArtwork;ae('artwork-page').onchange=showArtworkPage;
  ae('artwork-close').onclick=()=>ae('artwork-dialog').close();
  ae('artwork-dialog').addEventListener('close',()=>{artworkVersion++;artworkReady=false;});
- ae('artwork-download').onclick=()=>{
+ ae('artwork-download').onclick=async()=>{
   if(!artworkReady||!artworkImage)return;
   const region=artworkData.regiones.find(r=>r.region_id===artworkRegion);
   if(!region)return;
   const company=currentArtworkCompany(),kind=ae('artwork-template').value==='pollos'?'pollos':'huevos';
-  const name='precios-'+company.slug+'-'+kind+'-'+String(region.nombre_region).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9_-]/g,'-')+'-'+new Date().toISOString().slice(0,10)+(artworkPages.length>1?'-'+(Number(ae('artwork-page').value)+1):'')+'.png';
-  artworkImage.toBlob(blob=>{if(!blob)return;const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),30000);},'image/png');
+  const base='precios-'+company.slug+'-'+kind+'-'+String(region.nombre_region).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9_-]/g,'-')+'-'+new Date().toISOString().slice(0,10)+(artworkPages.length>1?'-'+(Number(ae('artwork-page').value)+1):'');
+  if(artworkImage.width!==SocialArtwork.WIDTH||artworkImage.height!==SocialArtwork.HEIGHT){
+   ae('artwork-status').textContent='La imagen no tiene el tamaño de exportación esperado. Pulsá Actualizar precios para regenerarla.';
+   return;
+  }
+  ae('artwork-download').disabled=true;
+  try{
+   const blob=await new Promise((resolve,reject)=>artworkImage.toBlob(value=>value?resolve(value):reject(Error('No se pudo generar el PNG.')),'image/png'));
+   const size=await SocialArtwork.verifyPngBlob(blob);
+   const url=URL.createObjectURL(blob),link=document.createElement('a');
+   link.href=url;link.download=base+'-'+size.width+'x'+size.height+'.png';link.click();
+   setTimeout(()=>URL.revokeObjectURL(url),30000);
+   ae('artwork-status').textContent='PNG verificado: '+size.width+' × '+size.height+' px · Relación 4:5.';
+  }catch(error){
+   ae('artwork-status').textContent=error.message||'No se pudo descargar el PNG. Volvé a intentar.';
+  }finally{ae('artwork-download').disabled=false;}
  };
 });
 
