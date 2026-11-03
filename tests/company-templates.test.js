@@ -25,6 +25,11 @@ test('templates read assets from the documented folder and keep Potage fallbacks
  assert.ok(potage.assets.chicken.includes('img/precios/pollos.png'));
  assert.ok(!pluma.assets.logo.includes('img/icon-512.png'));
 });
+test('El Triángulo uses its own dynamic egg artwork instead of the generic Potage template',()=>{
+ const triangle=companies.forCompany('El Triángulo S.A.');
+ assert.equal(triangle.layout,'el-triangulo');
+ assert.ok(triangle.assets.eggs.includes('img/plantillas/el-triangulo/huevos.png'));
+});
 test('companies are discovered without mixing repeated names',()=>{
  const list=companies.companiesForBranches([{empresa:'Potage SRL'},{empresa:'Potage S.R.L.'},{empresa:'La Sorpresa SRL'},{empresa:''}]);
  assert.deepEqual(list.map(c=>c.slug),['la-sorpresa','potage']);

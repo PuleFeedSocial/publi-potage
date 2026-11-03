@@ -5,6 +5,9 @@
  // plantilla se dibuja en su propio espacio de diseño y se escala de forma
  // uniforme; nunca se estira la imagen original.
  const EGG_DESIGN={width:940,height:789};
+ // La plantilla entregada por El Triángulo es horizontal y conserva su
+ // ilustración, cinta y marca. Sólo se sustituyen precios y datos dinámicos.
+ const TRIANGLE_DESIGN={width:768,height:646};
  const CHICKEN_DESIGN={width:884,height:742};
  const SAFE_MARGIN=32,SAFE_MARGIN_PX=SAFE_MARGIN*SCALE;
  const FORMAT_LABEL='2240 × 1880 px · Horizontal 1.19:1';
@@ -286,6 +289,56 @@
   drawEggFooter(ctx,branches,compact,page,total,theme);
   drawEggBrand(ctx,assets.logo,theme);
  }
+ function triangleColumns(group){
+  return group?[[407,104],[523,104],[638,113]]:[[31,104],[147,104],[262,113]];
+ }
+ function drawTriangleEggTable(ctx,group,rows,theme){
+  const columns=triangleColumns(group),headerY=281,rowY=[340,399,457],headerH=47,rowH=47;
+  ['TAMAÑO','MAPLE','CAJÓN'].forEach((label,index)=>{
+   const [x,w]=columns[index];box(ctx,x,headerY,w,headerH,theme.colors.tableHead);
+   text(ctx,label,x+w/2,headerY+15,w-8,17,{bold:true,align:'center',color:theme.colors.eggText,minSize:10});
+  });
+  for(let rowIndex=0;rowIndex<3;rowIndex++){
+   const row=rows[group*3+rowIndex];
+   const labels=[row?.tipo_huevo||'—',row&&typeof row.precio_maple==='number'?money(row.precio_maple):'—',row&&typeof row.precio_cajon==='number'?money(row.precio_cajon):'—'];
+   labels.forEach((label,index)=>{
+    const [x,w]=columns[index];box(ctx,x,rowY[rowIndex],w,rowH,theme.colors.tableRow);
+    text(ctx,label,x+w/2,rowY[rowIndex]+13,w-8,20,{bold:true,align:'center',color:theme.colors.eggText,minSize:11});
+   });
+  }
+ }
+ function drawTriangleFooter(ctx,branches,compact,page,total,theme){
+  const colors=theme.colors;
+  // Quita la dirección impresa de la foto original para que nunca quede
+  // información fija de otra sucursal debajo de los datos actuales.
+  box(ctx,22,529,724,102,colors.pageEggs);
+  if(compact){
+   const columns=2,rowH=25;
+   branches.slice(0,6).forEach((branch,index)=>{
+    const col=Math.floor(index/3),row=index%3,x=28+col*365,y=542+row*rowH;
+    text(ctx,'Sede '+branch.ubicacion,x,y,200,13,{bold:true,color:colors.branchName,minSize:9});
+    text(ctx,branch.contacto,x+205,y,145,12,{bold:true,color:colors.branchName,minSize:8});
+   });
+  }else{
+   const shown=branches.slice(0,3),columns=shown.length===1?1:shown.length,colW=704/columns;
+   shown.forEach((branch,index)=>{
+    const x=32+index*colW;
+    const name=fitParagraph(ctx,'Sede '+branch.ubicacion,colW-14,{maxLines:1,maxSize:16,minSize:10,bold:true});
+    let y=543;text(ctx,name.lines[0],x,y,colW-14,name.size,{bold:true,color:colors.branchName,minSize:9});y+=name.lineHeight;
+    const address=fitParagraph(ctx,branch.direccion,colW-14,{maxLines:2,maxSize:12,minSize:8,bold:false});
+    address.lines.forEach(lineText=>{text(ctx,lineText,x,y,colW-14,address.size,{color:colors.branchText,minSize:8});y+=address.lineHeight;});
+    text(ctx,branch.contacto,x,y+1,colW-14,12,{bold:true,color:colors.branchName,minSize:8});
+   });
+  }
+  text(ctx,theme.footnote,24,626,360,9,{color:colors.note,minSize:7});
+  if(total>1)text(ctx,page+' / '+total,740,626,20,8,{align:'right',color:colors.note,minSize:7});
+ }
+ function drawTriangleEggDesign(ctx,branches,rows,assets,theme,page,total,compact){
+  box(ctx,0,0,TRIANGLE_DESIGN.width,TRIANGLE_DESIGN.height,theme.colors.pageEggs);
+  if(assets.source&&(assets.source.naturalWidth||assets.source.width))ctx.drawImage(assets.source,0,0,TRIANGLE_DESIGN.width,TRIANGLE_DESIGN.height);
+  drawTriangleEggTable(ctx,0,rows,theme);drawTriangleEggTable(ctx,1,rows,theme);
+  drawTriangleFooter(ctx,branches,compact,page,total,theme);
+ }
  function drawChickenHorizontalLabel(ctx,theme){
   if(!theme.verticalLabel)return;
   ctx.save();ctx.translate(64,552);ctx.rotate(-Math.PI/2);
@@ -391,6 +444,14 @@
    ctx.restore();
   }
  }
+ function renderTriangle(ctx,kind,branches,rows,assets,theme,page,total,compact){
+  if(kind!=='huevos')return renderDefault(ctx,kind,branches,rows,assets,theme,page,total,compact);
+  const scale=Math.min(WIDTH/TRIANGLE_DESIGN.width,HEIGHT/TRIANGLE_DESIGN.height);
+  const offsetX=(WIDTH-TRIANGLE_DESIGN.width*scale)/2;
+  ctx.save();ctx.translate(offsetX,0);ctx.scale(scale,scale);
+  drawTriangleEggDesign(ctx,branches,rows,assets,theme,page,total,compact);
+  ctx.restore();
+ }
  // Renderiza un bloque de precio dentro de una zona de una plantilla con fondo,
  // sin deformarlo y sin agregar tarjetas que tapen el diseño original.
  function placeBlock(ctx,zone,bounds,draw){
@@ -423,8 +484,9 @@
    const canvas=canvasFactory();canvas.width=WIDTH;canvas.height=HEIGHT;
    if(canvas.width!==WIDTH||canvas.height!==HEIGHT)throw Error('El lienzo de exportación debe medir '+WIDTH+' × '+HEIGHT+' px.');
    const ctx=canvas.getContext('2d');ctx.scale(SCALE,SCALE);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
-   if(useBackground)renderArtwork(ctx,kind,chunk,rows,assets,theme,index+1,chunks.length,compact);
-   else renderDefault(ctx,kind,chunk,rows,assets,theme,index+1,chunks.length,compact);
+  if(theme.layout==='el-triangulo')renderTriangle(ctx,kind,chunk,rows,assets,theme,index+1,chunks.length,compact);
+  else if(useBackground)renderArtwork(ctx,kind,chunk,rows,assets,theme,index+1,chunks.length,compact);
+  else renderDefault(ctx,kind,chunk,rows,assets,theme,index+1,chunks.length,compact);
    if(canvas.width!==WIDTH||canvas.height!==HEIGHT)throw Error('El lienzo cambió de tamaño durante el dibujo.');
    return canvas;
   });
@@ -442,6 +504,6 @@
   if(width!==WIDTH||height!==HEIGHT)throw Error('El PNG descargado mide '+width+' × '+height+' px; debe medir '+WIDTH+' × '+HEIGHT+' px.');
   return {width,height,ratio:width/height};
  }
- const api={WIDTH,HEIGHT,SCALE,ASPECT_RATIO,SAFE_MARGIN,SAFE_MARGIN_PX,PAGE_SIZE,FORMAT_LABEL,EGG_DESIGN,CHICKEN_DESIGN,DEFAULT_ZONES,BLOCK_BOUNDS,pages,wrap,render,pngDimensions,verifyPngBlob};
+ const api={WIDTH,HEIGHT,SCALE,ASPECT_RATIO,SAFE_MARGIN,SAFE_MARGIN_PX,PAGE_SIZE,FORMAT_LABEL,EGG_DESIGN,TRIANGLE_DESIGN,CHICKEN_DESIGN,DEFAULT_ZONES,BLOCK_BOUNDS,pages,wrap,render,pngDimensions,verifyPngBlob};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.SocialArtwork=api;
  })(typeof globalThis!=='undefined'?globalThis:this);

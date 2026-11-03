@@ -87,6 +87,15 @@ test('a company background switches to the artwork layout and keeps prices and c
  assert.ok(pages[0].calls.includes('Avenida Ejemplo 1000'));
  assert.ok(pages[0].calls.includes('B1'));
 });
+test('El Triángulo artwork keeps the selected branch and replaces the reference prices',()=>{
+ const branch={ubicacion:'LA PLATA',direccion:'Boulevard 81 Nº 436',contacto:'+54 9 221 555-0101'};
+ const {pages}=draw(1,'huevos',[branch],{template:{layout:'el-triangulo'}});
+ const calls=pages[0].calls;
+ assert.ok(calls.includes('Sede LA PLATA'));
+ assert.ok(calls.includes('Boulevard 81 Nº 436'));
+ assert.ok(calls.includes('+54 9 221 555-0101'));
+ assert.ok(calls.includes('$4.900'));
+});
 test('the product generator exposes only the horizontal 2240 by 1880 export',()=>{
  assert.equal(social.WIDTH,2240);assert.equal(social.HEIGHT,1880);
  assert.equal(social.ASPECT_RATIO,2240/1880);assert.equal(social.WIDTH/social.HEIGHT,2240/1880);

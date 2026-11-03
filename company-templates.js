@@ -26,7 +26,7 @@
  const COMPANIES=[
   {slug:'potage',name:'Potage SRL',brand:'Potage',subtitle:'— S.R.L. —',aliases:['potage','potage srl','potage s.r.l.'],logoFallback:true},
   {slug:'pluma-blanca',name:'Pluma Blanca SRL',brand:'Pluma Blanca',subtitle:'— S.R.L. —',aliases:['pluma blanca','pluma blanca srl','pluma blanca s.r.l.']},
-  {slug:'el-triangulo',name:'El Triangulo SA',brand:'El Triángulo',subtitle:'— S.A. —',aliases:['el triangulo','el triangulo sa','el triángulo','el triángulo s.a.']},
+  {slug:'el-triangulo',name:'El Triangulo SA',brand:'El Triángulo',subtitle:'— S.A. —',aliases:['el triangulo','el triangulo sa','el triángulo','el triángulo s.a.'],layout:'el-triangulo'},
   {slug:'la-sorpresa',name:'La Sorpresa SRL',brand:'La Sorpresa',subtitle:'— S.R.L. —',aliases:['la sorpresa','la sorpresa srl','la sorpresa s.r.l.']}
  ];
  function normalize(value){
@@ -48,7 +48,7 @@
    name:company.name,
    brand:company.brand||company.name,
    subtitle:company.subtitle||'',
-   layout:'auto',
+   layout:company.layout||'auto',
    // El fondo de la plantilla ya incluye marca y título; no se duplican.
    showBrand:false,
    showTitle:false,

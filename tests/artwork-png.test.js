@@ -138,6 +138,7 @@ test('generator sources no longer contain vertical or old export formats',()=>{
 test('the service worker ships a cache version that includes the new generator files',()=>{
  const source=fs.readFileSync(path.join(__dirname,'../sw.js'),'utf8');
  const version=Number(source.match(/const CACHE = 'potage-v(\d+)'/)[1]);
- assert.ok(version>=89,'cache version: '+version);
+ assert.ok(version>=90,'cache version: '+version);
  for(const file of ['/social-artwork.js','/price-artwork-ui.js','/company-templates.js'])assert.ok(source.includes("'"+file+"'"),file);
+ assert.ok(source.includes("'/img/plantillas/el-triangulo/huevos.png'"),'El Triángulo artwork');
 });
