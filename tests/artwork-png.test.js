@@ -82,17 +82,15 @@ test('company background templates also export real 2240 x 1880 PNGs for eggs an
  }
 });
 
-test('the rendered title ink is centered across the full 2240 px canvas',()=>{
- for(const kind of ['huevos','pollos']){
-  const [canvas]=render(kind);
-  const ctx=canvas.getContext('2d');
-  const top=inkBounds(ctx,400,80,1440,130,[0xf0,0x52,0x26]);
-  const bottom=inkBounds(ctx,400,190,1440,170,[0xff,0x79,0x1e]);
-  assert.ok(top.count>100,'title top is painted for '+kind);
-  assert.ok(bottom.count>100,'title bottom is painted for '+kind);
-  assert.ok(Math.abs(top.center-canvas.width/2)<=8,'title top center: '+top.center);
-  assert.ok(Math.abs(bottom.center-canvas.width/2)<=8,'title bottom center: '+bottom.center);
- }
+test('the egg title stays centered in the recreated reference composition',()=>{
+ const [canvas]=render('huevos');
+ const ctx=canvas.getContext('2d');
+ const top=inkBounds(ctx,400,80,1440,300,[0xe4,0x51,0x22]);
+ const bottom=inkBounds(ctx,400,180,1440,300,[0xf0,0x7a,0x1e]);
+ assert.ok(top.count>100,'egg title top is painted');
+ assert.ok(bottom.count>100,'egg title bottom is painted');
+ assert.ok(Math.abs(top.center-canvas.width/2)<=8,'title top center: '+top.center);
+ assert.ok(Math.abs(bottom.center-canvas.width/2)<=8,'title bottom center: '+bottom.center);
 });
 
 test('the download verifier rejects old 1080 square and 1440 x 1800 exports',async()=>{

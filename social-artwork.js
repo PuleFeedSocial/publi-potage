@@ -1,32 +1,44 @@
 (function(root){
  const WIDTH=2240,HEIGHT=1880,SCALE=1,PAGE_SIZE=6;
- const ASPECT_RATIO=WIDTH/HEIGHT,SAFE_MARGIN=96,SAFE_MARGIN_PX=SAFE_MARGIN*SCALE;
+ const ASPECT_RATIO=WIDTH/HEIGHT;
+ // La referencia de huevos mide 940 x 788 y la de pollos 884 x 661. Cada
+ // plantilla se dibuja en su propio espacio de diseño y se escala de forma
+ // uniforme; nunca se estira la imagen original.
+ const EGG_DESIGN={width:940,height:789};
+ const CHICKEN_DESIGN={width:884,height:742};
+ const SAFE_MARGIN=32,SAFE_MARGIN_PX=SAFE_MARGIN*SCALE;
  const FORMAT_LABEL='2240 × 1880 px · Horizontal 1.19:1';
  const PNG_SIGNATURE=[137,80,78,71,13,10,26,10];
+ const BRAND_FONT='"Arial Rounded MT Bold", "Arial Black", Arial';
+ const SCRIPT_FONT='"Brush Script MT", "Segoe Script", cursive';
  const DEFAULT_COLORS={
-  pageEggs:'#ffe36d',pageChicken:'#ffdda5',
-  eggPanel:'#ffeda6',eggText:'#161616',
-  tableHead:'#ffdaa0',tableRow:'#fff5d8',
-  title:'#f05226',titleAccent:'#ff791e',
-  tagline:'#ffffff',taglineText:'#f1582c',
-  brand:'#ef5126',
-  footerTitle:'#af3b1b',branchName:'#af3b1b',branchText:'#493326',
-  divider:'#dfb560',note:'#6a4834',eggFootnote:'#78421e',
-  chickenLabel:'#943b1d',chickenHead:'#f3bf85',chickenRow:'#fff0d5'
+  pageEggs:'#ffdf6e',pageChicken:'#fdd9a3',
+  eggPanel:'#feeba6',eggText:'#24180e',
+  tableHead:'#fdd69b',tableRow:'#fff3e3',
+  title:'#e45122',titleAccent:'#f07a1e',
+  tagline:'#ffffff',taglineText:'#cf4b28',
+  brand:'#ee5126',
+  footerTitle:'#a84219',branchName:'#df5620',branchText:'#6e3b20',
+  divider:'#e59c55',note:'#8a4b24',eggFootnote:'#8a4b24',
+  chickenLabel:'#943b1d',chickenHead:'#f3bf85',chickenRow:'#fff0d5',
+  chickenLine:'#e97843',chickenText:'#392719'
  };
- // Zonas del diseño horizontal (2240 × 1880) con 96 px de margen seguro.
+ // Zonas para plantillas de fondo de empresas. Sólo se usan cuando existe
+ // img/plantillas/<empresa>/fondo.*; el diseño estándar no depende de ellas.
  const DEFAULT_ZONES={
-  eggs:{x:96,y:390,w:2048,h:820},
-  chicken:{x:96,y:390,w:2048,h:820},
-  branches:{x:96,y:1248,w:2048,h:396},
-  brand:{x:96,y:96,w:300,h:260}
+  eggs:{x:76,y:420,w:2088,h:940},
+  chicken:{x:76,y:420,w:2088,h:940},
+  branches:{x:76,y:1320,w:2088,h:430},
+  brand:{x:1460,y:1400,w:650,h:330}
  };
- // Área que ocupa cada bloque dentro de su zona; permite reutilizar plantillas con fondo.
+ // Área que ocupa cada bloque dentro del diseño de referencia. Permite
+ // reutilizar una plantilla con fondo sin deformar los bloques.
  const BLOCK_BOUNDS={
-  eggs:{x:96,y:390,w:2048,h:820},
-  chicken:{x:96,y:390,w:2048,h:820},
-  branches:{x:96,y:1248,w:2048,h:396},
-  brand:{x:96,y:96,w:300,h:260}
+  eggsTables:{x:32,y:344,w:896,h:272},
+  chickenTable:{x:414,y:147,w:431,h:477},
+  eggsBranches:{x:32,y:636,w:896,h:146},
+  chickenBranches:{x:0,y:640,w:884,h:102},
+  brand:{x:610,y:645,w:313,h:130}
  };
  function normalizeTemplate(template){
   const source=template||{};
@@ -35,6 +47,8 @@
    subtitle:source.subtitle===undefined?'— S.R.L. —':source.subtitle,
    titleTop:source.titleTop||'LISTA DE',
    titleBottom:source.titleBottom||'precios',
+   chickenTitle:source.chickenTitle||'Lista de precios',
+   verticalLabel:source.verticalLabel===undefined?'Nuevo ingreso!':source.verticalLabel,
    tagline:Array.isArray(source.tagline)?source.tagline:['producción','propia'],
    footerTitle:source.footerTitle||'ENCONTRANOS EN NUESTRAS SUCURSALES',
    footnote:source.footnote===undefined?'Precios sujetos a disponibilidad de stock':source.footnote,
@@ -53,19 +67,55 @@
  function wrap(ctx,value,width){
   const result=[];let line='';
   for(const word of String(value||'').trim().split(/\s+/)){
+   if(!word)continue;
    if(ctx.measureText((line?line+' ':'')+word).width<=width){line+=(line?' ':'')+word;continue;}
    if(line){result.push(line);line='';}
    for(const char of word){if(ctx.measureText(line+char).width>width){result.push(line);line='';}line+=char;}
   }
   if(line)result.push(line);return result;
  }
- function text(ctx,value,x,y,width,size=28,{bold=false,color='#382719',align='left',family='Arial'}={}){
-  ctx.fillStyle=color;ctx.textAlign=align;ctx.textBaseline='top';ctx.font=(bold?'700 ':'')+size+'px '+family;
-  while(ctx.measureText(String(value)).width>width&&size>12){size--;ctx.font=(bold?'700 ':'')+size+'px '+family;}
-  if(ctx.measureText(String(value)).width>width)throw Error('El texto es demasiado largo para publicar: '+value);
-  ctx.fillText(String(value),x,y);
+ function font(size,{bold=false,italic=false,family='Arial'}={}){
+  return (italic?'italic ':'')+(bold?'700 ':'')+size+'px '+family;
+ }
+ function text(ctx,value,x,y,width,size=28,{bold=false,italic=false,color='#382719',align='left',family='Arial',baseline='top',minSize=8}={}){
+  const valueText=String(value);
+  let current=size;
+  do{ctx.font=font(current,{bold,italic,family});if(ctx.measureText(valueText).width<=width||current<=minSize)break;current--;}while(true);
+  if(ctx.measureText(valueText).width>width)throw Error('El texto es demasiado largo para publicar: '+valueText);
+  ctx.fillStyle=color;ctx.textAlign=align;ctx.textBaseline=baseline;
+  ctx.fillText(valueText,x,y);return current;
+ }
+ // Ajusta un párrafo a una cantidad máxima de líneas. Devuelve el tamaño
+ // elegido y las líneas ya medidas; si no entra, informa el dato a corregir.
+ function fitParagraph(ctx,value,width,{maxLines=1,maxSize=24,minSize=12,bold=false,italic=false,family='Arial'}={}){
+  const valueText=String(value||'').trim();
+  for(let size=maxSize;size>=minSize;size--){
+   ctx.font=font(size,{bold,italic,family});
+   const lines=wrap(ctx,valueText,width);
+   if(lines.length<=maxLines)return{size,lines,lineHeight:Math.round(size*1.18)};
+  }
+  throw Error('La información es demasiado extensa para publicar: '+valueText);
  }
  function box(ctx,x,y,w,h,color){ctx.fillStyle=color;ctx.fillRect(x,y,w,h);}
+ function roundRect(ctx,x,y,w,h,r){
+  const radius=Math.max(0,Math.min(r,w/2,h/2));
+  if(typeof ctx.quadraticCurveTo!=='function'){ctx.rect(x,y,w,h);return;}
+  ctx.beginPath();
+  ctx.moveTo(x+radius,y);
+  ctx.lineTo(x+w-radius,y);
+  ctx.quadraticCurveTo(x+w,y,x+w,y+radius);
+  ctx.lineTo(x+w,y+h-radius);
+  ctx.quadraticCurveTo(x+w,y+h,x+w-radius,y+h);
+  ctx.lineTo(x+radius,y+h);
+  ctx.quadraticCurveTo(x,y+h,x,y+h-radius);
+  ctx.lineTo(x,y+radius);
+  ctx.quadraticCurveTo(x,y,x+radius,y);
+  ctx.closePath();
+ }
+ function fillRoundRect(ctx,x,y,w,h,r,color){ctx.fillStyle=color;roundRect(ctx,x,y,w,h,r);ctx.fill();}
+ function line(ctx,x1,y1,x2,y2,color,width=1){
+  ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+ }
  function cover(ctx,image,x,y,w,h,clip){
   const iw=image.naturalWidth||image.width,ih=image.naturalHeight||image.height;
   if(!iw||!ih){ctx.drawImage(image,x,y,w,h);return;}
@@ -82,147 +132,269 @@
  }
  // Recorta una foto de la plantilla original sin deformarla ni estirarla.
  function cropContain(ctx,image,crop,x,y,w,h){
-  const [sx,sy,sw,sh]=crop;
-  const scale=Math.min(w/sw,h/sh),dw=sw*scale,dh=sh*scale;
+  const [sx,sy,sw,sh]=crop;const scale=Math.min(w/sw,h/sh),dw=sw*scale,dh=sh*scale;
   ctx.drawImage(image,sx,sy,sw,sh,x+(w-dw)/2,y+(h-dh)/2,dw,dh);
  }
- function brand(ctx,logo,theme){
-  const x=SAFE_MARGIN,y=SAFE_MARGIN,w=300,cx=x+w/2;
-  if(logo){
-   contain(ctx,logo,cx-85,y,170,170);
-   text(ctx,theme.brand,cx,y+182,w,40,{bold:true,color:theme.colors.brand,align:'center'});
-   if(theme.subtitle)text(ctx,theme.subtitle,cx,y+232,w,20,{bold:true,color:theme.colors.brand,align:'center'});
-  }else{
-   text(ctx,theme.brand,cx,y+58,w,56,{bold:true,color:theme.colors.brand,align:'center'});
-   if(theme.subtitle)text(ctx,theme.subtitle,cx,y+132,w,26,{bold:true,color:theme.colors.brand,align:'center'});
+ function drawPin(ctx,x,y,size,color){
+  const cx=x+size/2,cy=y+size*.42,r=size*.34;
+  ctx.fillStyle=color;ctx.beginPath();ctx.moveTo(cx,y+size);
+  ctx.bezierCurveTo(cx-r*1.25,cy+r*.85,cx-r*1.05,cy-r*.2,cx,cy-r*.45);
+  ctx.bezierCurveTo(cx+r*1.05,cy-r*.2,cx+r*1.25,cy+r*.85,cx,y+size);
+  ctx.closePath();ctx.fill();
+  ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(cx,cy,r*.36,0,Math.PI*2);ctx.fill();
+ }
+ function drawPhoneBadge(ctx,x,y,size){
+  const cx=x+size/2,cy=y+size/2;
+  ctx.fillStyle='#25d366';ctx.beginPath();ctx.arc(cx,cy,size/2,0,Math.PI*2);ctx.fill();
+  ctx.save();ctx.translate(cx,cy);ctx.rotate(-.62);ctx.fillStyle='#ffffff';
+  roundRect(ctx,-size*.1,-size*.31,size*.2,size*.62,size*.1);ctx.fill();ctx.restore();
+  ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(cx-size*.2,cy+size*.19,size*.055,0,Math.PI*2);ctx.fill();
+ }
+ function drawBrand(ctx,logo,theme,{x,y,icon,wordSize,subtitleSize,wordWidth,italic=false}){
+  const logoX=x,logoY=y;
+  if(logo&&(logo.naturalWidth||logo.width))contain(ctx,logo,logoX,logoY,icon,icon);
+  const textX=logo?x+icon+10:x;
+  const wordY=y+icon*.22;
+  let current=wordSize;
+  do{ctx.font=font(current,{bold:true,family:BRAND_FONT});if(ctx.measureText(theme.brand).width<=wordWidth||current<=12)break;current--;}while(true);
+  ctx.fillStyle=theme.colors.brand;ctx.textAlign='left';ctx.textBaseline='top';
+  ctx.fillText(theme.brand,textX,wordY);
+  const measured=ctx.measureText(theme.brand).width;
+  const sub=String(theme.subtitle||'').replace(/^[—–-]+\s*|\s*[—–-]+$/g,'').trim();
+  if(sub){
+   const subY=y+icon*.68;
+   const subSize=Math.max(8,subtitleSize||Math.round(current*.3));
+   ctx.font=font(subSize,{bold:true,family:'Arial'});
+   const subWidth=ctx.measureText(sub).width;
+   const center=textX+wordWidth/2;
+   ctx.fillStyle=theme.colors.brand;ctx.textAlign='center';ctx.textBaseline='top';
+   ctx.fillText(sub,center,subY);
+   const lineY=subY+subSize*.52;
+   const leftEnd=center-subWidth/2-8,rightStart=center+subWidth/2+8;
+   if(leftEnd>textX+6)line(ctx,textX,lineY,leftEnd,lineY,theme.colors.brand,1.6);
+   if(rightStart<textX+wordWidth-6)line(ctx,rightStart,lineY,textX+wordWidth,lineY,theme.colors.brand,1.6);
   }
  }
- // Datos de sucursal en tarjetas: legibles y con ajuste automático de tamaño.
- function contact(ctx,branch,x,y,w,h,{compact,single},theme){
-  let layout;
-  const maxSize=single?44:compact?30:34;
-  const minSize=compact?20:24;
-  for(let size=maxSize;size>=minSize;size--){
-   ctx.font='700 '+size+'px Arial';
-   const name=wrap(ctx,'Sede '+branch.ubicacion,w);
-   const phone=wrap(ctx,branch.contacto,w);
-   ctx.font=size+'px Arial';
-   const address=compact?[]:wrap(ctx,branch.direccion,w);
-   const lineHeight=size+Math.max(4,Math.round(size*.18));
-   const height=(name.length+address.length+phone.length)*lineHeight+8;
-   if(height<=h){layout={size,name,address,phone,lineHeight,height};break;}
-  }
-  if(!layout)throw Error('La información de '+branch.ubicacion+' es demasiado extensa. Revisá nombre, dirección y contacto en Sucursales.');
-  const align=single?'center':'left',tx=single?x+w/2:x;
-  let ty=y+(h-layout.height)/2;
-  function lines(values,top,bold){
-   ctx.font=(bold?'700 ':'')+layout.size+'px Arial';
-   ctx.fillStyle=bold?theme.colors.branchName:theme.colors.branchText;
-   ctx.textAlign=align;ctx.textBaseline='top';
-   for(const line of values){ctx.fillText(line,tx,top);top+=layout.lineHeight;}return top;
-  }
-  ty=lines(layout.name,ty,true);
-  if(layout.address.length)ty=lines(layout.address,ty,false);
-  lines(layout.phone,ty,true);
+ function drawEggRibbon(ctx,theme){
+  ctx.save();ctx.beginPath();ctx.moveTo(0,84);ctx.lineTo(84,0);ctx.lineTo(188,0);ctx.lineTo(0,188);ctx.closePath();
+  ctx.fillStyle=theme.colors.tagline;ctx.fill();ctx.clip();
+  ctx.translate(0,190);ctx.rotate(-Math.PI/4);
+  const lines=theme.tagline.slice(0,2);
+  ctx.fillStyle=theme.colors.taglineText;ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=font(24,{family:'Arial'});
+  if(lines[0])ctx.fillText(lines[0],134,-42);
+  if(lines[1])ctx.fillText(lines[1],134,-12);
+  ctx.restore();
  }
- function footer(ctx,branches,compact,page,total,theme){
-  text(ctx,theme.footerTitle,WIDTH/2,1248,1800,38,{bold:true,color:theme.colors.footerTitle,align:'center'});
-  const top=1302,height=342,gap=compact?28:32;
-  const cols=compact?3:branches.length,rowCount=Math.ceil(branches.length/cols);
-  const cardW=(WIDTH-SAFE_MARGIN*2-(cols-1)*gap)/cols;
-  const cardH=compact?(height-(rowCount-1)*20)/rowCount:height;
-  branches.forEach((branch,i)=>{
-   const x=SAFE_MARGIN+(i%cols)*(cardW+gap),y=top+Math.floor(i/cols)*(cardH+20);
-   box(ctx,x,y,cardW,cardH,theme.panel);
-   box(ctx,x,y,cardW,6,theme.colors.divider);
-   contact(ctx,branch,x+24,y+20,cardW-48,cardH-40,{compact,single:!compact&&branches.length===1},theme);
+ function drawChickenRibbon(ctx,theme){
+  ctx.save();ctx.beginPath();ctx.moveTo(756,0);ctx.lineTo(884,0);ctx.lineTo(884,128);ctx.closePath();
+  ctx.fillStyle=theme.colors.tagline;ctx.fill();ctx.clip();
+  ctx.translate(832,47);ctx.rotate(Math.PI/4);
+  const lines=theme.tagline.slice(0,2);
+  ctx.fillStyle=theme.colors.taglineText;ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=font(15,{family:'Arial'});
+  if(lines[0])ctx.fillText(lines[0],0,-10);
+  if(lines[1])ctx.fillText(lines[1],0,10);
+  ctx.restore();
+ }
+ function drawEggTitle(ctx,theme){
+  text(ctx,theme.titleTop,470,44,430,55,{align:'center',color:theme.colors.title,family:'Georgia'});
+  text(ctx,theme.titleBottom,470,93,380,84,{align:'center',color:theme.colors.titleAccent,family:SCRIPT_FONT});
+ }
+ function drawChickenTitle(ctx,theme){
+  text(ctx,theme.chickenTitle,800,36,390,49,{align:'right',italic:true,color:theme.colors.title,family:'Georgia'});
+ }
+ function eggColumns(group){
+  return group?[[496,127],[637,126],[778,138]]:[[42,124],[181,126],[324,135]];
+ }
+ function drawEggTable(ctx,group,rows,theme){
+  const columns=eggColumns(group),headerY=344,rowY=[416,488,560];
+  ['TAMAÑO','MAPLE','CAJÓN'].forEach((label,index)=>{
+   const [x,w]=columns[index];
+   fillRoundRect(ctx,x,headerY,w,56,8,theme.colors.tableHead);
+   text(ctx,label,x+w/2,headerY+17,w-12,23,{bold:true,align:'center',color:theme.colors.eggText});
   });
-  if(theme.footnote)text(ctx,theme.footnote,SAFE_MARGIN,1676,1400,26,{color:theme.colors.note});
-  if(total>1)text(ctx,page+' / '+total,WIDTH-SAFE_MARGIN,1676,200,26,{color:theme.colors.note,align:'right'});
- }
- function header(ctx,theme){
-  if(theme.tagline.length){
-   const lines=theme.tagline.slice(0,2),tagW=340,tagX=WIDTH-SAFE_MARGIN-tagW;
-   box(ctx,tagX,112,tagW,124,theme.colors.tagline);
-   lines.forEach((line,i)=>text(ctx,line,tagX+tagW/2,128+i*46,tagW-32,36,{align:'center',color:theme.colors.taglineText}));
-  }
-  // El título completo queda centrado sobre el ancho total del lienzo.
-  text(ctx,theme.titleTop,WIDTH/2,96,1200,96,{align:'center',color:theme.colors.title,family:'Georgia'});
-  text(ctx,theme.titleBottom,WIDTH/2,196,1200,148,{align:'center',color:theme.colors.titleAccent,family:'"Brush Script MT", "Segoe Script", cursive'});
-  box(ctx,SAFE_MARGIN,364,WIDTH-SAFE_MARGIN*2,4,theme.colors.divider);
- }
- function eggs(ctx,rows,source,theme,custom){
-  const panelW=1000,panelH=820,y=390,gap=48;
-  for(let group=0;group<2;group++){
-   const x=SAFE_MARGIN+group*(panelW+gap);
-   box(ctx,x,y,panelW,panelH,theme.colors.eggPanel);
-   box(ctx,x,y,panelW,10,theme.colors.title);
-   text(ctx,'Huevos',x+36,y+34,430,64,{color:theme.colors.eggText});
-   text(ctx,group?'colorados':'blancos',x+36,y+104,430,64,{color:theme.colors.eggText});
-   if(source){
-    if(custom)contain(ctx,source,x+540,y+32,420,250);
-    else cropContain(ctx,source,group?[650,185,260,145]:[190,200,220,130],x+540,y+32,420,250);
-   }
-   const tableX=x+24,tableW=panelW-48,columnGap=10;
-   const widths=[240,300,tableW-240-300-columnGap*2];
-   const columns=[];let cursor=tableX;
-   for(const width of widths){columns.push([cursor,width]);cursor+=width+columnGap;}
-   ['TAMAÑO','MAPLE','CAJÓN'].forEach((label,i)=>{
-    const [cx,width]=columns[i];
-    box(ctx,cx,y+300,width,82,theme.colors.tableHead);
-    text(ctx,label,cx+width/2,y+322,width-16,36,{bold:true,align:'center'});
+  for(let i=0;i<3;i++){
+   const row=rows[group*3+i];
+   const labels=[row?.tipo_huevo||'—',row&&typeof row.precio_maple==='number'?money(row.precio_maple):'—',row&&typeof row.precio_cajon==='number'?money(row.precio_cajon):'—'];
+   labels.forEach((label,index)=>{
+    const [x,w]=columns[index];
+    fillRoundRect(ctx,x,rowY[i],w,56,8,theme.colors.tableRow);
+    text(ctx,label,x+w/2,rowY[i]+14,w-12,27,{bold:true,align:'center',color:theme.colors.eggText});
    });
-   for(let i=0;i<3;i++){
-    const row=rows[group*3+i],ry=y+400+i*126;
-    const labels=[row?.tipo_huevo||'—',row?money(row.precio_maple):'—',row?money(row.precio_cajon):'—'];
-    labels.forEach((label,col)=>{
-     const [cx,width]=columns[col];
-     box(ctx,cx,ry,width,116,theme.colors.tableRow);
-     text(ctx,label,cx+width/2,ry+32,width-16,50,{bold:true,align:'center'});
-    });
-   }
-   text(ctx,'Maple: 30 huevos · Cajón: 12 maples',x+panelW/2,y+782,panelW-40,24,{color:theme.colors.eggFootnote,align:'center'});
   }
  }
- function chicken(ctx,rows,source,theme,custom){
-  const y=390,panelH=820,panelW=680;
-  box(ctx,SAFE_MARGIN,y,panelW,panelH,theme.colors.chickenRow);
-  box(ctx,SAFE_MARGIN,y,panelW,10,theme.colors.chickenLabel);
-  const frameX=SAFE_MARGIN+40,frameY=y+30,frameW=600,frameH=520;
-  box(ctx,frameX,frameY,frameW,frameH,theme.colors.eggPanel);
-  if(source){
-   if(custom)contain(ctx,source,frameX+10,frameY+10,frameW-20,frameH-20);
-   else cropContain(ctx,source,[130,162,215,400],frameX+10,frameY+10,frameW-20,frameH-20);
+ function drawEggTables(ctx,rows,theme){
+  drawEggTable(ctx,0,rows,theme);drawEggTable(ctx,1,rows,theme);
+ }
+ function drawEggPanel(ctx,group,rows,source,custom,theme){
+  const x=group?488:32,w=group?440:436;
+  box(ctx,x,180,w,450,theme.colors.eggPanel);
+  text(ctx,'Huevos',x+16,222,200,33,{color:theme.colors.eggText});
+  text(ctx,group?'colorados':'blancos',x+16,268,200,33,{color:theme.colors.eggText});
+  if(source&&(source.naturalWidth||source.width)){
+   if(custom){
+    if(group)contain(ctx,source,660,185,258,145);else contain(ctx,source,190,200,220,130);
+   }else if(group)cropContain(ctx,source,[660,185,258,145],660,185,258,145);
+   else cropContain(ctx,source,[190,200,220,130],190,200,220,130);
   }
-  const centerX=SAFE_MARGIN+panelW/2;
-  text(ctx,'POLLOS',centerX,y+590,600,74,{bold:true,color:theme.colors.chickenLabel,align:'center'});
-  text(ctx,'7 presentaciones',centerX,y+684,600,42,{color:theme.colors.chickenLabel,align:'center'});
-  text(ctx,'producción propia',centerX,y+740,600,42,{color:theme.colors.titleAccent,align:'center'});
-  const tx=824,tw=1320;
-  box(ctx,tx,y,tw,panelH,theme.colors.chickenRow);
-  box(ctx,tx,y,tw,10,theme.colors.chickenLabel);
-  box(ctx,tx+20,y+30,tw-40,84,theme.colors.chickenHead);
-  text(ctx,'PRODUCTO / PRESENTACIÓN',tx+40,y+52,800,34,{bold:true});
-  text(ctx,'PRECIO',tx+tw-40,y+52,300,34,{bold:true,align:'right'});
-  rows.forEach((row,i)=>{
-   const ry=y+140+i*94;
-   box(ctx,tx+20,ry,tw-40,88,theme.colors.tableRow);
-   text(ctx,row.producto+' x '+row.presentacion,tx+40,ry+16,860,38,{family:'Georgia'});
-   text(ctx,money(row.precio),tx+tw-40,ry+12,320,42,{bold:true,align:'right'});
+  drawEggTable(ctx,group,rows,theme);
+ }
+ function drawEggPanels(ctx,rows,source,custom,theme){
+  drawEggPanel(ctx,0,rows,source,custom,theme);drawEggPanel(ctx,1,rows,source,custom,theme);
+ }
+ function drawEggFooter(ctx,branches,compact,page,total,theme){
+  if(!branches.length)return;
+  const colors=theme.colors;
+  if(compact){
+   const start=648,rowH=20;
+   branches.slice(0,6).forEach((branch,index)=>{
+    const y=start+index*rowH;
+    drawPin(ctx,32,y+1,15,colors.branchName);
+    text(ctx,'Sede '+branch.ubicacion,51,y+1,260,15,{bold:true,color:colors.branchName,minSize:10});
+    ctx.font=font(14,{bold:true,family:'Arial'});
+    const phoneX=326;
+    text(ctx,branch.contacto,phoneX,y+2,270,14,{bold:true,color:colors.branchName,minSize:10});
+   });
+  }else if(branches.length===1){
+   const branch=branches[0];
+   drawPin(ctx,32,700,29,colors.branchName);
+   const fit=fitParagraph(ctx,branch.direccion,510,{maxLines:2,maxSize:26,minSize:14,bold:true});
+   let y=696;
+   for(const addressLine of fit.lines){text(ctx,addressLine,74,y,510,fit.size,{bold:true,color:colors.branchName,minSize:12});y+=fit.lineHeight;}
+   y+=2;
+   drawPhoneBadge(ctx,74,y,20);
+   text(ctx,branch.contacto,102,y+1,420,19,{bold:true,color:colors.branchName,minSize:11});
+  }else{
+   const start=642,rowH=Math.floor(136/branches.length);
+   branches.slice(0,3).forEach((branch,index)=>{
+    const top=start+index*rowH;
+    drawPin(ctx,32,top+2,21,colors.branchName);
+    const address=fitParagraph(ctx,branch.direccion,474,{maxLines:2,maxSize:19,minSize:12,bold:true});
+    let y=top;
+    for(const addressLine of address.lines){text(ctx,addressLine,62,y,474,address.size,{bold:true,color:colors.branchName,minSize:10});y+=address.lineHeight;}
+    drawPhoneBadge(ctx,62,y+1,15);
+    text(ctx,branch.contacto,81,y+2,360,14,{bold:true,color:colors.branchName,minSize:9});
+   });
+  }
+  if(total>1)text(ctx,page+' / '+total,930,776,100,9,{align:'right',color:colors.note,minSize:8});
+ }
+ function drawEggBrand(ctx,logo,theme){drawBrand(ctx,logo,theme,{x:610,y:645,icon:120,wordSize:52,subtitleSize:15,wordWidth:187});}
+ function drawEggDesign(ctx,branches,rows,assets,theme,page,total,compact){
+  box(ctx,0,0,EGG_DESIGN.width,EGG_DESIGN.height,theme.colors.pageEggs);
+  drawEggRibbon(ctx,theme);
+  drawEggTitle(ctx,theme);
+  drawEggPanels(ctx,rows,assets.source,assets.sourceCustom,theme);
+  drawEggFooter(ctx,branches,compact,page,total,theme);
+  drawEggBrand(ctx,assets.logo,theme);
+ }
+ function drawChickenHorizontalLabel(ctx,theme){
+  if(!theme.verticalLabel)return;
+  ctx.save();ctx.translate(64,552);ctx.rotate(-Math.PI/2);
+  ctx.fillStyle=theme.colors.title;ctx.textAlign='left';ctx.textBaseline='top';ctx.font=font(48,{italic:true,family:'Georgia'});
+  ctx.fillText(theme.verticalLabel,0,0);ctx.restore();
+ }
+ function drawChickenImage(ctx,source,custom,theme){
+  if(!source||!(source.naturalWidth||source.width))return;
+  if(custom)contain(ctx,source,92,145,300,486);
+  else cropContain(ctx,source,[122,153,230,415],110,145,267,481);
+ }
+ function drawChickenTable(ctx,rows,theme){
+  const x=414,w=431,priceX=650,top=147,headerH=28,rowH=64,bottom=top+headerH+rowH*7;
+  const lineColor=theme.colors.chickenLine;
+  for(const y of [top,top+headerH,bottom])line(ctx,x,y,x+w,y,lineColor,1);
+  for(let i=1;i<7;i++)line(ctx,x,top+headerH+i*rowH,x+w,top+headerH+i*rowH,lineColor,1);
+  line(ctx,x,top,x,bottom,lineColor,1);line(ctx,priceX,top,priceX,bottom,lineColor,1);line(ctx,x+w,top,x+w,bottom,lineColor,1);
+  text(ctx,'PRECIO',(priceX+x+w)/2,top+8,120,12,{bold:true,align:'center',color:theme.colors.chickenText,minSize:9});
+  rows.slice(0,7).forEach((row,index)=>{
+   const centerY=top+headerH+rowH*index+rowH/2;
+   const label=row.producto+' x '+row.presentacion;
+   text(ctx,label,x+9,centerY-12,priceX-x-24,22,{family:'Georgia',color:theme.colors.chickenText,minSize:14});
+   text(ctx,money(row.precio)+'.-',x+w-10,centerY-12,x+w-priceX-22,22,{align:'right',family:'Georgia',color:theme.colors.chickenText,minSize:13});
   });
+ }
+ function drawChickenFooter(ctx,branches,compact,page,total,theme){
+  if(!branches.length)return;
+  const colors=theme.colors;
+  if(compact){
+   const columns=2,rows=Math.ceil(branches.length/columns),lineH=23,start=650;
+   const colW=420;
+   branches.slice(0,6).forEach((branch,index)=>{
+    const col=Math.floor(index/3),row=index%3;
+    const x=20+col*colW,y=start+row*lineH;
+    drawPin(ctx,x,y,14,colors.branchName);
+    text(ctx,'Sede '+branch.ubicacion,x+18,y+1,190,13.5,{bold:true,color:colors.branchName,minSize:9});
+    text(ctx,branch.contacto,x+210,y+2,195,13,{bold:true,color:colors.branchName,minSize:9});
+   });
+  }else if(branches.length===1){
+   const branch=branches[0];
+   const address=fitParagraph(ctx,branch.direccion,620,{maxLines:1,maxSize:22,minSize:13,bold:true});
+   const phoneSize=18,phoneWidth=170;
+   const totalWidth=30+address.lines[0].length*0+ctx.measureText(address.lines[0]).width+18+22+phoneWidth;
+   const fits=totalWidth<=820;
+   if(fits){
+    const groupWidth=30+ctx.measureText(address.lines[0]).width+18+22+8+ctx.measureText(branch.contacto).width;
+    let x=Math.max(24,(CHICKEN_DESIGN.width-groupWidth)/2);
+    drawPin(ctx,x,664,22,colors.branchName);
+    text(ctx,address.lines[0],x+31,662,520,address.size,{bold:true,color:colors.branchName,minSize:12});
+    const phoneX=x+31+ctx.measureText(address.lines[0]).width+16;
+    drawPhoneBadge(ctx,phoneX,663,20);
+    text(ctx,branch.contacto,phoneX+26,663,220,phoneSize,{bold:true,color:colors.branchName,minSize:10});
+   }else{
+    const address2=fitParagraph(ctx,branch.direccion,760,{maxLines:2,maxSize:22,minSize:13,bold:true});
+    let y=650;
+    for(const addressLine of address2.lines){text(ctx,addressLine,CHICKEN_DESIGN.width/2,y,760,address2.size,{align:'center',bold:true,color:colors.branchName,minSize:12});y+=address2.lineHeight;}
+    drawPhoneBadge(ctx,CHICKEN_DESIGN.width/2-90,y,19);
+    text(ctx,branch.contacto,CHICKEN_DESIGN.width/2-66,y+1,220,17,{bold:true,color:colors.branchName,minSize:10});
+   }
+  }else{
+   const start=650,rowH=32;
+   branches.slice(0,3).forEach((branch,index)=>{
+    const y=start+index*rowH;
+    const fit=fitParagraph(ctx,branch.direccion+'  ·  '+branch.contacto,790,{maxLines:1,maxSize:17,minSize:10,bold:true});
+    const groupWidth=25+ctx.measureText(fit.lines[0]).width;
+    const x=Math.max(20,(CHICKEN_DESIGN.width-groupWidth)/2);
+    drawPin(ctx,x,y,19,colors.branchName);
+    text(ctx,fit.lines[0],x+26,y,790,fit.size,{bold:true,color:colors.branchName,minSize:9});
+   });
+  }
+  if(total>1)text(ctx,page+' / '+total,864,724,100,9,{align:'right',color:colors.note,minSize:8});
+ }
+ function drawChickenBrand(ctx,logo,theme){drawBrand(ctx,logo,theme,{x:62,y:20,icon:103,wordSize:48,subtitleSize:14,wordWidth:190});}
+ function drawChickenDesign(ctx,branches,rows,assets,theme,page,total,compact){
+  box(ctx,0,0,CHICKEN_DESIGN.width,CHICKEN_DESIGN.height,theme.colors.pageChicken);
+  drawChickenRibbon(ctx,theme);
+  drawChickenBrand(ctx,assets.logo,theme);
+  drawChickenTitle(ctx,theme);
+  drawChickenHorizontalLabel(ctx,theme);
+  drawChickenImage(ctx,assets.source,assets.sourceCustom,theme);
+  drawChickenTable(ctx,rows,theme);
+  drawChickenFooter(ctx,branches,compact,page,total,theme);
+ }
+ // Título de respaldo cuando una plantilla con fondo pide que lo dibujemos.
+ function drawFinalTitle(ctx,kind,theme){
+  if(kind==='pollos'){
+   text(ctx,theme.chickenTitle,WIDTH-96,80,780,118,{align:'right',italic:true,color:theme.colors.title,family:'Georgia'});
+  }else{
+   text(ctx,theme.titleTop,WIDTH/2,86,1100,112,{align:'center',color:theme.colors.title,family:'Georgia'});
+   text(ctx,theme.titleBottom,WIDTH/2,204,850,150,{align:'center',color:theme.colors.titleAccent,family:SCRIPT_FONT});
+  }
  }
  function renderDefault(ctx,kind,branches,rows,assets,theme,page,total,compact){
-  box(ctx,0,0,WIDTH,HEIGHT,kind==='pollos'?theme.colors.pageChicken:theme.colors.pageEggs);
-  header(ctx,theme);
-  if(kind==='pollos')chicken(ctx,rows,assets.source,theme,assets.sourceCustom);
-  else eggs(ctx,rows,assets.source,theme,assets.sourceCustom);
-  footer(ctx,branches,compact,page,total,theme);
-  brand(ctx,assets.logo,theme);
+  if(kind==='pollos'){
+   const scale=WIDTH/CHICKEN_DESIGN.width;
+   ctx.save();ctx.scale(scale,scale);
+   drawChickenDesign(ctx,branches,rows,assets,theme,page,total,compact);
+   ctx.restore();
+  }else{
+   const scale=WIDTH/EGG_DESIGN.width;
+   ctx.save();ctx.scale(scale,scale);
+   drawEggDesign(ctx,branches,rows,assets,theme,page,total,compact);
+   ctx.restore();
+  }
  }
- // Renderiza un bloque del diseño dentro de una zona de la plantilla, sin deformarlo.
- function placeBlock(ctx,zone,bounds,panel,draw){
+ // Renderiza un bloque de precio dentro de una zona de una plantilla con fondo,
+ // sin deformarlo y sin agregar tarjetas que tapen el diseño original.
+ function placeBlock(ctx,zone,bounds,draw){
   if(!zone||!bounds)return;
-  if(panel){ctx.fillStyle=panel;ctx.fillRect(zone.x,zone.y,zone.w,zone.h);}
   const scale=Math.min(zone.w/bounds.w,zone.h/bounds.h);
   const ox=zone.x+(zone.w-bounds.w*scale)/2,oy=zone.y+(zone.h-bounds.h*scale)/2;
   ctx.save();ctx.translate(ox,oy);ctx.scale(scale,scale);ctx.translate(-bounds.x,-bounds.y);draw();ctx.restore();
@@ -230,14 +402,15 @@
  function renderArtwork(ctx,kind,branches,rows,assets,theme,page,total,compact){
   ctx.fillStyle='#ffffff';ctx.fillRect(0,0,WIDTH,HEIGHT);
   cover(ctx,assets.background,0,0,WIDTH,HEIGHT,false);
-  if(theme.showTitle)header(ctx,theme);
-  const priceKey=kind==='pollos'?'chicken':'eggs';
-  placeBlock(ctx,theme.zones[priceKey],BLOCK_BOUNDS[priceKey],theme.panel,()=>{
-   if(kind==='pollos')chicken(ctx,rows,assets.source,theme,assets.sourceCustom);
-   else eggs(ctx,rows,assets.source,theme,assets.sourceCustom);
-  });
-  placeBlock(ctx,theme.zones.branches,BLOCK_BOUNDS.branches,theme.panel,()=>footer(ctx,branches,compact,page,total,theme));
-  if(theme.showBrand)placeBlock(ctx,theme.zones.brand,BLOCK_BOUNDS.brand,null,()=>brand(ctx,assets.logo,theme));
+  if(theme.showTitle)drawFinalTitle(ctx,kind,theme);
+  if(kind==='pollos'){
+   placeBlock(ctx,theme.zones.chicken,BLOCK_BOUNDS.chickenTable,()=>drawChickenTable(ctx,rows,theme));
+   placeBlock(ctx,theme.zones.branches,BLOCK_BOUNDS.chickenBranches,()=>drawChickenFooter(ctx,branches,compact,page,total,theme));
+  }else{
+   placeBlock(ctx,theme.zones.eggs,BLOCK_BOUNDS.eggsTables,()=>drawEggTables(ctx,rows,theme));
+   placeBlock(ctx,theme.zones.branches,BLOCK_BOUNDS.eggsBranches,()=>drawEggFooter(ctx,branches,compact,page,total,theme));
+  }
+  if(theme.showBrand)placeBlock(ctx,theme.zones.brand,BLOCK_BOUNDS.brand,()=>drawEggBrand(ctx,assets.logo,theme));
  }
  function render({canvasFactory,kind,branches,rows,assets={},template}){
   const theme=normalizeTemplate(template);
@@ -256,7 +429,7 @@
    return canvas;
   });
  }
- function money(value){return '$'+value.toLocaleString('es-AR',{maximumFractionDigits:2});}
+ function money(value){return '$'+Number(value).toLocaleString('es-AR',{maximumFractionDigits:2});}
  function pngDimensions(buffer){
   const bytes=buffer instanceof Uint8Array?buffer:new Uint8Array(buffer);
   if(bytes.length<24||PNG_SIGNATURE.some((value,index)=>bytes[index]!==value))throw Error('El archivo descargado no es un PNG válido.');
@@ -269,6 +442,6 @@
   if(width!==WIDTH||height!==HEIGHT)throw Error('El PNG descargado mide '+width+' × '+height+' px; debe medir '+WIDTH+' × '+HEIGHT+' px.');
   return {width,height,ratio:width/height};
  }
- const api={WIDTH,HEIGHT,SCALE,ASPECT_RATIO,SAFE_MARGIN,SAFE_MARGIN_PX,PAGE_SIZE,FORMAT_LABEL,DEFAULT_ZONES,pages,wrap,render,pngDimensions,verifyPngBlob};
+ const api={WIDTH,HEIGHT,SCALE,ASPECT_RATIO,SAFE_MARGIN,SAFE_MARGIN_PX,PAGE_SIZE,FORMAT_LABEL,EGG_DESIGN,CHICKEN_DESIGN,DEFAULT_ZONES,BLOCK_BOUNDS,pages,wrap,render,pngDimensions,verifyPngBlob};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.SocialArtwork=api;
  })(typeof globalThis!=='undefined'?globalThis:this);

@@ -20,7 +20,7 @@ test('templates read assets from the documented folder and keep Potage fallbacks
   assert.ok(pluma.assets[key].includes('img/plantillas/pluma-blanca/'+name+'.jpg'));
  }
  const potage=companies.forCompany('Potage SRL');
- assert.ok(potage.assets.logo.includes('img/icon-512.png'));
+ assert.ok(potage.assets.logo.includes('img/precios/logo-potage.png'));
  assert.ok(potage.assets.eggs.includes('img/precios/costa.jpg'));
  assert.ok(potage.assets.chicken.includes('img/precios/pollos.png'));
  assert.ok(!pluma.assets.logo.includes('img/icon-512.png'));

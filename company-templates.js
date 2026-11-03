@@ -1,26 +1,27 @@
 (function(root){
  const DEFAULT_EGGS='img/precios/costa.jpg';
  const DEFAULT_CHICKEN='img/precios/pollos.png';
- const DEFAULT_LOGO='img/icon-512.png';
+ const DEFAULT_LOGO='img/precios/logo-potage.png';
  const EXTENSIONS=['png','jpg','jpeg','webp'];
  const DEFAULT_COLORS={
-  pageEggs:'#ffe36d',pageChicken:'#ffdda5',
-  eggPanel:'#ffeda6',eggText:'#161616',
-  tableHead:'#ffdaa0',tableRow:'#fff5d8',
-  title:'#f05226',titleAccent:'#ff791e',
-  tagline:'#ffffff',taglineText:'#f1582c',
-  brand:'#ef5126',
-  footerTitle:'#af3b1b',branchName:'#af3b1b',branchText:'#493326',
-  divider:'#dfb560',note:'#6a4834',eggFootnote:'#78421e',
-  chickenLabel:'#943b1d',chickenHead:'#f3bf85',chickenRow:'#fff0d5'
+  pageEggs:'#ffdf6e',pageChicken:'#fdd9a3',
+  eggPanel:'#feeba6',eggText:'#24180e',
+  tableHead:'#fdd69b',tableRow:'#fff3e3',
+  title:'#e45122',titleAccent:'#f07a1e',
+  tagline:'#ffffff',taglineText:'#cf4b28',
+  brand:'#ee5126',
+  footerTitle:'#a84219',branchName:'#df5620',branchText:'#6e3b20',
+  divider:'#e59c55',note:'#8a4b24',eggFootnote:'#8a4b24',
+  chickenLabel:'#943b1d',chickenHead:'#f3bf85',chickenRow:'#fff0d5',
+  chickenLine:'#e97843',chickenText:'#392719'
  };
- // Zonas del diseño horizontal (2240 × 1880).
- // Conservan 96 px de margen seguro en todos los bordes.
+ // Zonas para plantillas con fondo de 2240 × 1880. El diseño estándar usa
+ // las coordenadas de la referencia y no depende de estas zonas.
  const DEFAULT_ZONES={
-  eggs:{x:96,y:390,w:2048,h:820},
-  chicken:{x:96,y:390,w:2048,h:820},
-  branches:{x:96,y:1248,w:2048,h:396},
-  brand:{x:96,y:96,w:300,h:260}
+  eggs:{x:76,y:420,w:2088,h:940},
+  chicken:{x:76,y:420,w:2088,h:940},
+  branches:{x:76,y:1320,w:2088,h:430},
+  brand:{x:1460,y:1400,w:650,h:330}
  };
  const COMPANIES=[
   {slug:'potage',name:'Potage SRL',brand:'Potage',subtitle:'— S.R.L. —',aliases:['potage','potage srl','potage s.r.l.'],logoFallback:true},
