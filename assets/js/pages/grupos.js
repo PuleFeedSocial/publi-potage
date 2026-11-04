@@ -78,8 +78,10 @@
                             if (window._gruposEstatus[g][est] !== undefined) window._gruposEstatus[g][est]+=MarketingAnalysis.number(r.publicaciones);
                         }
                     });
-                    // Populate zone filter
-                    const zonas = [...new Set([...gruposPageData.map(g => g.zona).filter(Boolean), ...(window.zonasData || []).map(z => z.nombre).filter(Boolean)])].sort();
+                    // Populate zone filter (only active zones)
+                    let zonas = [...new Set([...gruposPageData.map(g => g.zona).filter(Boolean), ...(window.zonasData || []).map(z => z.nombre).filter(Boolean)])];
+                    zonas = zonas.filter(z => window.zonaActiva(z));
+                    zonas.sort();
                     const selZona = document.getElementById('grupos-filter-zona');
                     const currentZona = selZona.value;
                     selZona.innerHTML = '<option value="">Todas las sucursales</option>';
@@ -245,8 +247,8 @@
         function openGrupoDetailModal(nombre) {
             const g = gruposPageData.find(x => x.nombre === nombre);
             if (!g) return;
-            const pubs = window._gruposPubs[groupMetricKey(g.nombre,g.zona)] || 0;
             const est = window._gruposEstatus[groupMetricKey(g.nombre,g.zona)] || {};
+            const pubs = (est.PUBLICADA || 0) + (est.ELIMINADA || 0) + (est.SUPRIMIDA || 0) + (est['EN REVISION'] || 0) + (est['SIN DEFINIR'] || 0);
             const malas = (est.SUPRIMIDA || 0) + (est.ELIMINADA || 0) + (est['EN REVISION'] || 0);
             const buenas = (est.PUBLICADA || 0);
             let rendicion = '—';

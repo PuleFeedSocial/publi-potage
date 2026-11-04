@@ -1193,6 +1193,7 @@ function populateFilterDropdowns() {
 
   let zonas = [...new Set(marketingData.map(r => r.zona).filter(Boolean))];
   zonasData.forEach(z => { if (z.nombre && !zonas.includes(z.nombre)) zonas.push(z.nombre); });
+  zonas = zonas.filter(z => zonaActiva(z));
   zonas.sort();
 
   const selZona = document.getElementById('filter-zona');
