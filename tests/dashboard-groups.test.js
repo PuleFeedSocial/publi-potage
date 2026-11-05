@@ -35,6 +35,15 @@ test('group filter includes branch catalog groups plus marketing-only groups onc
  assert.deepEqual(Array.from(options, o=>o.nombre),['Grupo A','Grupo A','Sólo en métricas']);
 });
 
+test('inactive groups stay out of the publication filter but remain available when editing',()=>{
+ const grupos=[
+  {rowIndex:2,nombre:'Grupo activo',zona:'Merlo',activo:true},
+  {rowIndex:3,nombre:'Grupo inactivo',zona:'Merlo',activo:false}
+ ];
+ assert.deepEqual(Array.from(context.dashboardGroupOptions(grupos,[],'Merlo'), o=>o.nombre),['Grupo activo']);
+ assert.deepEqual(Array.from(context.dashboardGroupOptions(grupos,[],'Merlo',{includeInactive:true}), o=>o.nombre),['Grupo activo','Grupo inactivo']);
+});
+
 test('every duplicate group option has a unique filter key and a distinguishable label',()=>{
  const grupos=[
   {rowIndex:2,nombre:'Mismo nombre',zona:'Merlo',enlace:'https://facebook.com/groups/111'},

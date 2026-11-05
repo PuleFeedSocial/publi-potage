@@ -1225,8 +1225,7 @@ function groupOptionKey(entry) {
 }
 
 function groupOptionLabel(entry, repeated) {
-  let label = entry.nombre || '';
-  if (entry.activo === false) label += ' (inactivo)';
+  const label = entry.nombre || '';
   if (!repeated) return label;
   const linkMatch = String(entry.enlace || '').match(/groups\/(\d+)/i);
   return label + ' · ' + (linkMatch ? linkMatch[1] : '#' + (entry.rowIndex || entry.zona || 'sin ID'));
@@ -1241,7 +1240,7 @@ function groupOptionLabels(options) {
   return entry => groupOptionLabel(entry, (counts.get(normFilterVal(entry.nombre)) || 0) > 1);
 }
 
-function dashboardGroupOptions(grupos, marketing, zona) {
+function dashboardGroupOptions(grupos, marketing, zona, { includeInactive = false } = {}) {
   const zonaNorm = normFilterVal(zona);
   const options = [];
   const catalogNames = new Set();
@@ -1249,6 +1248,7 @@ function dashboardGroupOptions(grupos, marketing, zona) {
   // Cada fila del catálogo es un grupo distinto, aunque comparta nombre y sucursal.
   (grupos || []).forEach(group => {
     if (!group || !group.nombre) return;
+    if (!includeInactive && group.activo === false) return;
     if (zonaNorm && normFilterVal(group.zona) !== zonaNorm) return;
     options.push({
       nombre: group.nombre,
@@ -1284,7 +1284,8 @@ function refreshGruposByZona() {
   const currentZona = previous ? previous.dataset.zona || '' : '';
   const saved = localStorage.getItem('dashGrupo') || '';
 
-  const grupos = dashboardGroupOptions(gruposData, marketingData, zona);
+  const grupos = dashboardGroupOptions(gruposData, marketingData, zona)
+    .filter(entry => zonaActiva(entry.zona));
   const labelFor = groupOptionLabels(grupos);
 
   sel.innerHTML = '<option value="">Todos</option>';
@@ -1611,7 +1612,7 @@ function filterGruposBulk() {
   const checked = [...container.querySelectorAll('input[type=checkbox]:checked')].map(cb => cb.value);
 
   const grupos = dashboardGroupOptions(gruposData, marketingData, zona)
-    .filter(entry => entry.activo !== false && normFilterVal(entry.nombre) !== normFilterVal('Perfil Estandar'));
+    .filter(entry => entry.activo !== false && zonaActiva(entry.zona) && normFilterVal(entry.nombre) !== normFilterVal('Perfil Estandar'));
   const labelFor = groupOptionLabels(grupos);
 
   container.innerHTML = '';
@@ -1828,7 +1829,9 @@ function filterGruposByZona() {
     rowIndex: previous.dataset.rowIndex || ''
   } : null;
 
-  const grupos = dashboardGroupOptions(gruposData, marketingData, zona === '__otro__' ? '' : zona);
+  const editing = !!document.getElementById('mk-row-index').value;
+  const grupos = dashboardGroupOptions(gruposData, marketingData, zona === '__otro__' ? '' : zona, { includeInactive: editing })
+    .filter(entry => editing || zonaActiva(entry.zona));
   const labelFor = groupOptionLabels(grupos);
 
   sel.innerHTML = '<option value="">Seleccionar...</option>';
