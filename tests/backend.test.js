@@ -201,6 +201,19 @@ test('Sheets reads preserve metric magnitudes and dates', async () => {
   assert.equal(result.status, 200);
   assert.equal(result.data.data[0].visualizaciones, 1234);
   assert.equal(result.data.data[1].rowIndex, 3);
+  assert.equal(result.data.data[0].grupoFila, 2);
+  assert.equal(result.data.data[1].grupoFila, null);
+});
+
+test('legacy duplicate group names resolve to the oldest catalog row without merging new group ids', async () => {
+  sheetRows.Grupos = [['Nombre','Enlace','Zona'], ['Mismo grupo','https://facebook.com/groups/1','Merlo'], ['Mismo grupo','https://facebook.com/groups/2','Merlo']];
+  sheetRows.Metricas = [sheetRows.Metricas[0], [sheetRows.Metricas[1][0], 'Mismo grupo', 1, 10, 1, 0, 0, 'Merlo', 'PUBLICADA']];
+  const legacy = await request('/api/marketing?refresh=true');
+  assert.equal(legacy.data.data[0].grupoFila, 2);
+  const saved = await request('/api/marketing', { method: 'POST', body: { fecha: '20/10/2026', grupo: 'Mismo grupo', zona: 'Merlo', grupoFila: 3 } });
+  assert.equal(saved.status, 201);
+  const write = operations.find(o => o.google === 'append').request;
+  assert.equal(write.resource.values[0][9], 3);
 });
 
 test('publication reads return the full sheet history without a two-month cutoff or hidden status exclusions', async () => {

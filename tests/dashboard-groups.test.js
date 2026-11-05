@@ -34,3 +34,20 @@ test('group filter includes branch catalog groups plus marketing-only groups onc
  const options=context.dashboardGroupOptions(grupos,marketing,'Merlo');
  assert.deepEqual(Array.from(options, o=>o.nombre),['Grupo A','Grupo A','Sólo en métricas']);
 });
+
+test('every duplicate group option has a unique filter key and a distinguishable label',()=>{
+ const grupos=[
+  {rowIndex:2,nombre:'Mismo nombre',zona:'Merlo',enlace:'https://facebook.com/groups/111'},
+  {rowIndex:3,nombre:'Mismo nombre',zona:'Merlo',enlace:'https://facebook.com/groups/222'},
+  {rowIndex:4,nombre:'Mismo nombre',zona:'Merlo',enlace:''}
+ ];
+ const options=context.dashboardGroupOptions(grupos,[],'Merlo');
+ const keys=options.map(context.groupOptionKey);
+ assert.equal(new Set(keys).size,3);
+ const labelFor=context.groupOptionLabels(options);
+ const labels=options.map(labelFor);
+ assert.equal(new Set(labels).size,3);
+ assert.match(labels[0],/111/);
+ assert.match(labels[1],/222/);
+ assert.match(labels[2],/#4/);
+});

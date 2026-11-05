@@ -8,6 +8,21 @@ test('date parsing rejects invalid dates and numeric sums never concatenate stri
 
 test('report generation stops when scoped active publications have invalid dates',()=>{assert.throws(()=>M.report([row('31/02/2026','A','Merlo',1,1)],[],{period:'30',now}),/fechas inválidas/);});
 
+test('group filters distinguish same-name groups by stable catalog row and never merge their publications',()=>{
+ const data=[
+  {...row('28/10/2026','Mismo grupo','Merlo',2,20),grupoFila:3},
+  {...row('28/10/2026','Mismo grupo','Merlo',3,30),grupoFila:4},
+  row('28/10/2026','Mismo grupo','Merlo',5,50)
+ ];
+ assert.equal(M.select(data,{period:'all',now,grupo:'Mismo grupo',zona:'Merlo',grupoFila:'3'}).length,1);
+ assert.equal(M.select(data,{period:'all',now,grupo:'Mismo grupo',zona:'Merlo',grupoFila:'4'}).length,1);
+ assert.equal(M.totals(M.select(data,{period:'all',now,grupo:'Mismo grupo',zona:'Merlo',grupoFila:'4'})).publicaciones,3);
+ assert.equal(M.select(data,{period:'all',now,grupo:'Mismo grupo',zona:'Merlo'}).length,3);
+ const report=M.report(data,[],{period:'all',now,grupo:'Mismo grupo',zona:'Merlo',grupoFila:'3'});
+ assert.equal(report.groups,1);
+ assert.equal(report.totals.publicaciones,2);
+});
+
 test('search matches group names across punctuation, accents, spaces and word order while respecting other filters',()=>{
  const data=[row('28/10/2026','🛒 TE LO VENDO!! Chascomús','Costa',2,20),row('28/10/2026','Otro grupo','Merlo',3,30)];
  assert.equal(M.select(data,{search:'chascomus vendo te',now}).length,1);

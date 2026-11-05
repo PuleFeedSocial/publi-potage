@@ -1216,6 +1216,31 @@ function populateFilterDropdowns() {
 
 function normFilterVal(v) { return MarketingAnalysis.norm(v); }
 
+function groupNameZoneKey(nombre, zona) {
+  return normFilterVal(nombre) + '|' + normFilterVal(zona);
+}
+
+function groupOptionKey(entry) {
+  return entry.rowIndex ? 'g:' + entry.rowIndex : 'n:' + encodeURIComponent(groupNameZoneKey(entry.nombre, entry.zona));
+}
+
+function groupOptionLabel(entry, repeated) {
+  let label = entry.nombre || '';
+  if (entry.activo === false) label += ' (inactivo)';
+  if (!repeated) return label;
+  const linkMatch = String(entry.enlace || '').match(/groups\/(\d+)/i);
+  return label + ' · ' + (linkMatch ? linkMatch[1] : '#' + (entry.rowIndex || entry.zona || 'sin ID'));
+}
+
+function groupOptionLabels(options) {
+  const counts = new Map();
+  options.forEach(entry => {
+    const key = normFilterVal(entry.nombre);
+    counts.set(key, (counts.get(key) || 0) + 1);
+  });
+  return entry => groupOptionLabel(entry, (counts.get(normFilterVal(entry.nombre)) || 0) > 1);
+}
+
 function dashboardGroupOptions(grupos, marketing, zona) {
   const zonaNorm = normFilterVal(zona);
   const options = [];
@@ -1225,8 +1250,14 @@ function dashboardGroupOptions(grupos, marketing, zona) {
   (grupos || []).forEach(group => {
     if (!group || !group.nombre) return;
     if (zonaNorm && normFilterVal(group.zona) !== zonaNorm) return;
-    options.push({ nombre: group.nombre, zona: group.zona || '', rowIndex: group.rowIndex });
-    catalogNames.add(normFilterVal(group.nombre));
+    options.push({
+      nombre: group.nombre,
+      zona: group.zona || '',
+      rowIndex: group.rowIndex || null,
+      enlace: group.enlace || '',
+      activo: group.activo !== false
+    });
+    catalogNames.add(groupNameZoneKey(group.nombre, group.zona));
   });
 
   // Incluir grupos históricos que sólo existen en Métricas, sin repetirlos.
@@ -1234,10 +1265,10 @@ function dashboardGroupOptions(grupos, marketing, zona) {
   (marketing || []).forEach(row => {
     if (!row || !row.grupo) return;
     if (zonaNorm && normFilterVal(row.zona) !== zonaNorm) return;
-    const key = normFilterVal(row.grupo);
+    const key = groupNameZoneKey(row.grupo, row.zona);
     if (catalogNames.has(key) || legacyNames.has(key)) return;
     legacyNames.add(key);
-    options.push({ nombre: row.grupo, zona: row.zona || '', rowIndex: null });
+    options.push({ nombre: row.grupo, zona: row.zona || '', rowIndex: null, enlace: '', activo: true });
   });
 
   return options;
@@ -1247,22 +1278,52 @@ function refreshGruposByZona() {
   const zona = document.getElementById('filter-zona').value;
   const sel = document.getElementById('filter-grupo');
   if (!sel) return;
-  let current = sel.value;
-  if (!current) current = localStorage.getItem('dashGrupo') || '';
+  const previous = sel.selectedOptions[0];
+  const currentValue = sel.value || '';
+  const currentName = previous ? previous.dataset.nombre || '' : '';
+  const currentZona = previous ? previous.dataset.zona || '' : '';
+  const saved = localStorage.getItem('dashGrupo') || '';
 
   const grupos = dashboardGroupOptions(gruposData, marketingData, zona);
+  const labelFor = groupOptionLabels(grupos);
 
   sel.innerHTML = '<option value="">Todos</option>';
-  grupos.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')).forEach(entry => {
+  grupos.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es') || Number(a.rowIndex || 0) - Number(b.rowIndex || 0)).forEach(entry => {
     const opt = document.createElement('option');
-    opt.value = entry.nombre;
-    opt.textContent = entry.nombre;
-    if (entry.rowIndex) opt.title = 'Grupo #' + entry.rowIndex + (entry.zona ? ' · ' + entry.zona : '');
+    opt.value = groupOptionKey(entry);
+    opt.dataset.nombre = entry.nombre;
+    opt.dataset.zona = entry.zona || '';
+    if (entry.rowIndex) opt.dataset.rowIndex = String(entry.rowIndex);
+    if (entry.enlace) opt.dataset.enlace = entry.enlace;
+    opt.textContent = labelFor(entry);
+    opt.title = (entry.rowIndex ? 'Grupo #' + entry.rowIndex : 'Grupo histórico') + (entry.zona ? ' · ' + entry.zona : '') + (entry.enlace ? ' · ' + entry.enlace : '');
     sel.appendChild(opt);
   });
-  const matchingOption = [...sel.options].find(option => normFilterVal(option.value) === normFilterVal(current));
+
+  let matchingOption = [...sel.options].find(option => option.value === currentValue);
+  if (!matchingOption && currentName) {
+    matchingOption = [...sel.options].find(option => normFilterVal(option.dataset.nombre) === normFilterVal(currentName) && (!currentZona || normFilterVal(option.dataset.zona) === normFilterVal(currentZona)));
+  }
+  if (!matchingOption && saved) {
+    matchingOption = [...sel.options].find(option => option.value === saved) || [...sel.options].find(option => normFilterVal(option.dataset.nombre) === normFilterVal(saved));
+  }
   if (matchingOption) sel.value = matchingOption.value;
 
+  applyFilters();
+}
+
+function onDashboardGroupChange() {
+  const sel = document.getElementById('filter-grupo');
+  const zonaSel = document.getElementById('filter-zona');
+  const option = sel && sel.selectedOptions[0];
+  if (option && option.dataset.zona && zonaSel) {
+    const zoneOption = [...zonaSel.options].find(item => normFilterVal(item.value) === normFilterVal(option.dataset.zona));
+    if (zoneOption && normFilterVal(zonaSel.value) !== normFilterVal(option.dataset.zona)) {
+      zonaSel.value = zoneOption.value;
+      refreshGruposByZona();
+      return;
+    }
+  }
   applyFilters();
 }
 
@@ -1392,7 +1453,27 @@ function fmtNum(n) {
   return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
-function dashboardFilters(){return {period:filterPeriod,grupo:document.getElementById('filter-grupo')?.value||'',zona:document.getElementById('filter-zona')?.value||'',fecha:document.getElementById('filter-fecha')?.value||'',search:document.getElementById('filter-search')?.value||''};}
+function selectedDashboardGroup() {
+  const sel = document.getElementById('filter-grupo');
+  const option = sel && sel.selectedOptions[0];
+  if (!option || !option.value) return { grupo: '', grupoFila: '', zona: '' };
+  return {
+    grupo: option.dataset.nombre || '',
+    grupoFila: option.dataset.rowIndex || '',
+    zona: option.dataset.zona || ''
+  };
+}
+function dashboardFilters(){
+  const group=selectedDashboardGroup();
+  return {
+    period:filterPeriod,
+    grupo:group.grupo,
+    grupoFila:group.grupoFila,
+    zona:group.zona||document.getElementById('filter-zona')?.value||'',
+    fecha:document.getElementById('filter-fecha')?.value||'',
+    search:document.getElementById('filter-search')?.value||''
+  };
+}
 function dashboardReportFilters(){return dashboardFilters();}
 function buildInformeTexto(){
  const filters=dashboardReportFilters(),result=MarketingAnalysis.report(marketingData||[],zonasData||[],filters);
@@ -1529,26 +1610,26 @@ function filterGruposBulk() {
   const container = document.getElementById('bulk-grupos-container');
   const checked = [...container.querySelectorAll('input[type=checkbox]:checked')].map(cb => cb.value);
 
-  let grupos;
-  if (zona) {
-    grupos = [...new Set(gruposData.filter(g => g.zona === zona && g.activo !== false).map(g => g.nombre).filter(Boolean))];
-    grupos = [...new Set([...grupos, ...marketingData.filter(r => r.zona === zona && r.grupo !== 'Perfil Estandar').map(r => r.grupo).filter(Boolean)])];
-  } else {
-    grupos = [...new Set(gruposData.filter(g => g.activo !== false).map(r => r.nombre).filter(Boolean))];
-    grupos = [...new Set([...grupos, ...marketingData.filter(r => r.grupo !== 'Perfil Estandar').map(r => r.grupo).filter(Boolean)])];
-  }
+  const grupos = dashboardGroupOptions(gruposData, marketingData, zona)
+    .filter(entry => entry.activo !== false && normFilterVal(entry.nombre) !== normFilterVal('Perfil Estandar'));
+  const labelFor = groupOptionLabels(grupos);
 
   container.innerHTML = '';
-  grupos.sort().forEach(v => {
+  grupos.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es') || Number(a.rowIndex || 0) - Number(b.rowIndex || 0)).forEach(entry => {
+    const key = groupOptionKey(entry);
     const label = document.createElement('label');
     label.className = 'bulk-grupo-item';
+    label.title = (entry.rowIndex ? 'Grupo #' + entry.rowIndex : 'Grupo histórico') + (entry.zona ? ' · ' + entry.zona : '') + (entry.enlace ? ' · ' + entry.enlace : '');
     const cb = document.createElement('input');
     cb.type = 'checkbox';
-    cb.value = v;
-    if (checked.includes(v)) cb.checked = true;
+    cb.value = key;
+    cb.dataset.nombre = entry.nombre;
+    cb.dataset.zona = entry.zona || '';
+    if (entry.rowIndex) cb.dataset.rowIndex = String(entry.rowIndex);
+    if (checked.includes(key)) cb.checked = true;
     cb.addEventListener('change', updateBulkButtonText);
     label.appendChild(cb);
-    label.appendChild(document.createTextNode(' ' + v));
+    label.appendChild(document.createTextNode(' ' + labelFor(entry)));
     container.appendChild(label);
   });
 
@@ -1576,7 +1657,11 @@ function updateBulkButtonText() {
 function saveBulkMarketing() {
   const rawFecha = document.getElementById('bulk-fecha').value.trim();
   const container = document.getElementById('bulk-grupos-container');
-  const selected = [...container.querySelectorAll('input[type=checkbox]:checked')].map(cb => cb.value);
+  const selected = [...container.querySelectorAll('input[type=checkbox]:checked')].map(cb => ({
+    nombre: cb.dataset.nombre || '',
+    zona: cb.dataset.zona || '',
+    rowIndex: cb.dataset.rowIndex ? Number(cb.dataset.rowIndex) : ''
+  })).filter(entry => entry.nombre);
 
   if (!rawFecha) return alert('La fecha es obligatoria.');
   if (!selected.length) return alert('Seleccioná al menos un grupo.');
@@ -1604,14 +1689,15 @@ function saveBulkMarketing() {
   const total = selected.length;
   let hasError = false;
 
-  selected.forEach(grupo => {
-    const data = { ...baseData, grupo };
+  selected.forEach(entry => {
+    const grupo = entry.nombre;
+    const data = { ...baseData, grupo, zona: entry.zona || zona, grupoFila: entry.rowIndex };
     const snapshot = {
       fechaActualizacion,
       filaOrigen: 0,
       grupo,
       fechaPublicacion: fecha,
-      zona,
+      zona: data.zona,
       publicaciones: baseData.publicaciones,
       visualizaciones: baseData.visualizaciones,
       interacciones: baseData.interacciones,
@@ -1702,25 +1788,6 @@ function loadHistorial(silent) {
 function populateSelects() {
   let zonas = [...new Set(zonasData.map(r => r.nombre).filter(Boolean)), ...new Set(marketingData.map(r => r.zona).filter(Boolean))];
   zonas = [...new Set(zonas)]; // dedup
-  let grupos = [...new Set(gruposData.filter(g => g.activo !== false).map(r => r.nombre).filter(Boolean))];
-  if (grupos.length === 0) {
-    grupos = [...new Set(marketingData.map(r => r.grupo).filter(Boolean))];
-  }
-
-  const selGrupo = document.getElementById('mk-grupo');
-  const currentGrupo = selGrupo.value;
-  selGrupo.innerHTML = '<option value="">Seleccionar...</option>';
-  grupos.forEach(v => {
-    const opt = document.createElement('option');
-    opt.value = v;
-    opt.textContent = v;
-    selGrupo.appendChild(opt);
-  });
-  const otro = document.createElement('option');
-  otro.value = '__otro__';
-  otro.textContent = 'Otro...';
-  selGrupo.appendChild(otro);
-  selGrupo.value = currentGrupo;
 
   const selZona = document.getElementById('mk-zona');
   const currentZona = selZona.value;
@@ -1737,37 +1804,48 @@ function populateSelects() {
   selZona.appendChild(otroZ);
   selZona.value = currentZona;
 
-  toggleCustomInputs();
+  filterGruposByZona();
+}
+
+function selectGroupOption(select, { nombre, zona, rowIndex }) {
+  if (!select || !nombre) return false;
+  const options = [...select.options];
+  let option = rowIndex ? options.find(item => item.dataset.rowIndex === String(rowIndex)) : null;
+  if (!option) option = options.find(item => normFilterVal(item.dataset.nombre) === normFilterVal(nombre) && normFilterVal(item.dataset.zona) === normFilterVal(zona));
+  if (!option) option = options.find(item => normFilterVal(item.dataset.nombre) === normFilterVal(nombre));
+  if (!option) return false;
+  select.value = option.value;
+  return true;
 }
 
 function filterGruposByZona() {
   const zona = document.getElementById('mk-zona').value;
   const sel = document.getElementById('mk-grupo');
-  const current = sel.value;
+  const previous = sel.selectedOptions[0];
+  const current = previous && previous.value !== '__otro__' ? {
+    nombre: previous.dataset.nombre || '',
+    zona: previous.dataset.zona || '',
+    rowIndex: previous.dataset.rowIndex || ''
+  } : null;
 
-  let grupos;
-  if (zona && zona !== '__otro__') {
-    grupos = [...new Set(gruposData.filter(g => g.zona === zona && g.activo !== false).map(g => g.nombre).filter(Boolean))];
-    if (grupos.length === 0) {
-      grupos = [...new Set(marketingData.filter(r => r.zona === zona).map(r => r.grupo).filter(Boolean))];
-    }
-  } else {
-    grupos = [...new Set(gruposData.filter(g => g.activo !== false).map(r => r.nombre).filter(Boolean))];
-    if (grupos.length === 0) {
-      grupos = [...new Set(marketingData.map(r => r.grupo).filter(Boolean))];
-    }
-  }
+  const grupos = dashboardGroupOptions(gruposData, marketingData, zona === '__otro__' ? '' : zona);
+  const labelFor = groupOptionLabels(grupos);
 
   sel.innerHTML = '<option value="">Seleccionar...</option>';
-  grupos.forEach(v => {
+  grupos.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es') || Number(a.rowIndex || 0) - Number(b.rowIndex || 0)).forEach(entry => {
     const opt = document.createElement('option');
-    opt.value = v; opt.textContent = v;
+    opt.value = groupOptionKey(entry);
+    opt.dataset.nombre = entry.nombre;
+    opt.dataset.zona = entry.zona || '';
+    if (entry.rowIndex) opt.dataset.rowIndex = String(entry.rowIndex);
+    opt.textContent = labelFor(entry);
+    opt.title = (entry.rowIndex ? 'Grupo #' + entry.rowIndex : 'Grupo histórico') + (entry.zona ? ' · ' + entry.zona : '');
     sel.appendChild(opt);
   });
   const otro = document.createElement('option');
   otro.value = '__otro__'; otro.textContent = 'Otro...';
   sel.appendChild(otro);
-  if ([...sel.options].some(o => o.value === current)) sel.value = current;
+  if (current) selectGroupOption(sel, current);
   toggleCustomInputs();
 }
 
@@ -1826,19 +1904,18 @@ function openEditModal(rowData) {
     deleteMarketingRow(row.rowIndex);
   };
   populateSelects();
-  if (row.grupo && ![...document.getElementById('mk-grupo').options].some(o => o.value === row.grupo)) {
-    document.getElementById('mk-grupo').value = '__otro__';
-    document.getElementById('mk-grupo-custom').value = row.grupo;
-  } else {
-    document.getElementById('mk-grupo').value = row.grupo || '';
-  }
-  if (row.zona && ![...document.getElementById('mk-zona').options].some(o => o.value === row.zona)) {
-    document.getElementById('mk-zona').value = '__otro__';
+  const zonaSel = document.getElementById('mk-zona');
+  if (row.zona && ![...zonaSel.options].some(o => o.value === row.zona)) {
+    zonaSel.value = '__otro__';
     document.getElementById('mk-zona-custom').value = row.zona;
   } else {
-    document.getElementById('mk-zona').value = row.zona || '';
+    zonaSel.value = row.zona || '';
   }
   filterGruposByZona();
+  if (!selectGroupOption(document.getElementById('mk-grupo'), { nombre: row.grupo, zona: row.zona, rowIndex: row.grupoFila })) {
+    document.getElementById('mk-grupo').value = '__otro__';
+    document.getElementById('mk-grupo-custom').value = row.grupo || '';
+  }
   document.getElementById('mk-estatus').value = row.estatus || 'SIN DEFINIR';
   toggleCustomInputs();
   new bootstrap.Modal(document.getElementById('mkModal')).show();
@@ -1848,7 +1925,14 @@ function mkFieldValue(id) {
   const sel = document.getElementById(id);
   const custom = document.getElementById(id + '-custom');
   if (sel.value === '__otro__') return custom.value.trim();
+  if (id === 'mk-grupo') return sel.selectedOptions[0]?.dataset.nombre || '';
   return sel.value;
+}
+
+function mkGrupoFila() {
+  const sel = document.getElementById('mk-grupo');
+  const option = sel.selectedOptions[0];
+  return option && option.dataset.rowIndex ? Number(option.dataset.rowIndex) : '';
 }
 
 function saveMarketingRow() {
@@ -1866,7 +1950,8 @@ function saveMarketingRow() {
     comentarios: parseInt(document.getElementById('mk-com').value) || 0,
     mensajes: parseInt(document.getElementById('mk-msj').value) || 0,
     zona: mkFieldValue('mk-zona'),
-    estatus: document.getElementById('mk-estatus').value
+    estatus: document.getElementById('mk-estatus').value,
+    grupoFila: mkGrupoFila()
   };
   if (!data.fecha || !data.grupo) return alert('Fecha y Grupo son obligatorios.');
   if (document.getElementById('mk-zona').value === '__otro__' && !data.zona) return alert('Escribí el nombre de la sucursal.');
@@ -1907,7 +1992,10 @@ function saveMarketingRow() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ nombre: data.grupo, enlace: '', zona: data.zona })
-        }).then(() => loadGrupos())
+        }).then(r => r.json()).then(res => {
+          if (res.rowIndex) data.grupoFila = res.rowIndex;
+          return loadGrupos();
+        })
       );
   }
   chain.then(save);
@@ -1920,7 +2008,7 @@ function openDetailModal(rowData) {
   if (window._grupoChart) { window._grupoChart.destroy(); window._grupoChart = null; }
   if (window._zonaChart) { window._zonaChart.destroy(); window._zonaChart = null; }
 
-  const grupoInfo = gruposData.find(g => g.nombre === row.grupo);
+  const grupoInfo = (row.grupoFila && gruposData.find(g => g.rowIndex === Number(row.grupoFila))) || gruposData.find(g => g.nombre === row.grupo);
   const grupoLink = grupoInfo && grupoInfo.enlace && /^https?:\/\//i.test(grupoInfo.enlace) ? grupoInfo.enlace : null;
 
   const historiales = historialData.filter(h => h.filaOrigen === row.rowIndex);

@@ -25,7 +25,7 @@
     if (element && !element.onclick) element.onclick = function(event) { refreshMarketingData() };
   }
   { const element = document.querySelector("[data-page-event=\"dashboard-9\"]");
-    if (element && !element.onchange) element.onchange = function(event) { applyFilters() };
+    if (element && !element.onchange) element.onchange = function(event) { onDashboardGroupChange() };
   }
   { const element = document.querySelector("[data-page-event=\"dashboard-10\"]");
     if (element && !element.onchange) element.onchange = function(event) { refreshGruposByZona() };

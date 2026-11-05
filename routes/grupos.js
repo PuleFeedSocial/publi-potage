@@ -66,16 +66,20 @@ router.post('/', requirePermission('edit_grupos'), async (req, res) => {
 
     const activoValue = activo === false || activo === 'false' ? 'FALSE' : 'TRUE';
 
-    await s.spreadsheets.values.append({
+    const appendRes = await s.spreadsheets.values.append({
       spreadsheetId: SHEET_ID, range: SHEET_NAME + '!A:E',
       valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS',
       resource: { values: [[nombre, enlace || '', zona || '', fechaIngreso || '', activoValue]] }
     });
     invalidateCache();
 
+    const updatedRange = appendRes.data.updates?.updatedRange || '';
+    const rowMatch = updatedRange.match(/!\$?[A-Z]+\$?(\d+)/i);
+    const rowIndex = rowMatch ? Number(rowMatch[1]) : 0;
+
     logAction(req.user.id, req.user.email, 'Creación de grupo', `Grupo: ${nombre || ''}`, req.ip);
 
-    res.status(201).json({ message: 'Grupo agregado correctamente.' });
+    res.status(201).json({ message: 'Grupo agregado correctamente.', rowIndex });
   } catch (err) {
     sheetError(res, err);
   }
