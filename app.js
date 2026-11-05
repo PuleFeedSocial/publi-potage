@@ -1216,36 +1216,48 @@ function populateFilterDropdowns() {
 
 function normFilterVal(v) { return MarketingAnalysis.norm(v); }
 
+function dashboardGroupOptions(grupos, marketing, zona) {
+  const zonaNorm = normFilterVal(zona);
+  const options = [];
+  const catalogNames = new Set();
+
+  // Cada fila del catálogo es un grupo distinto, aunque comparta nombre y sucursal.
+  (grupos || []).forEach(group => {
+    if (!group || !group.nombre) return;
+    if (zonaNorm && normFilterVal(group.zona) !== zonaNorm) return;
+    options.push({ nombre: group.nombre, zona: group.zona || '', rowIndex: group.rowIndex });
+    catalogNames.add(normFilterVal(group.nombre));
+  });
+
+  // Incluir grupos históricos que sólo existen en Métricas, sin repetirlos.
+  const legacyNames = new Set();
+  (marketing || []).forEach(row => {
+    if (!row || !row.grupo) return;
+    if (zonaNorm && normFilterVal(row.zona) !== zonaNorm) return;
+    const key = normFilterVal(row.grupo);
+    if (catalogNames.has(key) || legacyNames.has(key)) return;
+    legacyNames.add(key);
+    options.push({ nombre: row.grupo, zona: row.zona || '', rowIndex: null });
+  });
+
+  return options;
+}
+
 function refreshGruposByZona() {
   const zona = document.getElementById('filter-zona').value;
-  const zonaNorm = normFilterVal(zona);
   const sel = document.getElementById('filter-grupo');
   if (!sel) return;
   let current = sel.value;
   if (!current) current = localStorage.getItem('dashGrupo') || '';
 
-  let grupos;
-  if (zonaNorm) {
-    grupos = [...new Set(gruposData.filter(g => normFilterVal(g.zona) === zonaNorm).map(g => g.nombre).filter(Boolean))];
-    grupos = [...new Set([...grupos, ...marketingData.filter(r => normFilterVal(r.zona) === zonaNorm).map(r => r.grupo).filter(Boolean)])];
-  } else {
-    grupos = [...new Set(gruposData.map(r => r.nombre).filter(Boolean))];
-    grupos = [...new Set([...grupos, ...marketingData.map(r => r.grupo).filter(Boolean)])];
-  }
-
-  // Eliminar duplicados que solo difieren en mayúsculas/espacios
-  const seen = new Set();
-  grupos = grupos.filter(v => {
-    const k = normFilterVal(v);
-    if (!k || seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  });
+  const grupos = dashboardGroupOptions(gruposData, marketingData, zona);
 
   sel.innerHTML = '<option value="">Todos</option>';
-  grupos.sort().forEach(v => {
+  grupos.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')).forEach(entry => {
     const opt = document.createElement('option');
-    opt.value = v; opt.textContent = v;
+    opt.value = entry.nombre;
+    opt.textContent = entry.nombre;
+    if (entry.rowIndex) opt.title = 'Grupo #' + entry.rowIndex + (entry.zona ? ' · ' + entry.zona : '');
     sel.appendChild(opt);
   });
   const matchingOption = [...sel.options].find(option => normFilterVal(option.value) === normFilterVal(current));
