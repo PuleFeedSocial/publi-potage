@@ -205,11 +205,11 @@ test('Sheets reads preserve metric magnitudes and dates', async () => {
   assert.equal(result.data.data[1].grupoFila, null);
 });
 
-test('legacy duplicate group names resolve to the oldest catalog row without merging new group ids', async () => {
+test('legacy duplicate group names stay unassigned instead of merging into one homonym', async () => {
   sheetRows.Grupos = [['Nombre','Enlace','Zona'], ['Mismo grupo','https://facebook.com/groups/1','Merlo'], ['Mismo grupo','https://facebook.com/groups/2','Merlo']];
   sheetRows.Metricas = [sheetRows.Metricas[0], [sheetRows.Metricas[1][0], 'Mismo grupo', 1, 10, 1, 0, 0, 'Merlo', 'PUBLICADA']];
   const legacy = await request('/api/marketing?refresh=true');
-  assert.equal(legacy.data.data[0].grupoFila, 2);
+  assert.equal(legacy.data.data[0].grupoFila, null);
   const saved = await request('/api/marketing', { method: 'POST', body: { fecha: '20/10/2026', grupo: 'Mismo grupo', zona: 'Merlo', grupoFila: 3 } });
   assert.equal(saved.status, 201);
   const write = operations.find(o => o.google === 'append').request;

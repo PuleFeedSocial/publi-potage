@@ -42,16 +42,18 @@ async function readGroups() {
 }
 
 // Las publicaciones anteriores a la columna GrupoFila no guardan el ID del grupo.
-// Se asignan al grupo más antiguo (menor fila) con el mismo nombre y sucursal.
-// Las filas nuevas ya guardan el ID exacto y nunca se mezclan entre grupos homónimos.
+// Solo se completan cuando hay un único grupo posible con ese nombre y sucursal.
+// Si hay grupos homónimos no se adivina: la publicación queda sin ID para que se
+// muestre al filtrar por nombre en cualquiera de ellos, en lugar de adjudicarla
+// arbitrariamente a uno solo.
 function legacyGroupRow(groups, nombre, zona) {
   const name = groupKey(nombre);
   const zone = groupKey(zona);
   if (!name) return null;
   const byName = groups.filter(group => groupKey(group.nombre) === name);
   const candidates = byName.filter(group => !zone || !group.zona || groupKey(group.zona) === zone);
-  const matching = candidates.length ? candidates : byName;
-  return matching.length ? Math.min(...matching.map(group => group.rowIndex)) : null;
+  const matching = [...new Set((candidates.length ? candidates : byName).map(group => group.rowIndex))];
+  return matching.length === 1 ? matching[0] : null;
 }
 
 let cache = null;

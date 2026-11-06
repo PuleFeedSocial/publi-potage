@@ -7,7 +7,11 @@
  function within(value,limit,now=new Date()){const d=date(value);return !!d&&d>=limit&&d<=date(now);}
  function select(rows,{period='all',grupo='',grupoFila='',zona='',fecha='',search='',now=new Date(),limit=start(period,now)}={}){
   const g=norm(grupo),gf=grupoFila==null?'':String(grupoFila).trim(),z=norm(zona),tokens=searchNorm(search).split(/\s+/).filter(Boolean),exact=fecha?date(fecha):null;
-  return rows.filter(r=>(gf?String(r.grupoFila??'')===gf:(!g||norm(r.grupo)===g))&&(!z||norm(r.zona)===z)&&(!fecha||(exact&&date(r.fecha)?.getTime()===exact.getTime()))&&tokens.every(token=>searchNorm([r.grupo,r.zona,r.estatus].join(' ')).includes(token))&&(!limit||within(r.fecha,limit,now)));
+  // Las filas nuevas se identifican por su fila exacta de catálogo. Las filas
+  // históricas sin ID no se adjudican a un homónimo: se muestran al filtrar
+  // por nombre en cualquiera de los grupos que comparten ese nombre y sucursal.
+  const matchesGroup=r=>{const rowFila=String(r.grupoFila??'').trim();if(gf)return rowFila===gf||(!rowFila&&!!g&&norm(r.grupo)===g);return !g||norm(r.grupo)===g;};
+  return rows.filter(r=>matchesGroup(r)&&(!z||norm(r.zona)===z)&&(!fecha||(exact&&date(r.fecha)?.getTime()===exact.getTime()))&&tokens.every(token=>searchNorm([r.grupo,r.zona,r.estatus].join(' ')).includes(token))&&(!limit||within(r.fecha,limit,now)));
  }
  function number(value){if(value==null||value==='')return 0;let n=value;if(typeof n==='string'&&/^\d{1,3}(?:[.,]\d{3})+$/.test(n.trim()))n=n.replace(/[.,]/g,'');n=Number(n);if(!Number.isFinite(n)||n<0)throw Error('Hay métricas inválidas. Revisá la hoja antes de generar el informe.');return n;}
  function totals(rows){return Object.fromEntries(metrics.map(k=>[k,rows.reduce((sum,r)=>sum+number(r[k]),0)]));}

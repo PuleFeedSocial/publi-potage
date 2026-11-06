@@ -48,15 +48,24 @@ test('every duplicate group option has a unique filter key and a distinguishable
  const grupos=[
   {rowIndex:2,nombre:'Mismo nombre',zona:'Merlo',enlace:'https://facebook.com/groups/111'},
   {rowIndex:3,nombre:'Mismo nombre',zona:'Merlo',enlace:'https://facebook.com/groups/222'},
-  {rowIndex:4,nombre:'Mismo nombre',zona:'Merlo',enlace:''}
+  {rowIndex:4,nombre:'Mismo nombre',zona:'Merlo',enlace:''},
+  {rowIndex:5,nombre:'Mismo nombre',zona:'Merlo',enlace:'https://facebook.com/groups/222'}
  ];
  const options=context.dashboardGroupOptions(grupos,[],'Merlo');
  const keys=options.map(context.groupOptionKey);
- assert.equal(new Set(keys).size,3);
+ assert.equal(new Set(keys).size,4);
  const labelFor=context.groupOptionLabels(options);
  const labels=options.map(labelFor);
- assert.equal(new Set(labels).size,3);
- assert.match(labels[0],/111/);
- assert.match(labels[1],/222/);
+ assert.equal(new Set(labels).size,4);
+ assert.match(labels[0],/#2.*111/);
+ assert.match(labels[1],/#3.*222/);
  assert.match(labels[2],/#4/);
+ assert.match(labels[3],/#5.*222/);
+});
+
+test('inactive catalog groups do not reappear through their historical publications',()=>{
+ const grupos=[{rowIndex:2,nombre:'Grupo inactivo',zona:'Merlo',activo:false}];
+ const marketing=[{grupo:'Grupo inactivo',zona:'Merlo'}];
+ assert.equal(context.dashboardGroupOptions(grupos,marketing,'Merlo').length,0);
+ assert.equal(context.dashboardGroupOptions(grupos,marketing,'Merlo',{includeInactive:true}).length,1);
 });

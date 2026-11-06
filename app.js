@@ -1228,7 +1228,13 @@ function groupOptionLabel(entry, repeated) {
   const label = entry.nombre || '';
   if (!repeated) return label;
   const linkMatch = String(entry.enlace || '').match(/groups\/(\d+)/i);
-  return label + ' · ' + (linkMatch ? linkMatch[1] : '#' + (entry.rowIndex || entry.zona || 'sin ID'));
+  // El número de fila es el identificador estable de cada grupo del catálogo.
+  // Se muestra siempre en homónimos para que dos grupos nunca queden con la
+  // misma etiqueta visual, aunque compartan nombre, sucursal y enlace.
+  const parts = [entry.rowIndex ? '#' + entry.rowIndex : 'sin ID'];
+  if (linkMatch) parts.push(linkMatch[1]);
+  if (entry.zona) parts.push(entry.zona);
+  return label + ' · ' + parts.join(' · ');
 }
 
 function groupOptionLabels(options) {
@@ -1248,6 +1254,9 @@ function dashboardGroupOptions(grupos, marketing, zona, { includeInactive = fals
   // Cada fila del catálogo es un grupo distinto, aunque comparta nombre y sucursal.
   (grupos || []).forEach(group => {
     if (!group || !group.nombre) return;
+    // Registrar también los inactivos para que no reaparezcan como "históricos"
+    // a partir de las publicaciones que ya tengan cargadas.
+    catalogNames.add(groupNameZoneKey(group.nombre, group.zona));
     if (!includeInactive && group.activo === false) return;
     if (zonaNorm && normFilterVal(group.zona) !== zonaNorm) return;
     options.push({
@@ -1257,7 +1266,6 @@ function dashboardGroupOptions(grupos, marketing, zona, { includeInactive = fals
       enlace: group.enlace || '',
       activo: group.activo !== false
     });
-    catalogNames.add(groupNameZoneKey(group.nombre, group.zona));
   });
 
   // Incluir grupos históricos que sólo existen en Métricas, sin repetirlos.
