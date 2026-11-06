@@ -247,8 +247,7 @@ function syncSidebarGroups() {
     const visible = links.filter(link => link.style.display !== 'none');
     group.hidden = !visible.length;
     const active = visible.some(link => link.classList.contains('active'));
-    group.querySelector('summary').classList.toggle('is-current', active);
-    if (active) group.open = true;
+    group.querySelector('.nav-group-label')?.classList.toggle('is-current', active);
     links.forEach(link => {
       if (link.classList.contains('active')) link.setAttribute('aria-current', 'page');
       else link.removeAttribute('aria-current');
@@ -3264,13 +3263,14 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     overlay.addEventListener('click', close);
     sidebar.addEventListener('click', event => {
-      if (event.target.closest('.menu-item') && !event.target.closest('summary')) close();
+      const item = event.target.closest('.menu-item');
+      if (item && !item.classList.contains('nav-group-label')) close();
     });
     document.addEventListener('keydown', event => {
       if (!mobile.matches || !sidebar.classList.contains('open')) return;
       if (event.key === 'Escape') { event.preventDefault(); close(); }
       if (event.key !== 'Tab') return;
-      const items = [...sidebar.querySelectorAll('a[href], button, summary, [tabindex="0"]')]
+      const items = [...sidebar.querySelectorAll('a[href], button, [tabindex="0"]')]
         .filter(el => !el.disabled && el.getClientRects().length);
       const first = items[0], last = items.at(-1);
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
