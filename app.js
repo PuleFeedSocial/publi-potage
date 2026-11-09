@@ -2246,6 +2246,28 @@ function refreshChartTheme() {
 
 function encArg(s) { return encodeURIComponent(String(s == null ? '' : s)).replace(/'/g, '%27'); }
 
+// Hace una fila (tr) o tarjeta clickeable/táctil sin interferir con enlaces
+// o controles internos. Se usa en las tablas que abren su detalle en un modal.
+function makeTableRowInteractive(row, handler, label) {
+  if (!row || typeof handler !== 'function') return row;
+  row.classList.add('table-row-clickable');
+  row.tabIndex = 0;
+  if (label) row.setAttribute('aria-label', label);
+  const ignored = 'a, button, input, select, textarea, label, [data-row-ignore]';
+  const activate = event => {
+    if (event.target && event.target.closest && event.target.closest(ignored)) return;
+    handler.call(row, event);
+  };
+  row.addEventListener('click', activate);
+  row.addEventListener('keydown', event => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    if (event.target !== row) return;
+    event.preventDefault();
+    handler.call(row, event);
+  });
+  return row;
+}
+
 function renderGrupoChart(grupo, metric) {
   if (grupo != null) {
     try { grupo = decodeURIComponent(grupo); } catch { /* ya decodificado */ }
@@ -2489,7 +2511,7 @@ function renderZonasDashboardInner(grupos, zonaFilter, periodLimit) {
   const tbody = document.getElementById('zonas-table-body');
   if (tbody) {
     tbody.innerHTML = sortedZones.map(z => `
-      <tr>
+      <tr data-zona-name="${escHtml(z.zona)}">
         <td class="fw-medium">${escHtml(z.zona)}${z.activo ? '' : ' <span class="badge-estatus est-eliminada">Inactiva</span>'}</td>
         <td class="text-center">${z.publicaciones}</td>
         <td class="text-center fw-medium">${z.visualizaciones}</td>
@@ -2503,6 +2525,9 @@ function renderZonasDashboardInner(grupos, zonaFilter, periodLimit) {
         ? '<tr class="table-light fw-semibold"><td>Total</td><td class="text-center">' + sortedZones.reduce((s, z) => s + z.publicaciones, 0) + '</td><td class="text-center">' + sortedZones.reduce((s, z) => s + z.visualizaciones, 0) + '</td><td class="text-center">' + sortedZones.reduce((s, z) => s + z.interacciones, 0) + '</td><td class="text-center">' + sortedZones.reduce((s, z) => s + z.comentarios, 0) + '</td><td class="text-center">' + sortedZones.reduce((s, z) => s + z.mensajes, 0) + '</td><td class="text-center">' + totalGruposUnicos + '</td></tr>'
         : ''
     );
+    tbody.querySelectorAll('tr[data-zona-name]').forEach(tr => {
+      makeTableRowInteractive(tr, () => openZonaDetailByName(tr.dataset.zonaName), 'Ver detalle de ' + tr.dataset.zonaName);
+    });
   }
 
   // Gráficos de barras por zona
@@ -2994,27 +3019,82 @@ function renderZonas() {
     container.innerHTML = '<div class="text-muted small py-2">No hay sucursales de redes configuradas.</div>';
     return;
   }
-  const can = canEditZonas();
   container.innerHTML = zonasData.map(z => {
     const activo = z.activo !== false;
     const badge = activo
       ? '<span class="badge-estatus est-publicada">Activo</span>'
       : '<span class="badge-estatus est-eliminada">Inactivo</span>';
     return `
-    <div class="d-flex justify-content-between align-items-center py-1 border-bottom border-light">
+    <div class="zona-list-row d-flex justify-content-between align-items-center py-2 border-bottom border-light" data-zona-id="${z.id}">
       <span class="small" ${activo ? '' : 'style="opacity:.55;"'}>${escHtml(z.nombre)}<small class="d-block text-muted">${escHtml(z.sucursal_nombre || 'Sin vincular al catálogo')}</small></span>
-      <div class="d-flex gap-2 align-items-center">
-        ${badge}
-        <button class="btn btn-sm btn-link text-primary p-0" data-zona-control onclick="openZonaModal(${z.id})" style="${can ? '' : 'display:none'}" title="Cambiar estado de la sucursal de redes">
-          <i class="bi bi-pencil-fill"></i>
-        </button>
-        <button class="btn btn-sm btn-link text-danger p-0" data-zona-control onclick="deleteZona(${z.id})" style="${can ? '' : 'display:none'}" title="Eliminar sucursal de redes">
-          <i class="bi bi-x-circle"></i>
-        </button>
-      </div>
+      <div class="d-flex gap-2 align-items-center">${badge}</div>
     </div>
   `;
   }).join('');
+  container.querySelectorAll('[data-zona-id]').forEach(row => {
+    const id = Number(row.dataset.zonaId);
+    const zona = zonasData.find(z => Number(z.id) === id);
+    makeTableRowInteractive(row, () => openZonaDetailModal(id), 'Ver detalle de ' + (zona?.nombre || 'sucursal de redes'));
+  });
+}
+
+function zonaDetailMetrics(nombre) {
+  const key = zonaSummaryKey(nombre);
+  const limit = MarketingAnalysis.start(filterPeriodZonas);
+  const rows = (marketingData || []).filter(r => zonaSummaryKey(r.zona) === key && r.grupo !== 'Perfil Estandar' && isEstatusActivo(r.estatus) && (!limit || MarketingAnalysis.within(r.fecha, limit)));
+  const totals = { publicaciones: 0, visualizaciones: 0, interacciones: 0, comentarios: 0, mensajes: 0 };
+  rows.forEach(row => {
+    Object.keys(totals).forEach(metric => {
+      const value = Number(row[metric]);
+      if (Number.isFinite(value)) totals[metric] += value;
+    });
+  });
+  const grupos = new Set((gruposData || []).filter(g => zonaSummaryKey(g.zona) === key && g.nombre).map(g => normFilterVal(g.nombre)));
+  return { ...totals, grupos: grupos.size };
+}
+
+function openZonaDetailModal(zonaOrId) {
+  if (zonaOrId == null) return;
+  const z = typeof zonaOrId === 'object'
+    ? zonaOrId
+    : (Number.isFinite(Number(zonaOrId)) && String(zonaOrId).trim() !== ''
+      ? (zonasData || []).find(x => Number(x.id) === Number(zonaOrId))
+      : (zonasData || []).find(x => zonaSummaryKey(x.nombre) === zonaSummaryKey(zonaOrId)));
+  if (!z) return;
+  const body = document.getElementById('zonaDetailBody');
+  const footer = document.getElementById('zonaDetailFooter');
+  const modalEl = document.getElementById('zonaDetailModal');
+  if (!body || !footer || !modalEl) return;
+  const active = z.activo !== false;
+  const metrics = zonaDetailMetrics(z.nombre);
+  const cell = (label, value, extra = '') => `<div class="col-6 col-md-4"><div class="text-muted small">${escHtml(label)}</div><div class="fw-medium ${extra}">${value}</div></div>`;
+  body.innerHTML = `
+    <div class="row g-3">
+      ${cell('Sucursal de redes', escHtml(z.nombre || '—'))}
+      ${cell('Estado', active ? '<span class="badge-estatus est-publicada">Activo</span>' : '<span class="badge-estatus est-eliminada">Inactivo</span>')}
+      ${cell('Sucursal del catálogo', escHtml(z.sucursal_nombre || 'Sin vincular'))}
+      ${cell('Grupos', metrics.grupos)}
+      ${cell('Publicaciones', metrics.publicaciones)}
+      ${cell('Visualizaciones', metrics.visualizaciones)}
+      ${cell('Interacciones', metrics.interacciones, 'text-success')}
+      ${cell('Comentarios', metrics.comentarios)}
+      ${cell('Mensajes', metrics.mensajes, 'text-indigo')}
+    </div>`;
+  const canEdit = canEditZonas() && z.id != null;
+  footer.innerHTML = '<button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>' +
+    (canEdit ? '<button type="button" class="btn btn-sm btn-action-primary" id="zona-detail-edit"><i class="bi bi-pencil-fill me-1"></i>Editar</button>' +
+      '<button type="button" class="btn btn-sm btn-outline-danger" id="zona-detail-delete"><i class="bi bi-trash3-fill me-1"></i>Eliminar</button>' : '');
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  if (canEdit) {
+    footer.querySelector('#zona-detail-edit').onclick = () => { modal.hide(); openZonaModal(z.id); };
+    footer.querySelector('#zona-detail-delete').onclick = () => { modal.hide(); deleteZona(z.id); };
+  }
+  modal.show();
+}
+
+function openZonaDetailByName(nombre) {
+  const z = (zonasData || []).find(x => zonaSummaryKey(x.nombre) === zonaSummaryKey(nombre)) || { nombre, activo: true };
+  openZonaDetailModal(z);
 }
 
 let zonaEditId = null;

@@ -21,15 +21,43 @@ function renderRegions(){
   const tr=rn('tr');
   const types=Object.keys(regionTypes).filter(t=>regionEnabled(region.region_id,t)).map(t=>regionTypes[t]);
   for(const [label,value]of [['Región',region.nombre_region],['Estado',region.activa==='Sí'?'Activa':region.activa==='No'?'Inactiva':'Revisar estado'],['Sucursales',branches.map(r=>r.nombre_local).join(', ')||'Sin sucursales'],['Productos habilitados',types.join(', ')||'Ninguno']]){const td=rn('td',value);td.dataset.label=label;td.style.whiteSpace='normal';tr.append(td);}
-  const td=rn('td');td.dataset.label='Acciones';
-  const link=rn('a','Ver precios','btn btn-sm btn-outline-secondary me-2');link.href='productos.html?region='+encodeURIComponent(region.region_id);td.append(link);
-  if(regionCanEdit()){
-   const edit=rn('button','Modificar','btn btn-sm btn-outline-primary');edit.onclick=()=>openRegion(region);td.append(edit);
-   const remove=rn('button','Eliminar','btn btn-sm btn-outline-danger ms-2');remove.onclick=()=>{openRegion(region);saveRegionForm(true);};td.append(remove);
-  }
-  tr.append(td);body.append(tr);
+  makeTableRowInteractive(tr,()=>openRegionDetail(region),'Ver detalle de la región '+(region.nombre_region||''));body.append(tr);
  }
- if(!body.children.length){const td=rn('td','No hay regiones que coincidan.');td.colSpan=5;const tr=rn('tr');tr.append(td);body.append(tr);}
+ if(!body.children.length){const td=rn('td','No hay regiones que coincidan.');td.colSpan=4;const tr=rn('tr');tr.append(td);body.append(tr);}
+}
+function openRegionDetail(region){
+ if(!region)return;
+ const modalEl=re('regionDetailModal'),body=re('regionDetailBody'),footer=re('regionDetailFooter');
+ if(!modalEl||!body||!footer)return;
+ const branches=regionsData.locales.filter(r=>r.region_id===region.region_id).map(r=>r.nombre_local).filter(Boolean);
+ const types=Object.keys(regionTypes).filter(t=>regionEnabled(region.region_id,t)).map(t=>regionTypes[t]);
+ const estado=region.activa==='Sí'?'<span class="badge-estatus est-publicada">Activa</span>':region.activa==='No'?'<span class="badge-estatus est-eliminada">Inactiva</span>':'<span class="badge-estatus est-suprimida">Revisar estado</span>';
+ const cell=(label,value)=>'<div class="col-12 col-md-6"><div class="text-muted small">'+label+'</div><div class="fw-medium text-break">'+value+'</div></div>';
+ body.innerHTML='<div class="row g-3">'+cell('Región',escHtml(region.nombre_region||'—'))+cell('Estado',estado)+cell('Sucursales',escHtml(branches.join(', ')||'Sin sucursales'))+cell('Productos habilitados',escHtml(types.join(', ')||'Ninguno'))+'</div>';
+ const canEdit=regionCanEdit();
+ footer.innerHTML='<button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>'+
+  '<a class="btn btn-sm btn-outline-primary" href="productos.html?region='+encodeURIComponent(region.region_id)+'"><i class="bi bi-tag me-1"></i>Ver precios</a>'+
+  (canEdit?'<button type="button" class="btn btn-sm btn-action-primary" id="region-detail-edit"><i class="bi bi-pencil-fill me-1"></i>Modificar</button>'+
+   '<button type="button" class="btn btn-sm btn-outline-danger" id="region-detail-delete"><i class="bi bi-trash3-fill me-1"></i>Eliminar</button>':'');
+ const modal=bootstrap.Modal.getOrCreateInstance(modalEl);
+ if(canEdit){
+  footer.querySelector('#region-detail-edit').onclick=()=>{modal.hide();openRegion(region);};
+  footer.querySelector('#region-detail-delete').onclick=()=>{modal.hide();deleteRegion(region);};
+ }
+ modal.show();
+}
+async function deleteRegion(region){
+ if(!region||!regionCanEdit()||regionsBusy)return;
+ if(!confirm('¿Eliminar esta región y desvincular sus sucursales? Las sucursales se conservarán. Si tiene productos, primero deberás retirarlos o desactivar la región.'))return;
+ regionsBusy=true;
+ let saved=false;
+ try{
+  const {status,body}=await apiFetch('/api/productos/region-config',{method:'DELETE',body:JSON.stringify({region_id:region.region_id,_configRevision:region._configRevision}),signal:AbortSignal.timeout(30000)});
+  if(status!==200)throw Error(body.error||'No se pudo guardar.');
+  saved=true;
+ }catch(error){alert(error.name==='TimeoutError'||error instanceof TypeError?'No pudimos confirmar el guardado. Cerrá y actualizá antes de volver a intentar.':error.message);}
+ finally{regionsBusy=false;}
+ if(saved)await loadRegions();
 }
 function regionCheckbox(id,label,checked,isSwitch=false){
  const box=rn('div',undefined,'form-check '+(isSwitch?'form-switch ':'')+'my-3');const input=rn('input');input.type='checkbox';input.id=id;input.className='form-check-input';input.checked=checked;if(isSwitch)input.setAttribute('role','switch');

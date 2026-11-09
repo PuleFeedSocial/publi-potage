@@ -134,9 +134,33 @@ function productTable(title, rows, cols, kind) {
   const section = productNode('section', undefined, 'product-section'); section.append(productNode('h3', title));
   const wrap = productNode('div', undefined, 'product-table-wrap'); wrap.tabIndex = 0; wrap.setAttribute('role', 'region'); wrap.setAttribute('aria-label', title);
   const table = productNode('table', undefined, 'table mb-0'); const head = document.createElement('thead'), tr = document.createElement('tr');
-  for (const [, label] of cols) { const th = productNode('th', label); th.scope = 'col'; tr.append(th); } if (canEditProducts()) { const th = productNode('th', 'Acciones'); th.scope = 'col'; tr.append(th); } head.append(tr); table.append(head);
+  for (const [, label] of cols) { const th = productNode('th', label); th.scope = 'col'; tr.append(th); } head.append(tr); table.append(head);
   const body = document.createElement('tbody'); for (const row of rows) { const tr = document.createElement('tr'); for (const [field, label] of cols) { let text = field.startsWith('precio') || field === 'cambio_por_docena' ? productMoney(row[field]) : row[field] || '—'; if (field === 'presentacion_maple' && row.unidades_maple && !String(text).includes(String(row.unidades_maple))) text += ` (${row.unidades_maple} un.)`; const td = productNode('td', text); td.dataset.label = label; tr.append(td); }
-    if (canEditProducts()) { const td = document.createElement('td'); td.dataset.label = 'Acciones'; if(row._ambiguous)td.textContent='Revisar duplicados en hoja';else td.append(productButton(row._missing ? 'Cargar precio' : row._needsPriceSave ? 'Guardar corrección' : 'Editar', () => openProductForm(kind, row))); tr.append(td); } body.append(tr); } table.append(body); wrap.append(table); section.append(wrap); return section;
+    makeTableRowInteractive(tr, () => openProductDetail(kind, row), 'Ver detalle de ' + (row.tipo_huevo || row.producto || title));
+    body.append(tr); } table.append(body); wrap.append(table); section.append(wrap); return section;
+}
+
+function openProductDetail(kind, row) {
+  const modalEl = pe('productDetailModal');
+  const body = pe('productDetailBody');
+  const footer = pe('productDetailFooter');
+  if (!modalEl || !body || !footer || !row) return;
+  const fields = (productFields[kind] || []).filter(([key]) => key !== 'region_id' || row[key]);
+  const cell = (label, value) => '<div class="col-12 col-md-6"><div class="text-muted small">' + label + '</div><div class="fw-medium text-break">' + value + '</div></div>';
+  body.innerHTML = '<div class="row g-3">' + fields.map(([key, label]) => {
+    let value = key.startsWith('precio') || key === 'cambio_por_docena' ? productMoney(row[key]) : row[key];
+    if (key === 'presentacion_maple' && row.unidades_maple && !String(value || '').includes(String(row.unidades_maple))) value = (value || '—') + ` (${row.unidades_maple} un.)`;
+    return cell(label, value === undefined || value === null || value === '' ? '—' : escHtml(String(value)));
+  }).join('') + '</div>' +
+    (row._ambiguous ? '<p class="small text-danger mt-3 mb-0">Este registro tiene duplicados en la hoja. Revisalo directamente en Google Sheets antes de editarlo.</p>' : '') +
+    (row._needsPriceSave ? '<p class="small text-muted mt-3 mb-0">Precio anterior pendiente de corrección: cajón = maple × 12. Editá y guardá para actualizar la hoja.</p>' : '');
+  const canEdit = canEditProducts() && !row._ambiguous;
+  footer.innerHTML = '<button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>' +
+    (canEdit ? '<button type="button" class="btn btn-sm btn-action-primary" id="product-detail-edit"><i class="bi bi-pencil-fill me-1"></i>' +
+      (row._missing ? 'Cargar precio' : row._needsPriceSave ? 'Guardar corrección' : 'Editar') + '</button>' : '');
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  if (canEdit) footer.querySelector('#product-detail-edit').onclick = () => { modal.hide(); openProductForm(kind, row); };
+  modal.show();
 }
 function openProductForm(kind, row = null) {
   if (productsBusy || !canEditProducts() || !productsData || !['huevos','carnes'].includes(kind)) return;

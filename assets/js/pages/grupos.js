@@ -39,7 +39,7 @@
         function loadGruposPage(silent) {
             restoreGruposFilters();
             const tbody = document.getElementById('grupos-page-table-body');
-            if (!silent) tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">Cargando...</td></tr>';
+            if (!silent) tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Cargando...</td></tr>';
             Promise.all([
                 authFetch(API_BASE + '/api/grupos'),
                 authFetch(API_BASE + '/api/marketing'),
@@ -52,7 +52,7 @@
                 ]))
                 .then(([gruposRes, marketingRes, zonasRes]) => {
                     if (gruposRes.status !== 200) {
-                        if (!silent) tbody.innerHTML = '<tr><td colspan="11" class="text-center text-danger">' + (gruposRes.body.error || 'Error') + '</td></tr>';
+                        if (!silent) tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">' + (gruposRes.body.error || 'Error') + '</td></tr>';
                         return;
                     }
                     const newGrupos = gruposRes.body.data || [];
@@ -91,7 +91,7 @@
 
                 })
                 .catch(() => {
-                    if (!silent) tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">Error de conexión</td></tr>';
+                    if (!silent) tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Error de conexión</td></tr>';
                 });
         }
 
@@ -155,23 +155,19 @@
                     ? '<span class="badge-estatus est-publicada">Activo</span>'
                     : '<span class="badge-estatus est-eliminada">Inactivo</span>';
                 tr.innerHTML = `
-                    <td class="fw-medium">
-                        <a href="#" class="text-decoration-none text-dark" onclick="editGrupoPage(${g.rowIndex});return false" title="Editar grupo">${escHtml(g.nombre)}</a>
-                        <button class="btn btn-sm btn-link text-primary p-0 ms-1" onclick="editGrupoPage(${g.rowIndex})" title="Editar"><i class="bi bi-pencil-fill"></i></button>
-                        <button class="btn btn-sm btn-link text-danger p-0 ms-1" onclick="deleteGrupoPage(${g.rowIndex})" title="Eliminar"><i class="bi bi-trash3-fill"></i></button>
-                    </td>
+                    <td class="fw-medium">${escHtml(g.nombre)}</td>
                     <td class="small">${enlaceDisplay}</td>
                     <td><span class="badge-zone zone-${escHtml((g.zona || '').toLowerCase().replace(/ /g, '-'))}">${escHtml(g.zona || '—')}</span></td>
                     <td class="text-center small text-muted">${escHtml(fechaDisplay)}</td>
                     <td class="text-center fw-semibold text-primary">${pubs}</td>
                     <td class="text-center">${activoBadge}</td>
                     <td class="text-center">${rendBadge}</td>
-                    <td class="text-center"><button class="btn btn-sm btn-outline-secondary" onclick="openGrupoDetailModal(decodeURIComponent('${encArg(g.nombre)}'))"><i class="bi bi-eye" aria-hidden="true"></i><span class="visually-hidden">Ver detalle del grupo</span></button></td>
                 `;
+                makeTableRowInteractive(tr, () => openGrupoDetailModal(g.rowIndex), 'Ver detalle del grupo ' + g.nombre);
                 tbody.appendChild(tr);
             });
             if (!filtered.length) {
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Sin resultados</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Sin resultados</td></tr>';
             }
             // Update total pubs
             const totalPubs = filtered.reduce((s, g) => s + (window._gruposPubs[groupMetricKey(g.nombre,g.zona)] || 0), 0);
@@ -244,8 +240,9 @@
                 });
         }
 
-        function openGrupoDetailModal(nombre) {
-            const g = gruposPageData.find(x => x.nombre === nombre);
+        function openGrupoDetailModal(rowIndexOrNombre) {
+            const g = gruposPageData.find(x => String(x.rowIndex) === String(rowIndexOrNombre)) ||
+                gruposPageData.find(x => x.nombre === rowIndexOrNombre);
             if (!g) return;
             const est = window._gruposEstatus[groupMetricKey(g.nombre,g.zona)] || {};
             const pubs = (est.PUBLICADA || 0) + (est.ELIMINADA || 0) + (est.SUPRIMIDA || 0) + (est['EN REVISION'] || 0) + (est['SIN DEFINIR'] || 0);
@@ -271,7 +268,18 @@
             document.getElementById('detail-grupo-sdef').innerText = est['SIN DEFINIR'] || 0;
             document.getElementById('detail-grupo-rendimiento').innerText = rendicion;
 
-            new bootstrap.Modal(document.getElementById('grupoDetailModal')).show();
+            const modalEl = document.getElementById('grupoDetailModal');
+            const footer = modalEl.querySelector('.modal-footer');
+            const canEdit = hasPermission('edit_grupos');
+            footer.innerHTML = '<button type="button" class="btn btn-sm btn-light-muted" data-bs-dismiss="modal">Cerrar</button>' +
+                (canEdit ? '<button type="button" class="btn btn-sm btn-action-primary" id="grupo-detail-edit"><i class="bi bi-pencil-fill me-1"></i>Editar</button>' +
+                    '<button type="button" class="btn btn-sm btn-outline-danger" id="grupo-detail-delete"><i class="bi bi-trash3-fill me-1"></i>Eliminar</button>' : '');
+            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            if (canEdit) {
+                footer.querySelector('#grupo-detail-edit').onclick = () => { modal.hide(); editGrupoPage(g.rowIndex); };
+                footer.querySelector('#grupo-detail-delete').onclick = () => { modal.hide(); deleteGrupoPage(g.rowIndex); };
+            }
+            modal.show();
         }
 
         document.addEventListener('DOMContentLoaded', () => {

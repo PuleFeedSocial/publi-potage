@@ -1,4 +1,5 @@
         let informesData = [];
+        let informesColumns = [];
         let pendingImport = null;
 
         function loadInformes() {
@@ -26,11 +27,12 @@
             const thead = document.getElementById('informes-thead');
             const tbody = document.getElementById('informes-tbody');
             const showCols = columns.filter(c => c && c.trim());
+            informesColumns = showCols;
 
-            thead.innerHTML = '<tr><th class="text-end">#</th>' + showCols.map(c => '<th>' + esc(c) + '</th>').join('') + '<th class="text-end">Acciones</th></tr>';
+            thead.innerHTML = '<tr><th class="text-end">#</th>' + showCols.map(c => '<th>' + esc(c) + '</th>').join('') + '</tr>';
 
             if (!informesData.length) {
-                tbody.innerHTML = '<tr><td colspan="' + (showCols.length + 2) + '" class="text-center text-muted py-4">No hay datos importados. Hacé clic en "Importar CSV" para subir un informe.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="' + (showCols.length + 1) + '" class="text-center text-muted py-4">No hay datos importados. Hacé clic en "Importar CSV" para subir un informe.</td></tr>';
                 return;
             }
 
@@ -52,10 +54,37 @@
                         cells += '<td class="small text-truncate-cell" title="' + esc(val) + '">' + esc(val || '—') + '</td>';
                     }
                 });
-                cells += '<td class="text-end"><button class="btn btn-sm btn-link text-danger p-0" onclick="deleteInformeRow(' + row.rowIndex + ')" title="Eliminar"><i class="bi bi-trash3-fill"></i></button></td>';
                 tr.innerHTML = cells;
+                makeTableRowInteractive(tr, () => openInformeDetailModal(row), 'Ver detalle del informe #' + row.rowIndex);
                 tbody.appendChild(tr);
             });
+        }
+
+        function openInformeDetailModal(row) {
+            const body = document.getElementById('informeDetailBody');
+            const footer = document.getElementById('informeDetailFooter');
+            const modalEl = document.getElementById('informeDetailModal');
+            if (!body || !footer || !modalEl) return;
+            const fields = (informesColumns.length ? informesColumns : Object.keys(row).filter(key => key !== 'rowIndex')).map(column => {
+                const raw = row[column];
+                const value = raw === undefined || raw === null || raw === '' ? '—' : String(raw);
+                const display = /^https?:\/\//i.test(value)
+                    ? '<a href="' + esc(value) + '" target="_blank" rel="noopener noreferrer">' + esc(value) + '</a>'
+                    : esc(value);
+                return '<div class="col-12 col-md-6"><div class="text-muted small">' + esc(column) + '</div><div class="fw-medium text-break">' + display + '</div></div>';
+            }).join('');
+            body.innerHTML = '<div class="row g-3">' + fields + '</div>';
+            const canDelete = hasPermission('edit_informes');
+            footer.innerHTML = '<button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>' +
+                (canDelete ? '<button type="button" class="btn btn-sm btn-outline-danger" id="informe-detail-delete"><i class="bi bi-trash3-fill me-1"></i>Eliminar</button>' : '');
+            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            if (canDelete) {
+                footer.querySelector('#informe-detail-delete').onclick = () => {
+                    modal.hide();
+                    deleteInformeRow(row.rowIndex);
+                };
+            }
+            modal.show();
         }
 
         function esc(s) {

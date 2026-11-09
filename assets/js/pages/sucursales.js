@@ -132,14 +132,11 @@ let _lastSucursalesSnapshot = '';
                     <td class="small">${escHtml(s.contacto || '—')}</td>
                     <td class="small text-muted">${escHtml(s.horario || '—')}</td>
                     <td class="text-center">${zonaDisplay}</td>
-                    <td class="text-center">${activoBadge}</td>
                     <td class="text-center">
-                        <small class="d-block text-muted mb-2">${escHtml((()=>{const marketing=sucursalesZonasData.find(z=>z.sucursal_id===s.precio_id);return marketing?'Redes: '+marketing.nombre+' · '+(marketing.activo===false?'Inactivo':'Activo'):'Sin vínculo de redes';})())}</small>
-                        ${s.precio_id && hasPermission('view_productos') ? '<a class="btn btn-sm btn-outline-primary me-2" href="productos.html?sucursal=' + encodeURIComponent(s.precio_id) + '">Ver precios</a>' : ''}
-                        <button class="btn btn-link text-primary p-0 mx-1" onclick="editSucursal(${s.rowIndex})" title="Editar"><i class="bi bi-pencil-fill"></i></button>
-                        <button class="btn btn-link text-danger p-0 mx-1" onclick="deleteSucursal(${s.rowIndex}, decodeURIComponent('${encArg(s.ubicacion)}'))" title="Eliminar"><i class="bi bi-trash3-fill"></i></button>
+                        <small class="d-block text-muted">${escHtml((()=>{const marketing=sucursalesZonasData.find(z=>z.sucursal_id===s.precio_id);return marketing?'Redes: '+marketing.nombre+' · '+(marketing.activo===false?'Inactivo':'Activo'):'Sin vínculo de redes';})())}</small>
                     </td>
                 `;
+                makeTableRowInteractive(tr, () => openSucursalDetailModal(s.rowIndex), 'Ver detalle de ' + (s.ubicacion || 'sucursal'));
                 tbody.appendChild(tr);
             });
             if (!filtered.length) {
@@ -236,6 +233,43 @@ let _lastSucursalesSnapshot = '';
                     loadSucursales();
                     showToast(res.message || 'Sucursal eliminada', 'success');
                 });
+        }
+
+        function openSucursalDetailModal(rowIndex) {
+            const s = sucursalesData.find(x => String(x.rowIndex) === String(rowIndex));
+            const body = document.getElementById('sucursalDetailBody');
+            const footer = document.getElementById('sucursalDetailFooter');
+            const modalEl = document.getElementById('sucursalDetailModal');
+            if (!s || !body || !footer || !modalEl) return;
+            const marketing = sucursalesZonasData.find(z => z.sucursal_id === s.precio_id);
+            const redes = marketing ? marketing.nombre + ' · ' + (marketing.activo === false ? 'Inactivo' : 'Activo') : 'Sin vínculo de redes';
+            const zona = s.zona || 'OTRO';
+            const activo = s.activo !== false
+                ? '<span class="badge-estatus est-publicada">Activo</span>'
+                : '<span class="badge-estatus est-eliminada">Inactivo</span>';
+            const cell = (label, value, extra = '') => '<div class="col-12 col-md-6"><div class="text-muted small">' + escHtml(label) + '</div><div class="fw-medium text-break ' + extra + '">' + value + '</div></div>';
+            body.innerHTML = '<div class="row g-3">' +
+                cell('Empresa', escHtml(s.empresa || '—')) +
+                cell('Ubicación', escHtml(s.ubicacion || '—')) +
+                cell('Dirección', escHtml(s.direccion || '—')) +
+                cell('Contacto', escHtml(s.contacto || '—')) +
+                cell('Horario', escHtml(s.horario || '—')) +
+                cell('Zona', '<span class="badge-zone zone-' + escHtml(zona.toLowerCase().replace(/ /g, '-')) + '">' + escHtml(zona) + '</span>') +
+                cell('Estado', activo) +
+                cell('Sucursal de redes', escHtml(redes)) +
+                '</div>';
+            const canEdit = hasPermission('edit_sucursales');
+            const canSeePrices = s.precio_id && hasPermission('view_productos');
+            footer.innerHTML = '<button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>' +
+                (canSeePrices ? '<a class="btn btn-sm btn-outline-primary" href="productos.html?sucursal=' + encodeURIComponent(s.precio_id) + '"><i class="bi bi-tag me-1"></i>Ver precios</a>' : '') +
+                (canEdit ? '<button type="button" class="btn btn-sm btn-action-primary" id="sucursal-detail-edit"><i class="bi bi-pencil-fill me-1"></i>Editar</button>' +
+                    '<button type="button" class="btn btn-sm btn-outline-danger" id="sucursal-detail-delete"><i class="bi bi-trash3-fill me-1"></i>Eliminar</button>' : '');
+            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            if (canEdit) {
+                footer.querySelector('#sucursal-detail-edit').onclick = () => { modal.hide(); editSucursal(s.rowIndex); };
+                footer.querySelector('#sucursal-detail-delete').onclick = () => { modal.hide(); deleteSucursal(s.rowIndex, s.ubicacion); };
+            }
+            modal.show();
         }
 
         document.addEventListener('DOMContentLoaded', () => {
