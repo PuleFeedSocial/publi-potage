@@ -79,12 +79,15 @@
         function calEndFecha(ev) { return ev.fecha_fin || ev.fecha; }
         function calIsMulti(ev) { return !!(ev.fecha_fin && ev.fecha_fin !== ev.fecha); }
         function calIsAdmin() { return sessionRole() === 'admin'; }
-        function calCanViewResponsible(ev) {
-            if (!ev.responsable_nombre) return false;
-            if (calIsAdmin()) return true;
+        function calIsMyTask(ev) {
+            if (!ev || !ev.responsable_id) return false;
             const session = getCurrentSession();
-            return !!(session && session.id && ev.responsable_id &&
-                String(ev.responsable_id) === String(session.id));
+            return !!(session && session.id && String(ev.responsable_id) === String(session.id));
+        }
+        function calCanViewResponsible(ev) {
+            if (!ev || !ev.responsable_nombre) return false;
+            if (calIsAdmin()) return true;
+            return calIsMyTask(ev);
         }
         function calCanComplete() { return hasPermission('complete_calendario'); }
 
@@ -124,7 +127,15 @@
         function calMatch(ev, f) {
             if (f.tipo && ev.tipo !== f.tipo) return false;
             if (f.estado && ev.estado !== f.estado) return false;
-            if (f.resp && String(ev.responsable_id || '') !== f.resp) return false;
+            if (f.resp) {
+                if (f.resp === 'mine') {
+                    if (!calIsMyTask(ev)) return false;
+                } else if (f.resp === 'unassigned') {
+                    if (ev.responsable_id) return false;
+                } else if (String(ev.responsable_id || '') !== f.resp) {
+                    return false;
+                }
+            }
             if (f.q) {
                 const s = ((ev.titulo || '') + ' ' + (ev.descripcion || '')).toLowerCase();
                 if (s.indexOf(f.q) === -1) return false;
@@ -160,23 +171,43 @@
             renderAll();
         }
         function calRebuildRespOptions() {
+            const sel = document.getElementById('cal-filter-resp');
+            if (!sel) return;
+            const cur = sel.value;
+            sel.setAttribute('aria-label', calIsAdmin() ? 'Filtrar por responsable' : 'Filtrar tareas');
+
             if (!calIsAdmin()) {
-                const sel = document.getElementById('cal-filter-resp');
-                if (sel) {
-                    sel.innerHTML = '<option value="">Todos los responsables</option>';
+                const session = getCurrentSession();
+                const hasMyTasks = !!(session && session.id && calEvents.some(calIsMyTask));
+                if (hasMyTasks) {
+                    sel.innerHTML = '<option value="">Todas las tareas</option>' +
+                        '<option value="mine">Mis tareas asignadas</option>';
+                    if (cur === 'mine') sel.value = 'mine';
+                    else sel.value = '';
+                } else {
+                    sel.innerHTML = '<option value="">Todas las tareas</option>';
                     sel.value = '';
                 }
                 return;
             }
-            const sel = document.getElementById('cal-filter-resp');
-            const cur = sel.value;
+
             const map = {};
+            let hasUnassigned = false;
             calEvents.forEach(ev => {
                 if (ev.responsable_id && ev.responsable_nombre) map[ev.responsable_id] = ev.responsable_nombre;
+                else if (!ev.responsable_id) hasUnassigned = true;
             });
-            sel.innerHTML = '<option value="">Todos los responsables</option>' +
-                Object.keys(map).map(id => '<option value="' + id + '">' + escHtml(map[id]) + '</option>').join('');
-            if (cur && map[cur]) sel.value = cur;
+            let opts = '<option value="">Todos los responsables</option>';
+            const session = getCurrentSession();
+            if (session && session.id && calEvents.some(calIsMyTask)) {
+                opts += '<option value="mine">Mis tareas asignadas</option>';
+            }
+            if (hasUnassigned) {
+                opts += '<option value="unassigned">Sin responsable</option>';
+            }
+            opts += Object.keys(map).map(id => '<option value="' + id + '">' + escHtml(map[id]) + '</option>').join('');
+            sel.innerHTML = opts;
+            if (cur && (cur === 'mine' || cur === 'unassigned' || map[cur])) sel.value = cur;
         }
 
         /* ---------- toast con Deshacer ---------- */
@@ -386,28 +417,36 @@
         /* ---------- chips (28–32px, hora + título, con acción de estado) ---------- */
         function chipAria(ev) {
             const estado = ev.estado === 'realizada' ? 'realizada' : 'pendiente';
+            const isMine = calIsMyTask(ev);
+            let respTxt = '';
+            if (isMine) respTxt = ', asignada a mí';
+            else if (calIsAdmin() && ev.responsable_nombre) respTxt = ', responsable: ' + ev.responsable_nombre;
             return ev.titulo + ', ' + isoToDate(ev.fecha) + ', ' +
                 (ev.hora ? calRangoTexto(ev) : 'todo el día') + ', ' +
-                (ev.tipo === 'evento' ? 'evento' : 'tarea') + ', ' + estado;
+                (ev.tipo === 'evento' ? 'evento' : 'tarea') + ', ' + estado + respTxt;
         }
 
         function chipWrapHtml(ev, opts) {
             opts = opts || {};
             const done = ev.estado === 'realizada';
+            const isMine = calIsMyTask(ev);
             const toggleLabel = done ? 'Marcar como pendiente' : 'Marcar como realizada';
             let inner;
             if (opts.mode === 'block') {
+                const myTag = isMine ? '<i class="bi bi-person-fill chip-ic-mine me-1" title="Asignada a mí" aria-hidden="true"></i>' : '';
                 inner = '<span class="blk-hora">' + escHtml(calRangoTexto(ev)) + '</span>' +
-                    '<span class="blk-title">' + escHtml(ev.titulo) + '</span>';
+                    '<span class="blk-title">' + myTag + escHtml(ev.titulo) + '</span>';
             } else {
                 const time = ev.hora
                     ? '<span class="chip-hora">' + escHtml(ev.hora) + '</span>'
                     : '<i class="bi bi-calendar3 chip-ic-allday" aria-hidden="true"></i>';
-                inner = time + '<span class="chip-title">' + escHtml(ev.titulo) + '</span>';
+                const myIcon = isMine ? '<i class="bi bi-person-fill chip-ic-mine" title="Asignada a mí" aria-hidden="true"></i>' : '';
+                inner = time + myIcon + '<span class="chip-title">' + escHtml(ev.titulo) + '</span>';
             }
             const chipCls = 'cal-chip ' + (ev.tipo === 'evento' ? 'chip-evento' : 'chip-tarea') +
-                (done ? ' is-done' : '') + (opts.mode === 'block' ? ' is-block' : '');
-            return '<div class="chip-wrap' + (opts.wrapClass ? ' ' + opts.wrapClass : '') + '"' +
+                (done ? ' is-done' : '') + (opts.mode === 'block' ? ' is-block' : '') +
+                (isMine ? ' is-my-task' : '');
+            return '<div class="chip-wrap' + (opts.wrapClass ? ' ' + opts.wrapClass : '') + (isMine ? ' is-my-task-wrap' : '') + '"' +
                 (opts.wrapStyle ? ' style="' + opts.wrapStyle + '"' : '') +
                 ' data-drag="1" data-id="' + ev.id + '">' +
                 '<button type="button" class="' + chipCls + '" data-action="detail" data-id="' + ev.id + '"' +
@@ -438,7 +477,11 @@
             if (showDate) meta += '<span class="cal-meta"><i class="bi bi-calendar3"></i> ' + isoToDate(ev.fecha) + '</span>';
             if (ev.hora) meta += '<span class="cal-meta"><i class="bi bi-clock"></i> ' + escHtml(calRangoTexto(ev)) + '</span>';
             if (calCanViewResponsible(ev)) {
-                meta += '<span class="cal-meta"><i class="bi bi-person"></i> ' + escHtml(ev.responsable_nombre) + '</span>';
+                if (calIsMyTask(ev)) {
+                    meta += '<span class="cal-meta cal-meta-assigned-me"><i class="bi bi-person-check-fill"></i> Asignada a mí (' + escHtml(ev.responsable_nombre) + ')</span>';
+                } else {
+                    meta += '<span class="cal-meta"><i class="bi bi-person"></i> ' + escHtml(ev.responsable_nombre) + '</span>';
+                }
             }
             if (calIsAdmin() && ev.realizado_en) {
                 meta += '<span class="cal-meta cal-meta-hecho"><i class="bi bi-person-check"></i> Hecho por ' +
@@ -774,8 +817,14 @@
                 '<div class="cal-detail-row"><i class="bi bi-clock"></i><div><strong>Hora</strong>' +
                 '<span>' + escHtml(ev.hora ? calDuracionTexto(ev) + ' (' + calRangoTexto(ev) + ')' : 'Todo el día') + '</span></div></div>';
             if (calCanViewResponsible(ev)) {
+                const isMine = calIsMyTask(ev);
+                html += '<div class="cal-detail-row"><i class="bi bi-person' + (isMine ? '-check-fill text-accent' : '') + '"></i><div><strong>Responsable</strong>' +
+                    '<span>' + escHtml(ev.responsable_nombre) +
+                    (isMine ? ' <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle ms-1"><i class="bi bi-person-check-fill me-1"></i>Asignada a vos</span>' : '') +
+                    '</span></div></div>';
+            } else if (calIsAdmin() && !ev.responsable_id) {
                 html += '<div class="cal-detail-row"><i class="bi bi-person"></i><div><strong>Responsable</strong>' +
-                    '<span>' + escHtml(ev.responsable_nombre) + '</span></div></div>';
+                    '<span class="text-muted fst-italic">Sin responsable asignado</span></div></div>';
             }
             if (calIsAdmin() && ev.realizado_en) {
                 html += '<div class="cal-detail-row"><i class="bi bi-person-check"></i><div><strong>Registro</strong>' +

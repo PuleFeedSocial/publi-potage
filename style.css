@@ -3555,6 +3555,22 @@ html[data-theme="dark"] .perm-count {
     opacity: 0.85;
 }
 
+.cal-chip.is-my-task {
+    box-shadow: 0 0 0 1.5px var(--primary-color);
+    font-weight: 700;
+}
+
+.cal-chip .chip-ic-mine {
+    font-size: 0.72rem;
+    color: var(--primary-color);
+    flex-shrink: 0;
+}
+
+.cal-meta-assigned-me {
+    color: var(--primary-color) !important;
+    font-weight: 600;
+}
+
 .chip-hora {
     font-size: 0.64rem;
     font-weight: 700;
@@ -4287,6 +4303,18 @@ html[data-theme="dark"] .cal-chip.is-done {
     background: #064e3b;
     color: #6ee7b7;
     border-left-color: #34d399;
+}
+
+html[data-theme="dark"] .cal-chip.is-my-task {
+    box-shadow: 0 0 0 1.5px var(--accent-color);
+}
+
+html[data-theme="dark"] .cal-chip .chip-ic-mine {
+    color: var(--accent-color);
+}
+
+html[data-theme="dark"] .cal-meta-assigned-me {
+    color: var(--accent-color) !important;
 }
 
 html[data-theme="dark"] .chip-toggle {

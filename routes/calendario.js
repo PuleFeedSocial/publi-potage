@@ -135,8 +135,8 @@ const ORDER = ' ORDER BY c.fecha ASC, c.hora ASC, c.serie_pos ASC, c.id ASC';
 // Los metadatos de autoría de realización se envían solo a administradores.
 // El responsable solo es visible para el propio responsable o para administradores.
 function stripAudit(ev, isAdmin) {
-  if (isAdmin) return ev;
-  const { realizado_por, realizado_en, realizado_por_nombre, ...rest } = ev;
+  if (!ev || isAdmin) return ev;
+  const { realizado_por, realizado_en, realizado_por_nombre, creado_por, ...rest } = ev;
   return rest;
 }
 
@@ -158,6 +158,7 @@ async function notifyAssignChange(db, actor, oldResp, newResp, titulo, tipo, fec
 }
 
 function filterForViewer(ev, isAdmin, viewerId) {
+  if (!ev) return ev;
   let out = stripAudit(ev, isAdmin);
   if (isAdmin) return out;
   if (out.responsable_id && String(out.responsable_id) === String(viewerId)) {
@@ -469,4 +470,6 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
   }
 });
 
+router.filterForViewer = filterForViewer;
+router.stripAudit = stripAudit;
 module.exports = router;
