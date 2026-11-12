@@ -8,7 +8,7 @@ process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-for-calendar-ui'
 const html = fs.readFileSync(path.join(__dirname, '../calendario.html'), 'utf8');
 const script = fs.readFileSync(path.join(__dirname, '../assets/js/pages/calendario.js'), 'utf8');
 
-function calendar(user) {
+function calendar(user, overrides = {}) {
   const elements = new Map();
   const context = vm.createContext({
     document: {
@@ -22,7 +22,8 @@ function calendar(user) {
     sessionRole: () => user?.role || '',
     hasPermission: () => true,
     escHtml: value => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;'),
-    isoToDate: value => value
+    isoToDate: value => value,
+    ...overrides
   });
   vm.runInContext(script, context);
   return { context, elements };
@@ -89,4 +90,33 @@ test('the "mine" filter only matches tasks assigned to the current user', () => 
     context
   );
   assert.deepEqual(Array.from(ids), [1]);
+});
+
+test('a stale calendar refresh cannot revert a task just marked as done', async () => {
+  let resolveFetch;
+  const staleFetch = new Promise(resolve => { resolveFetch = resolve; });
+  const { context } = calendar({ id: 7, role: 'colaborador' }, {
+    API_BASE: '',
+    authFetch: () => staleFetch,
+    showToast() {},
+    renderAll() {}
+  });
+  vm.runInContext(`calFocus = '2026-11-12'; calSelected = '2026-11-12';
+    calEvents = [normEvent({id: 42, titulo: 'Tarea', fecha: '2026-11-12', tipo: 'tarea', estado: 'pendiente'})];`, context);
+
+  // El refresco automático sale antes de que el usuario marque la tarea.
+  vm.runInContext('loadCalendario(true)', context);
+  // El usuario la marca como realizada (respuesta del PATCH ya aplicada).
+  vm.runInContext(`applyItems([normEvent({id: 42, titulo: 'Tarea', fecha: '2026-11-12', tipo: 'tarea', estado: 'realizada'})])`, context);
+  assert.equal(vm.runInContext('calEvents[0].estado', context), 'realizada');
+
+  // La respuesta vieja del refresco llega después: no debe pisar el cambio.
+  resolveFetch({
+    status: 200,
+    json: async () => ({ data: [{ id: 42, titulo: 'Tarea', fecha: '2026-11-12', tipo: 'tarea', estado: 'pendiente' }] })
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(vm.runInContext('calEvents[0].estado', context), 'realizada');
+  assert.equal(vm.runInContext('_lastCalSnapshot', context).includes('realizada'), true);
 });

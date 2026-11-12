@@ -12,6 +12,7 @@
         let calSelected = '';
         let calRange = null;
         let calLoading = false;
+        let calFetching = false;
         let calLoadError = false;
         let calBusy = false;
         let calDetailId = null;
@@ -19,6 +20,7 @@
         let calUsersLoaded = false;
         let calScrolledTo = false;
         let _lastCalSnapshot = '';
+        let _calLoadSeq = 0;
         let _calSuppressClick = false;
         let calDrag = null;
         let calPendingResp = '';
@@ -108,7 +110,15 @@
             if (i >= 0) calEvents[i] = item;
             else calEvents.push(item);
         }
-        function applyItems(items) { (items || []).forEach(applyItem); }
+        function applyItems(items) {
+            const list = items || [];
+            if (!list.length) return;
+            list.forEach(applyItem);
+            // Un cambio local invalida cualquier GET que haya salido antes: si su
+            // respuesta llega después, no debe revertir el estado recién aplicado.
+            calInvalidatePendingLoad();
+            _lastCalSnapshot = JSON.stringify(calEvents);
+        }
 
         /* ---------- filtros ---------- */
         function calFilters() {
@@ -260,15 +270,34 @@
             const r = calRangeFor();
             return !calRange || r.desde < calRange.desde || r.hasta > calRange.hasta;
         }
+        // Descarta respuestas de cargas que salieron antes de un cambio local.
+        // También apaga el estado de carga para que un refresco en segundo plano
+        // no deje la vista en esqueleto si su respuesta ya no se va a aplicar.
+        function calInvalidatePendingLoad() {
+            _calLoadSeq++;
+            calFetching = false;
+            calLoading = false;
+        }
+
         function loadCalendario(silent) {
-            if (calLoading) return;
+            // Los refrescos automáticos no se apilan; una carga visible sí puede
+            // reemplazar a un refresco silencioso en curso (gana la más reciente).
+            if (silent && (calFetching || calLoading)) return;
+            if (!silent && calLoading) return;
             const r = calRangeFor();
-            calLoading = true;
-            if (!silent) { calLoadError = false; renderAll(); }
+            const seq = ++_calLoadSeq;
+            calFetching = true;
+            if (!silent) {
+                calLoading = true;
+                calLoadError = false;
+                renderAll();
+            }
             authFetch(API_BASE + '/api/calendario?desde=' + r.desde + '&hasta=' + r.hasta)
                 .then(res => res.json().then(b => ({ status: res.status, body: b })))
                 .then(({ status, body }) => {
-                    calLoading = false;
+                    if (seq !== _calLoadSeq) return;
+                    calFetching = false;
+                    if (!silent) calLoading = false;
                     if (status !== 200) {
                         if (silent) return;
                         calLoadError = true;
@@ -285,7 +314,9 @@
                     renderAll();
                 })
                 .catch(() => {
-                    calLoading = false;
+                    if (seq !== _calLoadSeq) return;
+                    calFetching = false;
+                    if (!silent) calLoading = false;
                     if (silent) return;
                     calLoadError = true;
                     renderAll();
@@ -1387,5 +1418,12 @@
                 if (calLoadError || calBusy) return;
                 loadCalendario(true);
             }, 60000);
+
+            // Al volver a la pestaña, actualizar de inmediato: si el intervalo de
+            // 60 s se saltó mientras estaba oculta, la vista quedaba desactualizada.
+            document.addEventListener('visibilitychange', function () {
+                if (document.hidden || calLoadError || calBusy) return;
+                loadCalendario(true);
+            });
         });
     
