@@ -58,6 +58,7 @@
    layout:source.layout||'auto',
    showBrand:source.showBrand===true,
    showTitle:source.showTitle===true,
+   logoOnly:source.logoOnly===true,
    colors:{...DEFAULT_COLORS,...(source.colors||{})},
    zones:{...DEFAULT_ZONES,...(source.zones||{})},
    panel:source.panel===undefined?'rgba(255,255,255,.9)':source.panel
@@ -280,7 +281,10 @@
   }
   if(total>1)text(ctx,page+' / '+total,930,776,100,9,{align:'right',color:colors.note,minSize:8});
  }
- function drawEggBrand(ctx,logo,theme){drawBrand(ctx,logo,theme,{x:610,y:645,icon:120,wordSize:52,subtitleSize:15,wordWidth:187});}
+ function drawEggBrand(ctx,logo,theme){
+  if(theme.logoOnly&&logo){contain(ctx,logo,610,645,313,130);return;}
+  drawBrand(ctx,logo,theme,{x:610,y:645,icon:120,wordSize:52,subtitleSize:15,wordWidth:187});
+ }
  function drawEggDesign(ctx,branches,rows,assets,theme,page,total,compact){
   box(ctx,0,0,EGG_DESIGN.width,EGG_DESIGN.height,theme.colors.pageEggs);
   drawEggRibbon(ctx,theme);
@@ -411,7 +415,10 @@
   }
   if(total>1)text(ctx,page+' / '+total,864,724,100,9,{align:'right',color:colors.note,minSize:8});
  }
- function drawChickenBrand(ctx,logo,theme){drawBrand(ctx,logo,theme,{x:62,y:20,icon:103,wordSize:48,subtitleSize:14,wordWidth:190});}
+ function drawChickenBrand(ctx,logo,theme){
+  if(theme.logoOnly&&logo){contain(ctx,logo,62,20,312,103);return;}
+  drawBrand(ctx,logo,theme,{x:62,y:20,icon:103,wordSize:48,subtitleSize:14,wordWidth:190});
+ }
  function drawChickenDesign(ctx,branches,rows,assets,theme,page,total,compact){
   box(ctx,0,0,CHICKEN_DESIGN.width,CHICKEN_DESIGN.height,theme.colors.pageChicken);
   drawChickenRibbon(ctx,theme);

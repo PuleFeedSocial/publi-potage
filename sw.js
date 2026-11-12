@@ -1,4 +1,4 @@
-const CACHE = 'potage-v98';
+const CACHE = 'potage-v99';
 const STATIC = [
   "/assets/css/pages/account-settings.css",
   "/assets/js/pages/account-settings-events.js",
@@ -42,7 +42,7 @@ const STATIC = [
   '/grupos.html', '/informes.html', '/logs.html', '/account-settings.html',
   '/sucursales.html', '/ayuda.html', '/calendario.html',
   '/productos.html', '/productos.js', '/productos.css', '/egg-prices.js', '/regiones.html', '/regiones.js',
-  '/price-artwork.js', '/price-artwork-ui.js', '/social-artwork.js', '/company-templates.js', '/img/icon-512.png', '/price-text.js', '/chicken-catalog.js', '/img/precios/pollos.png', '/img/precios/amba.jpg', '/img/precios/costa.jpg', '/img/plantillas/el-triangulo/huevos.png',
+  '/price-artwork.js', '/price-artwork-ui.js', '/social-artwork.js', '/company-templates.js', '/img/icon-512.png', '/price-text.js', '/chicken-catalog.js', '/img/precios/pollos.png', '/img/precios/amba.jpg', '/img/precios/costa.jpg', '/img/precios/logo-potage.png', '/img/plantillas/potage/logo.png', '/img/plantillas/el-triangulo/huevos.png',
   '/app.js', '/marketing-analysis.js', '/account.js', '/theme.js', '/style.css', '/manifest.json', '/sw.js'
 ];
 

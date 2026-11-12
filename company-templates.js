@@ -24,7 +24,7 @@
   brand:{x:1460,y:1400,w:650,h:330}
  };
  const COMPANIES=[
-  {slug:'potage',name:'Potage SRL',brand:'Potage',subtitle:'— S.R.L. —',aliases:['potage','potage srl','potage s.r.l.'],logoFallback:true},
+  {slug:'potage',name:'Potage SRL',brand:'Potage',subtitle:'— S.R.L. —',aliases:['potage','potage srl','potage s.r.l.'],logoFallback:true,logoOnly:true},
   {slug:'pluma-blanca',name:'Pluma Blanca SRL',brand:'Pluma Blanca',subtitle:'— S.R.L. —',aliases:['pluma blanca','pluma blanca srl','pluma blanca s.r.l.']},
   {slug:'el-triangulo',name:'El Triangulo SA',brand:'El Triángulo',subtitle:'— S.A. —',aliases:['el triangulo','el triangulo sa','el triángulo','el triángulo s.a.'],layout:'el-triangulo'},
   {slug:'la-sorpresa',name:'La Sorpresa SRL',brand:'La Sorpresa',subtitle:'— S.R.L. —',aliases:['la sorpresa','la sorpresa srl','la sorpresa s.r.l.']}
@@ -52,6 +52,7 @@
    // El fondo de la plantilla ya incluye marca y título; no se duplican.
    showBrand:false,
    showTitle:false,
+   logoOnly:!!company.logoOnly,
    colors:{...DEFAULT_COLORS,...(company.colors||{})},
    zones:{...DEFAULT_ZONES,...(company.zones||{})},
    panel:'rgba(255,255,255,.9)',
