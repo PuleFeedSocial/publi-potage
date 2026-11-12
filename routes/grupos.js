@@ -2,6 +2,7 @@ const express = require('express');
 const { sheets, count, sheetError, mutation, revision, validateFields, validateRow } = require('../services/sheets');
 const router = express.Router();
 const { authenticate, requirePermission } = require('../middleware/auth');
+const { isHttpOrHttpsUrl } = require('../services/validation');
 router.use(authenticate, mutation);
 router.use(validateFields(["nombre"], ["nombre","enlace","zona","fechaIngreso"], ["fechaIngreso"], []));
 validateRow(router, 'Grupos', 'E');
@@ -63,6 +64,7 @@ router.post('/', requirePermission('edit_grupos'), async (req, res) => {
     if (!s) return res.status(503).json({ error: 'Google Sheets no configurado.' });
     const { nombre, enlace, zona, fechaIngreso, activo } = req.body;
     if (!nombre) return res.status(400).json({ error: 'Nombre del grupo es obligatorio.' });
+    if (enlace && !isHttpOrHttpsUrl(enlace)) return res.status(400).json({ error: 'El enlace debe ser una URL HTTP o HTTPS válida.' });
 
     const activoValue = activo === false || activo === 'false' ? 'FALSE' : 'TRUE';
 
@@ -93,6 +95,7 @@ router.put('/:rowIndex', requirePermission('edit_grupos'), async (req, res) => {
     if (!Number.isSafeInteger(rowIndex) || rowIndex < 2) return res.status(400).json({ error: 'Índice inválido.' });
     const { nombre, enlace, zona, fechaIngreso, activo } = req.body;
     if (!nombre) return res.status(400).json({ error: 'Nombre del grupo es obligatorio.' });
+    if (enlace && !isHttpOrHttpsUrl(enlace)) return res.status(400).json({ error: 'El enlace debe ser una URL HTTP o HTTPS válida.' });
 
     const activoValue = activo === false || activo === 'false' ? 'FALSE' : 'TRUE';
 

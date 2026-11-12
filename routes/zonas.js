@@ -4,18 +4,22 @@ const getDb = require('../database');
 const { authenticate, requirePermission } = require('../middleware/auth');
 const branches = require('../services/product-branches');
 
+function linkError(status, message) {
+  return Object.assign(new Error(message), { status, publicMessage: true });
+}
+
 // Links are explicit: marketing names remain the historical keys in Sheets.
 async function resolveLink(body, current = {}) {
   if (!Object.hasOwn(body, 'sucursal_id')) return [current.sucursal_id || null, current.sucursal_nombre || null];
   const id = body.sucursal_id;
   if (id === null || id === '') return [null, null];
-  if (typeof id !== 'string' || !/^SUC-[a-f0-9]{24}$/.test(id)) throw Object.assign(new Error('Sucursal inválida.'), {status:400});
+  if (typeof id !== 'string' || !/^SUC-[a-f0-9]{24}$/.test(id)) throw linkError(400, 'Sucursal inválida.');
   if (id === current.sucursal_id) return [id, current.sucursal_nombre];
   let directory;
   try { directory = await branches.read(); }
-  catch { throw Object.assign(new Error('No se pudo verificar el catálogo de sucursales. Reintentá antes de vincular.'), {status:503}); }
+  catch { throw linkError(503, 'No se pudo verificar el catálogo de sucursales. Reintentá antes de vincular.'); }
   const matches = directory.filter(b => b.id === id);
-  if (matches.length !== 1) throw Object.assign(new Error('La sucursal no existe o está duplicada en el catálogo.'), {status:409});
+  if (matches.length !== 1) throw linkError(409, 'La sucursal no existe o está duplicada en el catálogo.');
   const b = matches[0];
   return [id, [b.empresa,b.ubicacion,b.direccion].filter(Boolean).join(' · ')];
 }
@@ -31,7 +35,8 @@ router.get('/', authenticate, requirePermission(['view_zonas', 'view_dashboard',
     const rows = await db.all('SELECT id, nombre, activo, created_at, sucursal_id, sucursal_nombre FROM zonas ORDER BY nombre ASC');
     res.json({ data: rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Error al consultar sucursales de redes:', err);
+    res.status(500).json({ error: 'No se pudieron consultar las sucursales de redes.' });
   }
 });
 
@@ -45,7 +50,9 @@ router.post('/', authenticate, requirePermission('edit_zonas'), async (req, res)
     res.status(201).json({ message: 'Sucursal de redes agregada correctamente.' });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Ese nombre o sucursal ya está registrado en redes.' });
-    res.status(err.status || 500).json({ error: err.status ? err.message : 'No se pudo crear la sucursal de redes.' });
+    if (err.publicMessage) return res.status(err.status).json({ error: err.message });
+    console.error('Error al crear una sucursal de redes:', err);
+    res.status(500).json({ error: 'No se pudo crear la sucursal de redes.' });
   }
 });
 
@@ -57,7 +64,8 @@ router.delete('/:id', authenticate, requirePermission('edit_zonas'), async (req,
     await db.run('DELETE FROM zonas WHERE id = ?', [id]);
     res.json({ message: 'Sucursal de redes eliminada.' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Error al eliminar una sucursal de redes:', err);
+    res.status(500).json({ error: 'No se pudo eliminar la sucursal de redes.' });
   }
 });
 
@@ -81,7 +89,9 @@ router.put('/:id', authenticate, requirePermission('edit_zonas'), async (req, re
     }
     res.json({ message: 'Sucursal de redes actualizada correctamente.' });
   } catch (err) {
-    res.status(err.status || 500).json({ error: err.status ? err.message : 'No se pudo guardar la asociación.' });
+    if (err.publicMessage) return res.status(err.status).json({ error: err.message });
+    console.error('Error al guardar una asociación de redes:', err);
+    res.status(500).json({ error: 'No se pudo guardar la asociación.' });
   }
 });
 

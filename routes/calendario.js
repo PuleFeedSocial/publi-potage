@@ -187,7 +187,8 @@ router.get('/', authenticate, async (req, res) => {
     const isAdmin = normRole(req.user) === 'admin';
     res.json({ data: rows.map(r => filterForViewer(r, isAdmin, req.user.id)) });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Error al consultar el calendario:', err);
+    res.status(500).json({ error: 'No se pudo consultar el calendario.' });
   }
 });
 
@@ -266,7 +267,8 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
       creados: created.length
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Error al crear un elemento del calendario:', err);
+    res.status(500).json({ error: 'No se pudo guardar el elemento del calendario.' });
   }
 });
 
@@ -394,7 +396,8 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
     const item = await getEvento(db, id);
     res.json({ message: 'Elemento actualizado correctamente.', item: filterForViewer(item, normRole(req.user) === 'admin', req.user.id) });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Error al actualizar el calendario:', err);
+    res.status(500).json({ error: 'No se pudo actualizar el elemento del calendario.' });
   }
 });
 
@@ -442,7 +445,8 @@ router.patch('/:id/estado', authenticate, requirePermission('complete_calendario
       item: filterForViewer(item, normRole(req.user) === 'admin', req.user.id)
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Error al cambiar el estado del calendario:', err);
+    res.status(500).json({ error: 'No se pudo cambiar el estado del elemento.' });
   }
 });
 
@@ -466,7 +470,8 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
     logAction(req.user.id, req.user.email, 'Eliminación en calendario', `#${id}: ${existing.titulo}`, req.ip);
     res.json({ message: 'Elemento eliminado correctamente.' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Error al eliminar un elemento del calendario:', err);
+    res.status(500).json({ error: 'No se pudo eliminar el elemento del calendario.' });
   }
 });
 

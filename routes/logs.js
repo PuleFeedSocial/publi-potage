@@ -41,7 +41,8 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
     );
     res.json(logs);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Error al consultar los logs:', err);
+    res.status(500).json({ error: 'No se pudieron consultar los logs.' });
   }
 });
 

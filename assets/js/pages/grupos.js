@@ -1,5 +1,34 @@
         let gruposPageData = [];
 
+        function setSafeGroupLink(container, value, options = {}) {
+            container.replaceChildren();
+            const text = String(value || '').trim();
+            if (!text) {
+                container.textContent = '—';
+                return;
+            }
+
+            let url;
+            try {
+                url = new URL(text);
+            } catch {
+                container.textContent = options.showInvalidText ? text : '—';
+                return;
+            }
+            if (!['http:', 'https:'].includes(url.protocol) || !url.hostname) {
+                container.textContent = options.showInvalidText ? text : '—';
+                return;
+            }
+
+            const link = document.createElement('a');
+            link.href = url.href;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            if (options.compact) link.className = 'small text-muted';
+            link.textContent = options.compact ? text.substring(0, 45) + '...' : text;
+            container.appendChild(link);
+        }
+
         function populateZonas() {
             const zonas = [...new Set([...gruposPageData.map(g => g.zona).filter(Boolean), ...(window.zonasData || []).map(z => z.nombre).filter(Boolean)])];
             const sel = document.getElementById('grupo-page-zona');
@@ -138,10 +167,6 @@
                 tr.style.animationDelay = (i * 0.04) + 's';
                 const pubs = window._gruposPubs[groupMetricKey(g.nombre,g.zona)] || 0;
                 const est = window._gruposEstatus[groupMetricKey(g.nombre,g.zona)] || {};
-                const enlaceSafe = g.enlace && /^https?:\/\//i.test(g.enlace) ? g.enlace : null;
-                const enlaceDisplay = enlaceSafe
-                    ? '<a href="' + escHtml(enlaceSafe) + '" target="_blank" rel="noopener noreferrer" class="small text-muted">' + escHtml(enlaceSafe.substring(0, 45)) + '...</a>'
-                    : '<span class="text-muted small">—</span>';
                 const fechaDisplay = g.fechaIngreso || '—';
                 const malas = (est.SUPRIMIDA || 0) + (est.ELIMINADA || 0) + (est['EN REVISION'] || 0);
                 const buenas = (est.PUBLICADA || 0);
@@ -156,13 +181,14 @@
                     : '<span class="badge-estatus est-eliminada">Inactivo</span>';
                 tr.innerHTML = `
                     <td class="fw-medium">${escHtml(g.nombre)}</td>
-                    <td class="small">${enlaceDisplay}</td>
+                    <td class="small grupo-enlace"></td>
                     <td><span class="badge-zone zone-${escHtml((g.zona || '').toLowerCase().replace(/ /g, '-'))}">${escHtml(g.zona || '—')}</span></td>
                     <td class="text-center small text-muted">${escHtml(fechaDisplay)}</td>
                     <td class="text-center fw-semibold text-primary">${pubs}</td>
                     <td class="text-center">${activoBadge}</td>
                     <td class="text-center">${rendBadge}</td>
                 `;
+                setSafeGroupLink(tr.querySelector('.grupo-enlace'), g.enlace, { compact: true });
                 makeTableRowInteractive(tr, () => openGrupoDetailModal(g.rowIndex), 'Ver detalle del grupo ' + g.nombre);
                 tbody.appendChild(tr);
             });
@@ -255,11 +281,7 @@
 
             document.getElementById('detail-grupo-nombre').innerText = g.nombre;
             const enlaceEl = document.getElementById('detail-grupo-enlace');
-            if (g.enlace && /^https?:\/\//i.test(g.enlace)) {
-                enlaceEl.innerHTML = '<a href="' + g.enlace + '" target="_blank" rel="noopener noreferrer" rel="noopener">' + g.enlace + '</a>';
-            } else {
-                enlaceEl.innerText = g.enlace || '—';
-            }
+            setSafeGroupLink(enlaceEl, g.enlace, { showInvalidText: true });
             document.getElementById('detail-grupo-pubs').innerText = pubs;
             document.getElementById('detail-grupo-publicada').innerText = est.PUBLICADA || 0;
             document.getElementById('detail-grupo-eliminada').innerText = est.ELIMINADA || 0;

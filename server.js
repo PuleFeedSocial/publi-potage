@@ -105,7 +105,8 @@ app.get('/debug', authenticate, requireAdmin, async (req, res) => {
     const codeCount = (await db.all('SELECT COUNT(*) as c FROM activation_codes'))[0]?.c || 0;
     res.json({ hasAdmin: adminCount > 0, userCount, codeCount });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Error al obtener el diagnóstico:', err);
+    res.status(500).json({ error: 'No se pudo obtener el diagnóstico.' });
   }
 });
 

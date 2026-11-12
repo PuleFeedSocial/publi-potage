@@ -21,4 +21,14 @@ function objectBody(req, res, next) {
   next();
 }
 
-module.exports = { dateKey, objectBody };
+function isHttpOrHttpsUrl(value) {
+  if (typeof value !== 'string' || !value.trim()) return false;
+  try {
+    const url = new URL(value.trim());
+    return ['http:', 'https:'].includes(url.protocol) && Boolean(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+module.exports = { dateKey, objectBody, isHttpOrHttpsUrl };
