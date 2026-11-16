@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const getDb = require('./database');
 const bcrypt = require('bcryptjs');
 
@@ -40,7 +41,7 @@ app.use('/api', require('./services/validation').objectBody);
 // node_modules, .env, package.json ni la base de datos.
 const PUBLIC_FILES = new Set([
   ...require('./assets/page-assets.json'),
-  'index.html', 'login.html', 'register.html', 'dashboard.html', 'grupos.html',
+  'index.html', '404.html', 'login.html', 'register.html', 'dashboard.html', 'grupos.html',
   'informes.html', 'sucursales.html', 'calendario.html', 'logs.html', 'ayuda.html',
   'account-settings.html', 'productos.html', 'productos.js', 'productos.css', 'egg-prices.js', 'regiones.html', 'regiones.js',
   'price-artwork.js', 'price-artwork-ui.js', 'social-artwork.js', 'company-templates.js', 'price-text.js', 'chicken-catalog.js', 'sheet-labels.js', 'img/precios/pollos.png', 'img/precios/amba.jpg', 'img/precios/costa.jpg',
@@ -108,6 +109,14 @@ app.get('/debug', authenticate, requireAdmin, async (req, res) => {
     console.error('Error al obtener el diagnóstico:', err);
     res.status(500).json({ error: 'No se pudo obtener el diagnóstico.' });
   }
+});
+
+// Página 404 propia para navegación; las APIs siguen respondiendo JSON.
+app.use((req, res) => {
+  if (req.path.startsWith('/api/') || !['GET', 'HEAD'].includes(req.method)) {
+    return res.status(404).json({ error: 'Recurso no encontrado.' });
+  }
+  res.status(404).sendFile(path.join(__dirname, '404.html'));
 });
 
 app.use((err, req, res, next) => {

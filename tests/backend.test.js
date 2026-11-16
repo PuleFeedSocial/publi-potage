@@ -353,6 +353,24 @@ test('legal links download PDFs and HTML pages and sources stay private', async 
   }
 });
 
+test('missing pages render the branded 404 screen while API 404 stays JSON', async () => {
+  const page = await fetch(base + '/esta-pagina-no-existe.html');
+  assert.equal(page.status, 404);
+  assert.match(page.headers.get('content-type'), /text\/html/);
+  const html = await page.text();
+  assert.match(html, /No encontramos esta página/);
+  assert.match(html, /href="\/index\.html"/);
+  assert.match(html, /href="\/style\.css"/);
+  assert.match(html, /src="\/app\.js"/);
+  const nested = await fetch(base + '/seccion/inexistente');
+  assert.equal(nested.status, 404);
+  assert.match(await nested.text(), /href="\/index\.html"/);
+  const api = await fetch(base + '/api/ruta-inexistente');
+  assert.equal(api.status, 404);
+  assert.match(api.headers.get('content-type'), /application\/json/);
+  assert.deepEqual(await api.json(), { error: 'Recurso no encontrado.' });
+});
+
 test('clearing notifications requires authentication and only clears the current account', async () => {
   assert.equal((await request('/api/notificaciones', { method: 'DELETE', token: '' })).status, 401);
   assert.equal((await request('/api/notificaciones', { method: 'DELETE', body: { user_id: 999 } })).status, 200);

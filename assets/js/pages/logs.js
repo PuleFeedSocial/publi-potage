@@ -89,10 +89,11 @@
             sel.value = current;
         }
 
+        const pageLoad = (task, message) => (typeof PageLoader !== 'undefined' ? PageLoader.track(task, message) : Promise.resolve().then(task));
         function loadLogs(silent) {
             const tbody = document.getElementById('logs-tbody');
             if (!silent) tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Cargando...</td></tr>';
-            authFetch(API_BASE + '/api/logs')
+            const load = () => authFetch(API_BASE + '/api/logs')
                 .then(r => r.json().then(b => ({ status: r.status, body: b })))
                 .then(({ status, body }) => {
                     if (status !== 200) {
@@ -111,6 +112,7 @@
                 .catch(() => {
                     if (!silent) tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Error de conexión</td></tr>';
                 });
+            return silent ? load() : pageLoad(load, 'Cargando registros…');
         }
 
         function renderLogs() {

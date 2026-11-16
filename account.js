@@ -36,6 +36,7 @@ async function accountLoad() {
   status.hidden = false; status.textContent = 'Cargando tu perfil…';
   document.getElementById('account-retry').hidden = true;
   try {
+    if (typeof PageLoader !== 'undefined') PageLoader.show('Cargando tu perfil…');
     const {status: code, body} = await apiFetch('/api/auth/me', {signal: AbortSignal.timeout(15000)});
     if (code !== 200) throw new Error('load');
     accountUser = body;
@@ -58,7 +59,7 @@ async function accountLoad() {
     accountUser = null;
     status.className = 'alert alert-warning'; status.textContent = 'No pudimos cargar tu cuenta. Revisá la conexión y volvé a intentar.';
     document.getElementById('account-retry').hidden = false;
-  } finally { accountLock(false); }
+  } finally { if (typeof PageLoader !== 'undefined') PageLoader.hide(); accountLock(false); }
 }
 function accountVerification(id) {
   const value = document.getElementById(id).value;

@@ -1,0 +1,2 @@
+/* Página 404: estilos específicos mínimos (el diseño principal vive en style.css). */
+.error-page .error-actions .btn { min-width: 140px; }

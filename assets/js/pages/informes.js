@@ -1,11 +1,12 @@
         let informesData = [];
         let informesColumns = [];
         let pendingImport = null;
+        const pageLoad = (task, message) => (typeof PageLoader !== 'undefined' ? PageLoader.track(task, message) : Promise.resolve().then(task));
 
         function loadInformes() {
             const tbody = document.getElementById('informes-tbody');
             tbody.innerHTML = '<tr><td colspan="99" class="text-center text-muted">Cargando...</td></tr>';
-            authFetch(API_BASE + '/api/informes')
+            return pageLoad(() => authFetch(API_BASE + '/api/informes')
                 .then(r => r.json().then(b => ({ status: r.status, body: b })))
                 .then(({ status, body }) => {
                     if (status !== 200) {
@@ -20,7 +21,7 @@
                 })
                 .catch(() => {
                     tbody.innerHTML = '<tr><td colspan="99" class="text-center text-muted">Error de conexión</td></tr>';
-                });
+                }), 'Cargando informes…');
         }
 
         function renderInformes(columns) {

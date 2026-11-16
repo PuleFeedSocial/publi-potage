@@ -248,13 +248,13 @@ async function saveProduct(remove = false) {
   } catch (e) { pe('product-form-error').textContent = e.name === 'TimeoutError' || e instanceof TypeError ? 'No pudimos confirmar el resultado. Actualizá los datos antes de repetir el cambio.' : e.message; }
   finally { productsBusy = false; pe('product-form-set').disabled = false; }
 }
-document.addEventListener('DOMContentLoaded', async () => {
+async function initProductosPage() {
   const user = getCurrentSession(); if (!user) { location.href = 'login.html'; return; } guardPage('view_productos');
   for (const id of ['display-user-name', 'nav-user-name']) pe(id).textContent = user.name || 'Cuenta';
   for (const id of ['display-avatar', 'nav-avatar']) pe(id).textContent = (user.name || '?').slice(0, 2).toUpperCase();
   pe('display-user-role').textContent = user.role;
   for (const id of ['gestion-label', 'gestion-items']) pe(id).hidden = sessionRole() !== 'admin';
-  pe('products-refresh').onclick = loadProducts;
+  pe('products-refresh').onclick = () => (typeof PageLoader !== 'undefined' ? PageLoader.track(loadProducts, 'Actualizando productos…') : loadProducts());
   pe('product-region').onchange = () => { requestedBranch = null; rebuildProductLocals(); activeProductTypeFilter = 'all'; renderProductTypeFilters(pe('product-region').value); renderProductRegion(); };
   pe('product-local').onchange = () => { requestedBranch = null; renderProductRegion(); };
   pe('product-order').onchange = renderProductRegion;
@@ -273,4 +273,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (pe('product-new')) pe('product-new').hidden = !canEditProducts();
   try { const { status, body } = await apiFetch('/api/productos/sucursales', { signal: AbortSignal.timeout(15000) }); if (status !== 200) throw Error(); productBranches = body.data || []; } catch { branchCatalogError = 'No pudimos cargar Sucursales. Actualizá la página para reintentar. Los precios siguen disponibles.'; }
   await loadProducts();
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const task = () => initProductosPage();
+  if (typeof PageLoader !== 'undefined') PageLoader.track(task, 'Cargando productos y sucursales…');
+  else task().catch(() => {});
 });

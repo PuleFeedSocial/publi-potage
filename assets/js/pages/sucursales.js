@@ -55,11 +55,12 @@ function fillZonaSelects() {
         }
 
 let _lastSucursalesSnapshot = '';
+        const pageLoad = (task, message) => (typeof PageLoader !== 'undefined' ? PageLoader.track(task, message) : Promise.resolve().then(task));
         function loadSucursales(silent) {
             const tbody = document.getElementById('sucursales-table-body');
             const cols = 8;
             if (!silent) tbody.innerHTML = '<tr><td colspan="' + cols + '" class="text-center text-muted">Cargando...</td></tr>';
-            Promise.all([
+            const load = () => Promise.all([
                 authFetch(API_BASE + '/api/sucursales'),
                 authFetch(API_BASE + '/api/zonas')
             ])
@@ -88,6 +89,7 @@ let _lastSucursalesSnapshot = '';
                 .catch(() => {
                     if (!silent) tbody.innerHTML = '<tr><td colspan="' + cols + '" class="text-center text-muted">Error de conexión</td></tr>';
                 });
+            return silent ? load() : pageLoad(load, 'Cargando sucursales…');
         }
 
         function renderSucursales() {

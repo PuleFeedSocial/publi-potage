@@ -5,6 +5,7 @@
         const CAL_DOW_SHORT = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM'];
         const CAL_RECURRENCIA_LABEL = { diaria: 'Diaria', semanal: 'Semanal', mensual: 'Mensual' };
         const CAL_RECURRENCIA_TOTAL = { diaria: 60, semanal: 52, mensual: 24 };
+        const pageLoad = (task, message) => (typeof PageLoader !== 'undefined' ? PageLoader.track(task, message) : Promise.resolve().then(task));
 
         let calEvents = [];
         let calView = 'mes';
@@ -292,7 +293,7 @@
                 calLoadError = false;
                 renderAll();
             }
-            authFetch(API_BASE + '/api/calendario?desde=' + r.desde + '&hasta=' + r.hasta)
+            const load = () => authFetch(API_BASE + '/api/calendario?desde=' + r.desde + '&hasta=' + r.hasta)
                 .then(res => res.json().then(b => ({ status: res.status, body: b })))
                 .then(({ status, body }) => {
                     if (seq !== _calLoadSeq) return;
@@ -322,6 +323,7 @@
                     renderAll();
                     showToast('Error de conexión con el servidor.', 'error');
                 });
+            return silent ? load() : pageLoad(load, 'Cargando calendario…');
         }
 
         /* ---------- navegación y vistas ---------- */

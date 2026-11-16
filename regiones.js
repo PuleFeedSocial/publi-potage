@@ -127,16 +127,20 @@ async function saveRegionForm(remove=false){
  }catch(error){re('region-error').textContent=error.name==='TimeoutError'||error instanceof TypeError?'No pudimos confirmar el guardado. Cerrá y actualizá antes de volver a intentar.':error.message;}
  finally{regionsBusy=false;re('region-fields').disabled=false;}
 }
-document.addEventListener('DOMContentLoaded',async()=>{
+async function initRegionesPage(){
  const user=getCurrentSession();if(!user){location.href='login.html';return;}guardPage('view_productos');
  for(const id of ['display-user-name','nav-user-name'])re(id).textContent=user.name||'Cuenta';
  for(const id of ['display-avatar','nav-avatar'])re(id).textContent=(user.name||'?').slice(0,2).toUpperCase();
  re('display-user-role').textContent=user.role;for(const id of ['gestion-label','gestion-items'])re(id).hidden=sessionRole()!=='admin';
- re('regions-refresh').onclick=async()=>{await loadRegionDirectory();await loadRegions();};re('regions-search').oninput=()=>{if(regionsData)renderRegions();};re('regions-add').onclick=()=>openRegion();
+ re('regions-refresh').onclick=async()=>{if(typeof PageLoader!=='undefined')await PageLoader.track(async()=>{await loadRegionDirectory();await loadRegions();},'Actualizando regiones…');else{await loadRegionDirectory();await loadRegions();}};re('regions-search').oninput=()=>{if(regionsData)renderRegions();};re('regions-add').onclick=()=>openRegion();
  for(const id of ['region-branch-company','region-branch-zone'])re(id).onchange=filterRegionBranches;
  re('region-branch-search').oninput=filterRegionBranches;re('region-branch-clear').onclick=resetRegionBranchFilters;
  re('region-form').onsubmit=e=>{e.preventDefault();saveRegionForm();};re('region-delete').onclick=()=>saveRegionForm(true);re('region-cancel').onclick=()=>re('region-dialog').close();re('region-dialog').addEventListener('cancel',e=>{if(regionsBusy)e.preventDefault();});
  await loadMyPermissions();re('regions-add').hidden=!regionCanEdit();await loadRegionDirectory();await loadRegions();
+}
+document.addEventListener('DOMContentLoaded',()=>{
+ const task=()=>initRegionesPage();
+ if(typeof PageLoader!=='undefined')PageLoader.track(task,'Cargando regiones y sucursales…');else task().catch(()=>{});
 });
 async function loadRegionDirectory(){
  try{const {status,body}=await apiFetch('/api/productos/sucursales',{signal:AbortSignal.timeout(15000)});if(status!==200)throw Error();regionBranches=body.data||[];regionDirectoryError='';}

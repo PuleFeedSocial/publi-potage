@@ -1,4 +1,7 @@
 [
+  "assets/css/pages/404.css",
+  "assets/js/pages/404.js",
+  "assets/js/pages/404-events.js",
   "assets/css/pages/account-settings.css",
   "assets/js/pages/account-settings-events.js",
   "assets/js/pages/ayuda.js",

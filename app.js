@@ -1,6 +1,113 @@
 const API_BASE = window.location.origin.startsWith('http') ? window.location.origin : 'http://localhost:3000';
 
 /* ---------- MODO OSCURO / CLARO ---------- */
+/* ---------- CARGA GLOBAL (bloquea la interfaz mientras se consultan BD/Sheets) ---------- */
+const PageLoader = (() => {
+  let overlay = null;
+  let card = null;
+  let title = null;
+  let text = null;
+  let pending = 0;
+  let shownAt = 0;
+  let hideTimer = null;
+  let slowTimer = null;
+  let blocked = [];
+  let previousFocus = null;
+
+  function build() {
+    if (overlay || typeof document === 'undefined' || !document.body) return overlay;
+    overlay = document.getElementById('page-loader');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'page-loader';
+      overlay.className = 'page-loader';
+      overlay.setAttribute('aria-hidden', 'true');
+      overlay.innerHTML = '<div class="page-loader-card" tabindex="-1" role="status" aria-live="polite" aria-atomic="true">'
+        + '<div class="page-loader-spinner" aria-hidden="true"><span class="page-loader-ring"></span>'
+        + '<span class="page-loader-core"><img src="/img/isotiposinfondo.png" alt=""></span></div>'
+        + '<p class="page-loader-title">Cargando datos</p>'
+        + '<p class="page-loader-text">Obteniendo información de la base de datos y Google Sheets…</p></div>';
+      document.body.appendChild(overlay);
+    }
+    card = overlay.querySelector('.page-loader-card');
+    title = overlay.querySelector('.page-loader-title');
+    text = overlay.querySelector('.page-loader-text');
+    overlay.addEventListener('keydown', (event) => {
+      if (event.key !== 'Tab' || !card) return;
+      event.preventDefault();
+      card.focus();
+    });
+    return overlay;
+  }
+
+  function active() {
+    return !!overlay && overlay.classList.contains('is-active');
+  }
+
+  function show(message) {
+    build();
+    if (!overlay) return;
+    clearTimeout(hideTimer);
+    clearTimeout(slowTimer);
+    if (message && text) text.textContent = message;
+    if (!active()) {
+      shownAt = Date.now();
+      previousFocus = document.activeElement;
+      overlay.classList.add('is-active');
+      overlay.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('page-loading');
+      blocked = Array.from(document.body.children)
+        .filter(el => el !== overlay)
+        .map(el => ({ el, inert: !!el.inert }));
+      blocked.forEach(({ el }) => { el.inert = true; });
+      if (card) card.focus({ preventScroll: true });
+    }
+    slowTimer = setTimeout(() => {
+      if (text) text.textContent = 'La consulta está tardando más de lo habitual. No cierres esta ventana.';
+    }, 15000);
+  }
+
+  function hide() {
+    if (!active() || pending > 0) return;
+    clearTimeout(slowTimer);
+    clearTimeout(hideTimer);
+    const wait = Math.max(0, 350 - (Date.now() - shownAt));
+    hideTimer = setTimeout(() => {
+      overlay.classList.remove('is-active');
+      overlay.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('page-loading');
+      blocked.forEach(({ el, inert }) => { el.inert = inert; });
+      blocked = [];
+      if (previousFocus && previousFocus.isConnected && typeof previousFocus.focus === 'function') {
+        previousFocus.focus({ preventScroll: true });
+      }
+      previousFocus = null;
+    }, wait);
+  }
+
+  function track(task, message) {
+    pending += 1;
+    show(message);
+    const done = () => {
+      pending = Math.max(0, pending - 1);
+      if (!pending) hide();
+    };
+    return Promise.resolve()
+      .then(() => (typeof task === 'function' ? task() : task))
+      .then(
+        value => { done(); return value; },
+        error => { done(); throw error; }
+      );
+  }
+
+  build();
+  return { show, hide, track, active };
+})();
+
+function showPageLoader(message) { PageLoader.show(message); }
+function hidePageLoader() { PageLoader.hide(); }
+function withPageLoader(task, message) { return PageLoader.track(task, message); }
+
 function getTheme() {
   const saved = localStorage.getItem('potageTheme');
   if (saved === 'dark' || saved === 'light') return saved;
@@ -959,24 +1066,25 @@ function switchView(viewName) {
   } else if (viewName === 'zonas') {
     title.innerText = 'Sucursales de redes';
     subtitle.innerText = 'Seguimiento de marketing por sucursal, conservando el historial de marketing';
-    loadZonas();
+    PageLoader.track(() => Promise.allSettled([loadZonas()]), 'Cargando sucursales de redes…');
     renderZonasDashboard();
     } else {
       title.innerText = 'Gestión de Usuarios y Códigos';
       subtitle.innerText = 'Administra los permisos y códigos de activación de tu equipo';
-      loadUsers();
-      loadCodes();
-      loadZonas();
-      loadRolesTable();
+      PageLoader.track(() => Promise.allSettled([
+        loadUsers(), loadCodes(), loadZonas(), loadRolesTable()
+      ]), 'Cargando usuarios, códigos y permisos…');
     }
 }
 
 let _appLastMarketingSnapshot = '';
 function loadMarketingData(silent) {
   const tbody = document.getElementById('marketing-table-body');
-  if (!silent) tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Cargando...</td></tr>';
+  if (!silent && tbody) tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Cargando...</td></tr>';
+  const blocking = !silent && !!tbody && !_dashboardInitialLoading;
+  if (blocking) showPageLoader('Cargando publicaciones…');
 
-  authFetch(API_BASE + '/api/marketing')
+  return authFetch(API_BASE + '/api/marketing')
     .then(r => r.text().then(text => ({ status: r.status, text })))
     .then(({ status, text }) => {
       let body;
@@ -985,13 +1093,15 @@ function loadMarketingData(silent) {
       if (status !== 200) {
         if (silent) return;
         const msg = body.error || 'Error ' + status;
-        document.getElementById('data-source-badge').innerHTML = '<i class="bi bi-exclamation-triangle text-danger"></i> ' + escHtml(msg);
-        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">' + escHtml(msg) + '</td></tr>';
+        const badge = document.getElementById('data-source-badge');
+        if (badge) badge.innerHTML = '<i class="bi bi-exclamation-triangle text-danger"></i> ' + escHtml(msg);
+        if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">' + escHtml(msg) + '</td></tr>';
         return;
       }
       const newData = body.data || [];
       const snap = JSON.stringify(newData);
-      document.getElementById('data-source-badge').innerHTML = body.stale
+      const badge = document.getElementById('data-source-badge');
+      if (badge) badge.innerHTML = body.stale
         ? '<i class="bi bi-exclamation-triangle text-warning"></i> Datos guardados · no se pudo actualizar Google Sheets'
         : '<i class="bi bi-database"></i> Google Sheets';
       if (silent && snap === _appLastMarketingSnapshot) return;
@@ -1000,13 +1110,17 @@ function loadMarketingData(silent) {
       populateFilterDropdowns();
     })
     .catch((err) => {
-      if (!silent) tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Error de red: ' + escHtml(err.message || 'desconocido') + '</td></tr>';
-    });
+      if (!silent && tbody) tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Error de red: ' + escHtml(err.message || 'desconocido') + '</td></tr>';
+    })
+    .finally(() => { if (blocking) hidePageLoader(); });
 }
 
 function refreshMarketingData() {
-  authFetch(API_BASE + '/api/marketing/refresh')
-    .then(() => loadMarketingData()).catch(() => loadMarketingData());
+  showPageLoader('Actualizando datos desde Google Sheets…');
+  return authFetch(API_BASE + '/api/marketing/refresh')
+    .then(() => loadMarketingData())
+    .catch(() => loadMarketingData())
+    .finally(() => hidePageLoader());
 }
 
 function saludDiv(rows) {
@@ -1734,7 +1848,10 @@ function saveBulkMarketing() {
 
 let _appLastGruposSnapshot = '';
 function loadGrupos(silent) {
-  authFetch(API_BASE + '/api/grupos')
+  const blocking = !silent && !!document.getElementById('marketing-table-body');
+  // En dashboard la carga inicial se coordina desde enterApp; no bloquear dos veces.
+  if (blocking && !_dashboardInitialLoading) showPageLoader('Cargando grupos…');
+  return authFetch(API_BASE + '/api/grupos')
     .then(r => r.json().then(b => ({ status: r.status, body: b })))
     .then(({ status, body }) => {
       if (status === 200) {
@@ -1746,12 +1863,16 @@ function loadGrupos(silent) {
         refreshGruposByZona();
       }
     })
-    .catch(() => {});
+    .catch(() => {})
+    .finally(() => { if (blocking && !_dashboardInitialLoading) hidePageLoader(); });
 }
 
+let _dashboardInitialLoading = false;
 let _appLastZonasSnapshot = '';
 function loadZonas(silent) {
-  apiFetch('/api/zonas').then(({ status, body }) => {
+  const blocking = !silent && !_dashboardInitialLoading && !!(document.getElementById('marketing-table-body') || document.getElementById('zonas-table-body'));
+  if (blocking) showPageLoader('Cargando sucursales de redes…');
+  return apiFetch('/api/zonas').then(({ status, body }) => {
     if (status === 200) {
       const newData = body.data || [];
       const snap = JSON.stringify(newData);
@@ -1774,12 +1895,12 @@ function loadZonas(silent) {
       }
       if (document.getElementById('zonas-table-body')) renderZonasDashboard();
     }
-  });
+  }).finally(() => { if (blocking) hidePageLoader(); });
 }
 
 let _appLastHistorialSnapshot = '';
 function loadHistorial(silent) {
-  authFetch(API_BASE + '/api/historial')
+  return authFetch(API_BASE + '/api/historial')
     .then(r => r.json().then(b => ({ status: r.status, body: b })))
     .then(({ status, body }) => {
       if (status === 200) {
@@ -2609,8 +2730,8 @@ function initCharts(chartData) {
   }
 }
 function loadUsers() {
-  apiFetch('/api/auth/users').then(({ status, body }) => {
-    if (status !== 200) { alert(body.error || 'Error al cargar usuarios.'); return; }
+  return apiFetch('/api/auth/users').then(({ status, body }) => {
+    if (status !== 200) { if (!_dashboardInitialLoading) alert(body.error || 'Error al cargar usuarios.'); return; }
     renderUsers(body);
   });
 }
@@ -2650,8 +2771,8 @@ let currentRolePerm = 'colaborador';
 let currentRolePermLabel = 'Colaborador';
 
 function loadRoles() {
-  if (sessionRole() !== 'admin') return;
-  apiFetch('/api/auth/roles').then(({ status, body }) => {
+  if (sessionRole() !== 'admin') return Promise.resolve();
+  return apiFetch('/api/auth/roles').then(({ status, body }) => {
     if (status !== 200) return;
     const sel = document.getElementById('input-role');
     if (!sel) return;
@@ -2673,8 +2794,8 @@ function loadRoles() {
 }
 
 function loadRolesTable() {
-  if (sessionRole() !== 'admin') return;
-  apiFetch('/api/auth/roles').then(({ status, body }) => {
+  if (sessionRole() !== 'admin') return Promise.resolve();
+  return apiFetch('/api/auth/roles').then(({ status, body }) => {
     if (status !== 200) return;
     const tbody = document.getElementById('roles-table-body');
     if (!tbody) return;
@@ -2910,7 +3031,7 @@ function deleteUser(id) {
 }
 
 function loadCodes() {
-  apiFetch('/api/auth/codes').then(({ status, body }) => {
+  return apiFetch('/api/auth/codes').then(({ status, body }) => {
     if (status !== 200) return;
     renderCodes(body);
   });
@@ -3245,17 +3366,25 @@ function enterApp(user) {
   const gestionItems = document.getElementById('gestion-items');
   if (gestionLabel) gestionLabel.style.display = isAdmin ? '' : 'none';
   if (gestionItems) gestionItems.style.display = isAdmin ? '' : 'none';
-  loadMarketingData();
-  loadGrupos();
-  loadHistorial();
-  loadZonas();
   logVisit();
-    if (isAdmin) {
-      loadUsers();
-      loadRoles();
-    }
-  document.getElementById('current-page-title').innerText = 'Dashboard Publicaciones';
-  document.getElementById('current-page-subtitle').innerText = 'Rendimiento en tiempo real de cuentas de Facebook';
+  if (document.getElementById('marketing-table-body')) {
+    _dashboardInitialLoading = true;
+    PageLoader.track(() => {
+      const tasks = [loadMarketingData(), loadGrupos(), loadHistorial(), loadZonas()];
+      if (isAdmin) { tasks.push(loadUsers(), loadRoles()); }
+      return Promise.allSettled(tasks);
+    }, 'Cargando datos del dashboard…').finally(() => { _dashboardInitialLoading = false; });
+  } else {
+    loadMarketingData();
+    loadGrupos();
+    loadHistorial();
+    loadZonas();
+    if (isAdmin) { loadUsers(); loadRoles(); }
+  }
+  const title = document.getElementById('current-page-title');
+  const subtitle = document.getElementById('current-page-subtitle');
+  if (title) title.innerText = 'Dashboard Publicaciones';
+  if (subtitle) subtitle.innerText = 'Rendimiento en tiempo real de cuentas de Facebook';
 
   setInterval(() => {
     loadMarketingData(true);

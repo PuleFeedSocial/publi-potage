@@ -1,4 +1,34 @@
         let gruposPageData = [];
+        const pageLoad = (task, message) => (typeof PageLoader !== 'undefined' ? PageLoader.track(task, message) : Promise.resolve().then(task));
+
+        function setSafeGroupLink(container, value, options = {}) {
+            container.replaceChildren();
+            const text = String(value || '').trim();
+            if (!text) {
+                container.textContent = '—';
+                return;
+            }
+
+            let url;
+            try {
+                url = new URL(text);
+            } catch {
+                container.textContent = options.showInvalidText ? text : '—';
+                return;
+            }
+            if (!['http:', 'https:'].includes(url.protocol) || !url.hostname) {
+                container.textContent = options.showInvalidText ? text : '—';
+                return;
+            }
+
+            const link = document.createElement('a');
+            link.href = url.href;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            if (options.compact) link.className = 'small text-muted';
+            link.textContent = options.compact ? text.substring(0, 45) + '...' : text;
+            container.appendChild(link);
+        }
 
         function setSafeGroupLink(container, value, options = {}) {
             container.replaceChildren();
@@ -69,7 +99,7 @@
             restoreGruposFilters();
             const tbody = document.getElementById('grupos-page-table-body');
             if (!silent) tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Cargando...</td></tr>';
-            Promise.all([
+            const load = () => Promise.all([
                 authFetch(API_BASE + '/api/grupos'),
                 authFetch(API_BASE + '/api/marketing'),
                 authFetch(API_BASE + '/api/zonas')
@@ -122,6 +152,7 @@
                 .catch(() => {
                     if (!silent) tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Error de conexión</td></tr>';
                 });
+            return silent ? load() : pageLoad(load, 'Cargando grupos…');
         }
 
         function groupMetricKey(name,zone){return normFilterVal(name)+'|'+normFilterVal(zone);}

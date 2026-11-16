@@ -11,6 +11,7 @@ async function openPriceArtwork(){
 async function refreshPriceArtwork(){
  const version=++artworkVersion;artworkReady=false;artworkData=null;artworkBranches=[];artworkCompanies=[];artworkDirectory=[];
  ae('artwork-download').disabled=true;ae('artwork-refresh').disabled=true;ae('artwork-company').replaceChildren();ae('artwork-preview').hidden=true;ae('artwork-status').textContent='Consultando precios actuales…';ae('artwork-selections').replaceChildren();
+ if(typeof PageLoader!=='undefined')PageLoader.show('Consultando precios en Google Sheets…');
  try{
   const [{status,body},directory]=await Promise.all([apiFetch('/api/productos',{signal:AbortSignal.timeout(20000)}),apiFetch('/api/productos/sucursales',{signal:AbortSignal.timeout(20000)})]);
   if(version!==artworkVersion)return;
@@ -31,7 +32,7 @@ async function refreshPriceArtwork(){
   ae('artwork-refresh').disabled=false;
   buildArtworkSelections();
  }catch(error){if(version===artworkVersion)ae('artwork-status').textContent=error.name==='TimeoutError'?'La hoja tardó en responder. Pulsá Actualizar precios para reintentar.':error.message;}
- finally{if(version===artworkVersion)ae('artwork-refresh').disabled=false;}
+ finally{if(typeof PageLoader!=='undefined')PageLoader.hide();if(version===artworkVersion)ae('artwork-refresh').disabled=false;}
 }
 function selectArtworkCompany(){
  if(!artworkData)return;
