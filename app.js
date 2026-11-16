@@ -1723,14 +1723,17 @@ function openBulkModal() {
     selZona.appendChild(opt);
   });
 
-  filterGruposBulk();
+  document.getElementById('bulk-grupo-search').value = '';
+  filterGruposBulk(true);
   new bootstrap.Modal(document.getElementById('bulkModal')).show();
 }
 
-function filterGruposBulk() {
+function filterGruposBulk(resetSelection) {
   const zona = document.getElementById('bulk-zona').value;
   const container = document.getElementById('bulk-grupos-container');
-  const checked = [...container.querySelectorAll('input[type=checkbox]:checked')].map(cb => cb.value);
+  // Al abrir una nueva jornada se limpian las selecciones previas; al cambiar de
+  // sucursal (sin reset) se conservan los grupos ya marcados.
+  const checked = resetSelection ? [] : [...container.querySelectorAll('input[type=checkbox]:checked')].map(cb => cb.value);
 
   const grupos = dashboardGroupOptions(gruposData, marketingData, zona)
     .filter(entry => entry.activo !== false && zonaActiva(entry.zona) && normFilterVal(entry.nombre) !== normFilterVal('Perfil Estandar'));
