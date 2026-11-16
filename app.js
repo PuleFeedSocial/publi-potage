@@ -1706,12 +1706,12 @@ function deleteMarketingRow(rowIndex) {
 // --- Carga Múltiple ---
 function openBulkModal() {
   document.getElementById('bulk-fecha').value = new Date().toISOString().split('T')[0];
-  document.getElementById('bulk-pubs').value = 0;
+  document.getElementById('bulk-pubs').value = 1;
   document.getElementById('bulk-vis').value = 0;
   document.getElementById('bulk-int').value = 0;
   document.getElementById('bulk-com').value = 0;
   document.getElementById('bulk-msj').value = 0;
-  document.getElementById('bulk-estatus').value = 'SIN DEFINIR';
+  document.getElementById('bulk-estatus').value = 'PUBLICADA';
 
   let zonas = [...new Set(zonasData.map(r => r.nombre).filter(Boolean)), ...new Set(marketingData.map(r => r.zona).filter(Boolean))];
   zonas = [...new Set(zonas)];
@@ -2001,7 +2001,7 @@ function openAddModal() {
   document.getElementById('mk-grupo').value = '';
   document.getElementById('mk-grupo-custom').value = '';
   document.getElementById('mk-grupo-custom').classList.add('d-none');
-  document.getElementById('mk-pubs').value = (lastData && lastData.publicaciones) || 0;
+  document.getElementById('mk-pubs').value = 1;
   document.getElementById('mk-vis').value = (lastData && lastData.visualizaciones) || 0;
   document.getElementById('mk-int').value = (lastData && lastData.interacciones) || 0;
   document.getElementById('mk-com').value = (lastData && lastData.comentarios) || 0;
@@ -2009,7 +2009,7 @@ function openAddModal() {
   document.getElementById('mk-zona').value = '';
   document.getElementById('mk-zona-custom').value = '';
   document.getElementById('mk-zona-custom').classList.add('d-none');
-  document.getElementById('mk-estatus').value = (lastData && lastData.estatus) || 'SIN DEFINIR';
+  document.getElementById('mk-estatus').value = 'PUBLICADA';
   document.getElementById('mk-delete-btn').classList.add('d-none');
   populateSelects();
   new bootstrap.Modal(document.getElementById('mkModal')).show();
@@ -2110,7 +2110,7 @@ function saveMarketingRow() {
       updateMarketingRow(rowIndex, data);
       postHistorial(snapshot);
     } else {
-      try { localStorage.setItem('mkLast', JSON.stringify({ fecha: rawFecha, publicaciones: data.publicaciones, visualizaciones: data.visualizaciones, interacciones: data.interacciones, comentarios: data.comentarios, mensajes: data.mensajes, estatus: data.estatus })); } catch {}
+      try { localStorage.setItem('mkLast', JSON.stringify({ fecha: rawFecha, visualizaciones: data.visualizaciones, interacciones: data.interacciones, comentarios: data.comentarios, mensajes: data.mensajes })); } catch {}
       addMarketingRow(data, snapshot);
       showToast('Publicación agregada', 'success');
     }
