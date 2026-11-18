@@ -93,7 +93,7 @@
         function loadLogs(silent) {
             const tbody = document.getElementById('logs-tbody');
             if (!silent) tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Cargando...</td></tr>';
-            const load = () => authFetch(API_BASE + '/api/logs')
+            const load = () => authFetch(API_BASE + '/api/logs', { signal: AbortSignal.timeout(20000) })
                 .then(r => r.json().then(b => ({ status: r.status, body: b })))
                 .then(({ status, body }) => {
                     if (status !== 200) {
@@ -107,7 +107,7 @@
                     logsData = logs;
                     setLogsUserOptions();
                     document.getElementById('data-source-badge-logs').innerHTML = '<i class="bi bi-database"></i> Logs · ' + logs.length + ' registros';
-                    renderLogs();
+                    renderLogs(silent);
                 })
                 .catch(() => {
                     if (!silent) tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Error de conexión</td></tr>';
@@ -115,15 +115,20 @@
             return silent ? load() : pageLoad(load, 'Cargando registros…');
         }
 
-        function renderLogs() {
-            const tbody = document.getElementById('logs-tbody');
+        // El historial puede tener miles de filas: se renderiza por lotes para no
+        // bloquear el navegador (el DOM completo con animaciones por fila lo congelaba).
+        const LOGS_PAGE_SIZE = 200;
+        let _logsFiltered = [];
+        let _logsRendered = 0;
+
+        function filterLogs() {
             const usuarioF = document.getElementById('logs-filter-usuario').value;
             const tipoF = document.getElementById('logs-filter-tipo').value;
             const desdeF = document.getElementById('logs-desde').value;
             const hastaF = document.getElementById('logs-hasta').value;
             const texto = (document.getElementById('logs-buscar').value || '').toLowerCase().trim();
 
-            const rows = logsData.filter(log => {
+            return logsData.filter(log => {
                 if (usuarioF && (log.email || '') !== usuarioF) return false;
                 if (tipoF && categoriaAccion(log.accion) !== tipoF) return false;
                 const fd = fechaLocal(log.created_at);
@@ -135,37 +140,73 @@
                 }
                 return true;
             });
+        }
 
-            document.getElementById('logs-count').innerText =
-                rows.length + (rows.length !== logsData.length ? ' de ' + logsData.length : '') + ' registros';
+        function updateLogsMoreButton() {
+            const btn = document.getElementById('logs-load-more');
+            if (!btn) return;
+            const restantes = _logsFiltered.length - _logsRendered;
+            btn.hidden = restantes <= 0;
+            if (restantes > 0) btn.innerHTML = '<i class="bi bi-chevron-down me-1"></i>Mostrar más (' + restantes + ')';
+        }
 
-            if (!logsData.length) {
-                tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">No hay registros de actividad.</td></tr>';
-                return;
-            }
-            if (!rows.length) {
-                tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">Sin resultados para los filtros aplicados.</td></tr>';
-                return;
-            }
-
-            tbody.innerHTML = '';
-            rows.forEach((log, i) => {
+        function appendLogs(target) {
+            const tbody = document.getElementById('logs-tbody');
+            const end = Math.min(target, _logsFiltered.length);
+            if (end <= _logsRendered) { updateLogsMoreButton(); return; }
+            const frag = document.createDocumentFragment();
+            for (let i = _logsRendered; i < end; i++) {
+                const log = _logsFiltered[i];
                 const tr = document.createElement('tr');
                 tr.className = 'log-entry';
-                tr.style.animation = 'fadeSlideUp 0.3s ease-out forwards';
-                tr.style.animationDelay = (Math.min(i, 20) * 0.04) + 's';
-
+                // Solo las primeras filas se animan: animar miles a la vez congela el navegador.
+                if (i < 20) {
+                    tr.style.animation = 'fadeSlideUp 0.3s ease-out forwards';
+                    tr.style.animationDelay = (i * 0.04) + 's';
+                }
                 const fecha = log.created_at ? new Date(log.created_at).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }) : '—';
                 const badge = badgeClass(log.accion);
-
                 tr.innerHTML = `
                     <td class="text-muted" style="white-space:nowrap">${fecha}</td>
                     <td class="fw-medium">${escHtml(log.email || '—')}</td>
                     <td><span class="badge-accion ${badge}">${escHtml(log.accion || '—')}</span></td>
                     <td class="text-muted">${escHtml(log.detalle || '')}</td>
                 `;
-                tbody.appendChild(tr);
-            });
+                frag.appendChild(tr);
+            }
+            tbody.appendChild(frag);
+            _logsRendered = end;
+            updateLogsMoreButton();
+        }
+
+        function renderLogs(keepCount) {
+            const tbody = document.getElementById('logs-tbody');
+            _logsFiltered = filterLogs();
+
+            document.getElementById('logs-count').innerText =
+                _logsFiltered.length + (_logsFiltered.length !== logsData.length ? ' de ' + logsData.length : '') + ' registros';
+
+            if (!logsData.length) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">No hay registros de actividad.</td></tr>';
+                _logsRendered = 0;
+                updateLogsMoreButton();
+                return;
+            }
+            if (!_logsFiltered.length) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">Sin resultados para los filtros aplicados.</td></tr>';
+                _logsRendered = 0;
+                updateLogsMoreButton();
+                return;
+            }
+
+            const objetivo = keepCount ? Math.max(_logsRendered, LOGS_PAGE_SIZE) : LOGS_PAGE_SIZE;
+            tbody.innerHTML = '';
+            _logsRendered = 0;
+            appendLogs(objetivo);
+        }
+
+        function renderMoreLogs() {
+            appendLogs(_logsRendered + LOGS_PAGE_SIZE);
         }
 
         document.addEventListener('DOMContentLoaded', () => {

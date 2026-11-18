@@ -71,6 +71,8 @@ async function initializeDb() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+  // La página de logs ordena por fecha: el índice evita escaneos/ordenamientos costosos.
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_logs_created_at ON logs (created_at DESC)`);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS zonas (

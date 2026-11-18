@@ -39,4 +39,7 @@
   { const element = document.querySelector("[data-page-event=\"logs-13\"]");
     if (element && !element.onclick) element.onclick = function(event) { clearLogsFilters() };
   }
+  { const element = document.querySelector("[data-page-event=\"logs-14\"]");
+    if (element && !element.onclick) element.onclick = function(event) { renderMoreLogs() };
+  }
 })();
