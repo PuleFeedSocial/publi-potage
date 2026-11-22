@@ -6,6 +6,7 @@ html .page-grupos-inline-2 { width:auto;min-width:140px }
 html .page-grupos-inline-3 { width:auto;min-width:200px }
 html .page-grupos-inline-4 { width:auto;min-width:140px }
 
+#grupoDetailModal #grupo-detail-view[hidden],#grupoDetailModal #grupo-stats-view[hidden] { display:none !important }
 #grupoDetailModal.is-stats .modal-dialog { max-width:720px }
 #grupoDetailModal.is-stats .modal-content { display:flex;flex-direction:column;max-height:90vh }
 #grupoDetailModal.is-stats .modal-body { min-height:0;overflow-y:auto }

@@ -1,5 +1,7 @@
         let gruposPageData = [];
         let grupoStatsChart = null;
+        let grupoMarketingCache = null;
+        const grupoNum = value => { try { return MarketingAnalysis.number(value); } catch { return 0; } };
         const grupoNumberFormat = new Intl.NumberFormat('es-AR');
         const grupoPercentFormat = new Intl.NumberFormat('es-AR', { style: 'percent', maximumFractionDigits: 1 });
         const pageLoad = (task, message) => (typeof PageLoader !== 'undefined' ? PageLoader.track(task, message) : Promise.resolve().then(task));
@@ -131,6 +133,7 @@
                     if (zonasRes.status === 200) window.zonasData = newZonas;
                     const marketingData = newMarketing;
                     window._gruposMarketing = marketingData;
+                    grupoMarketingCache = marketingData;
                     // Compute pubs per group
                     window._gruposPubs = {};
                     window._gruposEstatus = {};
@@ -304,14 +307,37 @@
             return match ? Number(match[1]) * 10000 + Number(match[2]) * 100 + Number(match[3]) : 0;
         }
 
-        function buildGrupoStats(grupo) {
-            const key = groupMetricKey(grupo.nombre, grupo.zona);
-            const rows = (window._gruposMarketing || []).filter(r => {
-                const asignado = r.grupoFila != null && r.grupoFila !== '' && String(r.grupoFila) === String(grupo.rowIndex);
-                const historico = !r.grupoFila && r.grupo && groupMetricKey(r.grupo, r.zona) === key;
-                return asignado || historico;
+        async function getGrupoMarketingRows() {
+            if (grupoMarketingCache && grupoMarketingCache.length) return grupoMarketingCache;
+            if (window._gruposMarketing && window._gruposMarketing.length) {
+                grupoMarketingCache = window._gruposMarketing;
+                return grupoMarketingCache;
+            }
+            const res = await authFetch(API_BASE + '/api/marketing');
+            const body = await res.json();
+            grupoMarketingCache = res.status === 200 ? (body.data || []) : [];
+            window._gruposMarketing = grupoMarketingCache;
+            return grupoMarketingCache;
+        }
+
+        function grupoPertenece(r, grupo) {
+            const asignado = r.grupoFila != null && r.grupoFila !== '' && String(r.grupoFila) === String(grupo.rowIndex);
+            const historico = !r.grupoFila && r.grupo && groupMetricKey(r.grupo, r.zona) === groupMetricKey(grupo.nombre, grupo.zona);
+            return asignado || historico;
+        }
+
+        function buildGrupoEstatus(rows, grupo) {
+            const estatus = { PUBLICADA: 0, ELIMINADA: 0, SUPRIMIDA: 0, 'EN REVISION': 0, 'SIN DEFINIR': 0 };
+            rows.filter(r => grupoPertenece(r, grupo)).forEach(r => {
+                const key = normFilterVal(r.estatus || 'SIN DEFINIR').toUpperCase();
+                if (estatus[key] !== undefined) estatus[key] += grupoNum(r.publicaciones);
             });
-            const num = value => { try { return MarketingAnalysis.number(value); } catch { return 0; } };
+            return estatus;
+        }
+
+        function buildGrupoStats(grupo, marketingRows) {
+            const rows = (marketingRows || []).filter(r => grupoPertenece(r, grupo));
+            const num = grupoNum;
             const totals = { publicaciones: 0, visualizaciones: 0, interacciones: 0, comentarios: 0, mensajes: 0 };
             const statuses = { PUBLICADA: 0, ELIMINADA: 0, SUPRIMIDA: 0, 'EN REVISION': 0, 'SIN DEFINIR': 0 };
             let best = null;
@@ -427,6 +453,18 @@
             return modal;
         }
 
+        function applyGrupoDetailValues(grupo, est) {
+            const pubs = (est.PUBLICADA || 0) + (est.ELIMINADA || 0) + (est.SUPRIMIDA || 0) + (est['EN REVISION'] || 0) + (est['SIN DEFINIR'] || 0);
+            document.getElementById('detail-grupo-nombre').innerText = grupo.nombre;
+            setSafeGroupLink(document.getElementById('detail-grupo-enlace'), grupo.enlace, { showInvalidText: true });
+            document.getElementById('detail-grupo-pubs').innerText = pubs;
+            document.getElementById('detail-grupo-publicada').innerText = est.PUBLICADA || 0;
+            document.getElementById('detail-grupo-eliminada').innerText = est.ELIMINADA || 0;
+            document.getElementById('detail-grupo-suprimida').innerText = est.SUPRIMIDA || 0;
+            document.getElementById('detail-grupo-revision').innerText = est['EN REVISION'] || 0;
+            document.getElementById('detail-grupo-sdef').innerText = est['SIN DEFINIR'] || 0;
+        }
+
         function showGrupoDetailView(grupo) {
             const views = getGrupoModalViews();
             destroyGrupoStatsChart();
@@ -466,8 +504,8 @@
             } catch (error) { console.warn('Grupos chart error:', error); }
         }
 
-        function renderGrupoStats(grupo) {
-            const stats = buildGrupoStats(grupo);
+        function renderGrupoStats(grupo, marketingRows) {
+            const stats = buildGrupoStats(grupo, marketingRows);
             const totals = stats.totals, statuses = stats.statuses;
             document.getElementById('grupo-stats-nombre').textContent = grupo.nombre;
             document.getElementById('grupo-stats-vis').textContent = grupoNumberFormat.format(totals.visualizaciones);
@@ -507,38 +545,30 @@
             renderGrupoDetailFooter(grupo, true).querySelector('#grupo-detail-back').focus();
             const loading = document.getElementById('grupo-stats-loading');
             const content = document.getElementById('grupo-stats-content');
-            const render = () => {
+            loading.hidden = false;
+            content.hidden = true;
+            getGrupoMarketingRows().then(rows => {
                 if (views.stats.hidden) return;
                 loading.hidden = true;
                 content.hidden = false;
-                renderGrupoStats(grupo);
-            };
-            if (!window._gruposMarketing) {
-                loading.hidden = false;
-                content.hidden = true;
-                loadGruposPage().then(render);
-                return;
-            }
-            render();
+                applyGrupoDetailValues(grupo, buildGrupoEstatus(rows, grupo));
+                renderGrupoStats(grupo, rows);
+            }).catch(() => {
+                if (views.stats.hidden) return;
+                loading.hidden = true;
+                content.hidden = false;
+                applyGrupoDetailValues(grupo, {});
+                renderGrupoStats(grupo, []);
+            });
         }
 
-        function openGrupoDetailModal(rowIndexOrNombre) {
+        async function openGrupoDetailModal(rowIndexOrNombre) {
             const g = gruposPageData.find(x => String(x.rowIndex) === String(rowIndexOrNombre)) ||
                 gruposPageData.find(x => x.nombre === rowIndexOrNombre);
             if (!g) return;
-            const est = window._gruposEstatus[groupMetricKey(g.nombre,g.zona)] || {};
-            const pubs = (est.PUBLICADA || 0) + (est.ELIMINADA || 0) + (est.SUPRIMIDA || 0) + (est['EN REVISION'] || 0) + (est['SIN DEFINIR'] || 0);
-
-            document.getElementById('detail-grupo-nombre').innerText = g.nombre;
-            const enlaceEl = document.getElementById('detail-grupo-enlace');
-            setSafeGroupLink(enlaceEl, g.enlace, { showInvalidText: true });
-            document.getElementById('detail-grupo-pubs').innerText = pubs;
-            document.getElementById('detail-grupo-publicada').innerText = est.PUBLICADA || 0;
-            document.getElementById('detail-grupo-eliminada').innerText = est.ELIMINADA || 0;
-            document.getElementById('detail-grupo-suprimida').innerText = est.SUPRIMIDA || 0;
-            document.getElementById('detail-grupo-revision').innerText = est['EN REVISION'] || 0;
-            document.getElementById('detail-grupo-sdef').innerText = est['SIN DEFINIR'] || 0;
-
+            let rows = [];
+            try { rows = await getGrupoMarketingRows(); } catch {}
+            applyGrupoDetailValues(g, buildGrupoEstatus(rows, g));
             const modalEl = document.getElementById('grupoDetailModal');
             resetGrupoModalView();
             document.getElementById('detail-grupo-title').innerHTML = '<i class="bi bi-info-circle-fill me-2 text-primary"></i>Detalle del Grupo';
