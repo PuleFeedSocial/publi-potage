@@ -1,5 +1,4 @@
         let gruposPageData = [];
-        let gruposMarketingData = [];
         let grupoStatsChart = null;
         const grupoNum = value => {
             if (value == null || value === '') return 0;
@@ -149,20 +148,23 @@
                     if (zonasRes.status === 200) window.zonasData = newZonas;
                     const marketingData = newMarketing;
                     window._gruposMarketing = marketingData;
-                    gruposMarketingData = marketingData;
                     // Compute pubs per group
                     window._gruposPubs = {};
                     window._gruposEstatus = {};
+                    window._gruposStats = {};
                     marketingData.forEach(r => {
                         const g = r.grupo ? groupMetricKey(r.grupo,r.zona) : null;
-                        if (g) {
-                            if (isEstatusActivo(r.estatus)) {
-                                window._gruposPubs[g] = (window._gruposPubs[g] || 0) + MarketingAnalysis.number(r.publicaciones);
-                            }
-                            if (!window._gruposEstatus[g]) window._gruposEstatus[g] = { PUBLICADA: 0, ELIMINADA: 0, SUPRIMIDA: 0, 'EN REVISION': 0, 'SIN DEFINIR': 0 };
-                            const est = normFilterVal(r.estatus||'SIN DEFINIR').toUpperCase();
-                            if (window._gruposEstatus[g][est] !== undefined) window._gruposEstatus[g][est]+=MarketingAnalysis.number(r.publicaciones);
-                        }
+                        if (!g) return;
+                        const number = value => { try { return MarketingAnalysis.number(value); } catch { return 0; } };
+                        const pubs = number(r.publicaciones);
+                        if (isEstatusActivo(r.estatus)) window._gruposPubs[g] = (window._gruposPubs[g] || 0) + pubs;
+                        if (!window._gruposEstatus[g]) window._gruposEstatus[g] = { PUBLICADA: 0, ELIMINADA: 0, SUPRIMIDA: 0, 'EN REVISION': 0, 'SIN DEFINIR': 0 };
+                        const est = normFilterVal(r.estatus||'SIN DEFINIR').toUpperCase();
+                        if (window._gruposEstatus[g][est] !== undefined) window._gruposEstatus[g][est] += pubs;
+                        if (!window._gruposStats[g]) window._gruposStats[g] = { publicaciones: 0, visualizaciones: 0, interacciones: 0, comentarios: 0, mensajes: 0, rows: [] };
+                        const totals = window._gruposStats[g];
+                        ['publicaciones', 'visualizaciones', 'interacciones', 'comentarios', 'mensajes'].forEach(field => { totals[field] += number(r[field]); });
+                        totals.rows.push({ fecha: r.fecha, visualizaciones: number(r.visualizaciones), interacciones: number(r.interacciones) });
                     });
                     // Populate zone filter (only active zones)
                     let zonas = [...new Set([...gruposPageData.map(g => g.zona).filter(Boolean), ...(window.zonasData || []).map(z => z.nombre).filter(Boolean)])];
@@ -323,40 +325,33 @@
             return match ? Number(match[1]) * 10000 + Number(match[2]) * 100 + Number(match[3]) : 0;
         }
 
-        function grupoPertenece(r, grupo) {
-            return !!r.grupo && groupMetricKey(r.grupo, r.zona) === groupMetricKey(grupo.nombre, grupo.zona);
-        }
-
         function buildGrupoStats(grupo, estatus) {
-            const rows = gruposMarketingData.filter(r => grupoPertenece(r, grupo));
-            const num = grupoNum;
+            const key = groupMetricKey(grupo.nombre, grupo.zona);
+            const precomputed = window._gruposStats[key] || { publicaciones: 0, visualizaciones: 0, interacciones: 0, comentarios: 0, mensajes: 0, rows: [] };
+            const rows = precomputed.rows || [];
+            const totals = {
+                publicaciones: precomputed.publicaciones,
+                visualizaciones: precomputed.visualizaciones,
+                interacciones: precomputed.interacciones,
+                comentarios: precomputed.comentarios,
+                mensajes: precomputed.mensajes
+            };
             const est = estatus || {};
-            const totals = { publicaciones: 0, visualizaciones: 0, interacciones: 0, comentarios: 0, mensajes: 0 };
             const statuses = { PUBLICADA: 0, ELIMINADA: 0, SUPRIMIDA: 0, 'EN REVISION': 0, 'SIN DEFINIR': 0 };
+            Object.keys(statuses).forEach(k => { statuses[k] = grupoNum(est[k]); });
             let best = null;
             const dated = [];
             rows.forEach(r => {
-                totals.publicaciones += num(r.publicaciones);
-                ['visualizaciones', 'interacciones', 'comentarios', 'mensajes'].forEach(field => { totals[field] += num(r[field]); });
-                if (!best || num(r.visualizaciones) > num(best.visualizaciones)) best = r;
+                if (!best || r.visualizaciones > best.visualizaciones) best = r;
                 const fecha = grupoFechaKey(r.fecha);
                 if (fecha) dated.push({ fecha, row: r });
             });
-            Object.keys(statuses).forEach(key => { statuses[key] = num(est[key]); });
             dated.sort((a, b) => a.fecha - b.fecha);
-            const cleanRows = rows.map(r => ({
-                ...r,
-                publicaciones: num(r.publicaciones),
-                visualizaciones: num(r.visualizaciones),
-                interacciones: num(r.interacciones),
-                comentarios: num(r.comentarios),
-                mensajes: num(r.mensajes)
-            }));
             return {
                 rows, totals, statuses,
                 bestFecha: best ? best.fecha : '',
-                bestVis: best ? num(best.visualizaciones) : 0,
-                monthly: MarketingAnalysis.monthly(cleanRows),
+                bestVis: best ? best.visualizaciones : 0,
+                monthly: MarketingAnalysis.monthly(rows),
                 first: dated.length ? dated[0].row.fecha : '',
                 last: dated.length ? dated[dated.length - 1].row.fecha : ''
             };
