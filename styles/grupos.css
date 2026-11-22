@@ -5,24 +5,3 @@ html .page-grupos-inline-1 { border-radius:8px;margin-bottom:8px }
 html .page-grupos-inline-2 { width:auto;min-width:140px }
 html .page-grupos-inline-3 { width:auto;min-width:200px }
 html .page-grupos-inline-4 { width:auto;min-width:140px }
-
-#grupoDetailModal #grupo-detail-view[hidden],#grupoDetailModal #grupo-stats-view[hidden] { display:none !important }
-#grupoDetailModal.is-stats .modal-dialog { max-width:720px }
-#grupoDetailModal.is-stats .modal-content { display:flex;flex-direction:column;max-height:90vh }
-#grupoDetailModal.is-stats .modal-body { min-height:0;overflow-y:auto }
-#grupoDetailModal .modal-footer { flex-shrink:0;flex-wrap:wrap }
-.grupo-stats-kpis,.grupo-stats-statuses { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem }
-.grupo-stats-kpis>*,.grupo-stats-statuses>* { min-width:0;overflow-wrap:anywhere }
-.grupo-stats-averages,.grupo-stats-detail-line,#grupo-stats-empty { overflow-wrap:anywhere;color:var(--text-muted) }
-.grupo-stats-chart-wrapper { position:relative;width:100%;min-width:0;height:220px }
-
-@media (max-width:600px) {
-    #grupoDetailModal.is-stats .modal-dialog { max-width:calc(100% - 16px);margin:8px auto }
-    #grupoDetailModal.is-stats .modal-content { max-height:calc(100vh - 16px) }
-    .grupo-stats-kpis,.grupo-stats-statuses { grid-template-columns:repeat(2,minmax(0,1fr)) }
-    #grupoDetailModal .modal-footer .btn { min-height:44px }
-}
-
-@media (min-width:601px) and (max-width:1024px) {
-    .grupo-stats-kpis,.grupo-stats-statuses { grid-template-columns:repeat(3,minmax(0,1fr)) }
-}
