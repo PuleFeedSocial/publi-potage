@@ -1,4 +1,4 @@
-const CACHE = 'potage-v102';
+const CACHE = 'potage-v103';
 const STATIC = [
   "/styles/404.css",
   "/scripts/404.js",

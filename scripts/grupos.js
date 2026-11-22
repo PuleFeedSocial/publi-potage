@@ -118,6 +118,27 @@
             if (chkSolo && savedSolo === '1') chkSolo.checked = true;
         }
 
+        function computeGrupoMaps(marketingData) {
+            window._gruposMarketing = marketingData || [];
+            window._gruposPubs = {};
+            window._gruposEstatus = {};
+            window._gruposStats = {};
+            (marketingData || []).forEach(r => {
+                const g = r.grupo ? groupMetricKey(r.grupo, r.zona) : null;
+                if (!g) return;
+                const number = value => { try { return MarketingAnalysis.number(value); } catch { return 0; } };
+                const pubs = number(r.publicaciones);
+                if (isEstatusActivo(r.estatus)) window._gruposPubs[g] = (window._gruposPubs[g] || 0) + pubs;
+                if (!window._gruposEstatus[g]) window._gruposEstatus[g] = { PUBLICADA: 0, ELIMINADA: 0, SUPRIMIDA: 0, 'EN REVISION': 0, 'SIN DEFINIR': 0 };
+                const est = normFilterVal(r.estatus || 'SIN DEFINIR').toUpperCase();
+                if (window._gruposEstatus[g][est] !== undefined) window._gruposEstatus[g][est] += pubs;
+                if (!window._gruposStats[g]) window._gruposStats[g] = { publicaciones: 0, visualizaciones: 0, interacciones: 0, comentarios: 0, mensajes: 0, rows: [] };
+                const totals = window._gruposStats[g];
+                ['publicaciones', 'visualizaciones', 'interacciones', 'comentarios', 'mensajes'].forEach(field => { totals[field] += number(r[field]); });
+                totals.rows.push({ fecha: r.fecha, publicaciones: pubs, visualizaciones: number(r.visualizaciones), interacciones: number(r.interacciones), comentarios: number(r.comentarios), mensajes: number(r.mensajes) });
+            });
+        }
+
         let _lastGruposSnapshot = '';
         function loadGruposPage(silent) {
             restoreGruposFilters();
@@ -147,25 +168,7 @@
                     gruposPageData = newGrupos;
                     if (zonasRes.status === 200) window.zonasData = newZonas;
                     const marketingData = newMarketing;
-                    window._gruposMarketing = marketingData;
-                    // Compute pubs per group
-                    window._gruposPubs = {};
-                    window._gruposEstatus = {};
-                    window._gruposStats = {};
-                    marketingData.forEach(r => {
-                        const g = r.grupo ? groupMetricKey(r.grupo,r.zona) : null;
-                        if (!g) return;
-                        const number = value => { try { return MarketingAnalysis.number(value); } catch { return 0; } };
-                        const pubs = number(r.publicaciones);
-                        if (isEstatusActivo(r.estatus)) window._gruposPubs[g] = (window._gruposPubs[g] || 0) + pubs;
-                        if (!window._gruposEstatus[g]) window._gruposEstatus[g] = { PUBLICADA: 0, ELIMINADA: 0, SUPRIMIDA: 0, 'EN REVISION': 0, 'SIN DEFINIR': 0 };
-                        const est = normFilterVal(r.estatus||'SIN DEFINIR').toUpperCase();
-                        if (window._gruposEstatus[g][est] !== undefined) window._gruposEstatus[g][est] += pubs;
-                        if (!window._gruposStats[g]) window._gruposStats[g] = { publicaciones: 0, visualizaciones: 0, interacciones: 0, comentarios: 0, mensajes: 0, rows: [] };
-                        const totals = window._gruposStats[g];
-                        ['publicaciones', 'visualizaciones', 'interacciones', 'comentarios', 'mensajes'].forEach(field => { totals[field] += number(r[field]); });
-                        totals.rows.push({ fecha: r.fecha, visualizaciones: number(r.visualizaciones), interacciones: number(r.interacciones) });
-                    });
+                    if (marketingData.length || !(window._gruposMarketing || []).length) computeGrupoMaps(marketingData);
                     // Populate zone filter (only active zones)
                     let zonas = [...new Set([...gruposPageData.map(g => g.zona).filter(Boolean), ...(window.zonasData || []).map(z => z.nombre).filter(Boolean)])];
                     zonas = zonas.filter(z => window.zonaActiva(z));
@@ -327,18 +330,28 @@
 
         function buildGrupoStats(grupo, estatus) {
             const key = groupMetricKey(grupo.nombre, grupo.zona);
-            const precomputed = window._gruposStats[key] || { publicaciones: 0, visualizaciones: 0, interacciones: 0, comentarios: 0, mensajes: 0, rows: [] };
-            const rows = precomputed.rows || [];
-            const totals = {
-                publicaciones: precomputed.publicaciones,
-                visualizaciones: precomputed.visualizaciones,
-                interacciones: precomputed.interacciones,
-                comentarios: precomputed.comentarios,
-                mensajes: precomputed.mensajes
-            };
             const est = estatus || {};
             const statuses = { PUBLICADA: 0, ELIMINADA: 0, SUPRIMIDA: 0, 'EN REVISION': 0, 'SIN DEFINIR': 0 };
             Object.keys(statuses).forEach(k => { statuses[k] = grupoNum(est[k]); });
+            const pubsEstatus = Object.keys(statuses).reduce((sum, k) => sum + statuses[k], 0);
+            const rawRows = (window._gruposMarketing || []).filter(r => r.grupo && groupMetricKey(r.grupo, r.zona) === key);
+            const precomputed = (window._gruposStats || {})[key] || { publicaciones: 0, visualizaciones: 0, interacciones: 0, comentarios: 0, mensajes: 0, rows: [] };
+            const source = rawRows.length ? rawRows : (precomputed.rows || []);
+            const num = grupoNum;
+            const totals = { publicaciones: 0, visualizaciones: 0, interacciones: 0, comentarios: 0, mensajes: 0 };
+            const rows = source.map(r => ({
+                fecha: r.fecha,
+                publicaciones: num(r.publicaciones),
+                visualizaciones: num(r.visualizaciones),
+                interacciones: num(r.interacciones),
+                comentarios: num(r.comentarios),
+                mensajes: num(r.mensajes)
+            }));
+            rows.forEach(r => {
+                ['publicaciones', 'visualizaciones', 'interacciones', 'comentarios', 'mensajes'].forEach(field => { totals[field] += r[field]; });
+            });
+            if (!rawRows.length) Object.keys(totals).forEach(field => { totals[field] += num(precomputed[field]); });
+            if (pubsEstatus) totals.publicaciones = pubsEstatus;
             let best = null;
             const dated = [];
             rows.forEach(r => {
@@ -347,11 +360,14 @@
                 if (fecha) dated.push({ fecha, row: r });
             });
             dated.sort((a, b) => a.fecha - b.fecha);
+            let monthly;
+            try { monthly = MarketingAnalysis.monthly(rows); }
+            catch { monthly = { keys: [], labels: [], invalidDates: 0, series: {} }; }
             return {
                 rows, totals, statuses,
                 bestFecha: best ? best.fecha : '',
                 bestVis: best ? best.visualizaciones : 0,
-                monthly: MarketingAnalysis.monthly(rows),
+                monthly,
                 first: dated.length ? dated[0].row.fecha : '',
                 last: dated.length ? dated[dated.length - 1].row.fecha : ''
             };
@@ -529,23 +545,37 @@
 
         function showGrupoStatsView(grupo) {
             const views = getGrupoModalViews();
-            const estatus = window._gruposEstatus[groupMetricKey(grupo.nombre, grupo.zona)] || {};
+            const key = groupMetricKey(grupo.nombre, grupo.zona);
             document.getElementById('detail-grupo-title').innerHTML = '<i class="bi bi-bar-chart-line me-2 text-primary"></i>Estadísticas del Grupo';
             views.detail.hidden = true;
             views.stats.hidden = false;
             views.modalEl.classList.add('is-stats');
             renderGrupoDetailFooter(grupo, true).querySelector('#grupo-detail-back').focus();
-            document.getElementById('grupo-stats-loading').hidden = true;
-            document.getElementById('grupo-stats-content').hidden = false;
-            applyGrupoDetailValues(grupo, estatus);
-            renderGrupoStats(grupo, estatus);
+            const render = () => {
+                if (views.stats.hidden) return;
+                const estatus = (window._gruposEstatus || {})[key] || {};
+                document.getElementById('grupo-stats-loading').hidden = true;
+                document.getElementById('grupo-stats-content').hidden = false;
+                applyGrupoDetailValues(grupo, estatus);
+                renderGrupoStats(grupo, estatus);
+            };
+            if (!(window._gruposMarketing || []).length) {
+                document.getElementById('grupo-stats-loading').hidden = false;
+                document.getElementById('grupo-stats-content').hidden = true;
+                authFetch(API_BASE + '/api/marketing').then(res => res.json()).then(body => {
+                    computeGrupoMaps((body && body.data) || []);
+                    render();
+                }).catch(render);
+                return;
+            }
+            render();
         }
 
         function openGrupoDetailModal(rowIndexOrNombre) {
             const g = gruposPageData.find(x => String(x.rowIndex) === String(rowIndexOrNombre)) ||
                 gruposPageData.find(x => x.nombre === rowIndexOrNombre);
             if (!g) return;
-            const estatus = window._gruposEstatus[groupMetricKey(g.nombre, g.zona)] || {};
+            const estatus = (window._gruposEstatus || {})[groupMetricKey(g.nombre, g.zona)] || {};
             applyGrupoDetailValues(g, estatus);
             const modalEl = document.getElementById('grupoDetailModal');
             resetGrupoModalView();
