@@ -33,6 +33,9 @@
   { const element = document.querySelector("[data-page-event=\"grupos-11\"]");
     if (element && !element.onchange) element.onchange = function(event) { saveGruposFilters();renderGruposPage() };
   }
+  { const element = document.querySelector("[data-page-event=\"grupos-14\"]");
+    if (element && !element.onchange) element.onchange = function(event) { saveGruposFilters();renderGruposPage() };
+  }
   { const element = document.querySelector("[data-page-event=\"grupos-12\"]");
     if (element && !element.oninput) element.oninput = function(event) { renderGruposPage() };
   }

@@ -79,18 +79,22 @@
         function saveGruposFilters() {
             localStorage.setItem('gruposFilterZona', document.getElementById('grupos-filter-zona').value);
             localStorage.setItem('gruposSort', document.getElementById('grupos-sort').value);
+            localStorage.setItem('gruposFilterStatus', document.getElementById('grupos-filter-status').value);
             localStorage.setItem('gruposSoloProblemas', document.getElementById('grupos-solo-problemas').checked ? '1' : '0');
         }
 
         function restoreGruposFilters() {
             const savedZona = localStorage.getItem('gruposFilterZona');
             const savedSort = localStorage.getItem('gruposSort');
+            const savedStatus = localStorage.getItem('gruposFilterStatus');
             const savedSolo = localStorage.getItem('gruposSoloProblemas');
             const selZona = document.getElementById('grupos-filter-zona');
             const selSort = document.getElementById('grupos-sort');
+            const selStatus = document.getElementById('grupos-filter-status');
             const chkSolo = document.getElementById('grupos-solo-problemas');
             if (selZona && savedZona) selZona.value = savedZona;
             if (selSort && savedSort) selSort.value = savedSort;
+            if (selStatus && savedStatus !== null) selStatus.value = savedStatus;
             if (chkSolo && savedSolo === '1') chkSolo.checked = true;
         }
 
@@ -159,10 +163,13 @@
         function renderGruposPage() {
             const zonaFilter = document.getElementById('grupos-filter-zona').value;
             const sortMode = document.getElementById('grupos-sort').value;
+            const statusFilter = document.getElementById('grupos-filter-status').value;
             const soloProblemas = document.getElementById('grupos-solo-problemas').checked;
             const search = normFilterVal(document.getElementById('grupos-search').value);
             let filtered = gruposPageData;
             if (zonaFilter) filtered = filtered.filter(g => normFilterVal(g.zona) === normFilterVal(zonaFilter));
+            if (statusFilter === 'true') filtered = filtered.filter(g => g.activo !== false);
+            else if (statusFilter === 'false') filtered = filtered.filter(g => g.activo === false);
             if (search) {
                 filtered = filtered.filter(g =>
                     normFilterVal(g.nombre).includes(search) ||
@@ -191,7 +198,7 @@
                 });
             }
             const paginator = window._gruposPaginator || (window._gruposPaginator = createTablePaginator('grupos-page-table-body', {
-                filterIds: ['grupos-filter-zona', 'grupos-sort', 'grupos-solo-problemas', 'grupos-search']
+                filterIds: ['grupos-filter-zona', 'grupos-filter-status', 'grupos-sort', 'grupos-solo-problemas', 'grupos-search']
             }));
             paginator.render(filtered, (g, i) => {
                 const tr = document.createElement('tr');
