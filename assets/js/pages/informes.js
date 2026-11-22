@@ -26,19 +26,14 @@
 
         function renderInformes(columns) {
             const thead = document.getElementById('informes-thead');
-            const tbody = document.getElementById('informes-tbody');
             const showCols = columns.filter(c => c && c.trim());
             informesColumns = showCols;
 
             thead.innerHTML = '<tr><th class="text-end">#</th>' + showCols.map(c => '<th>' + esc(c) + '</th>').join('') + '</tr>';
 
-            if (!informesData.length) {
-                tbody.innerHTML = '<tr><td colspan="' + (showCols.length + 1) + '" class="text-center text-muted py-4">No hay datos importados. Hacé clic en "Importar CSV" para subir un informe.</td></tr>';
-                return;
-            }
-
-            tbody.innerHTML = '';
-            informesData.forEach((row, i) => {
+            const paginator = window._informesPaginator || (window._informesPaginator = createTablePaginator('informes-tbody'));
+            const empty = '<tr><td colspan="' + (showCols.length + 1) + '" class="text-center text-muted py-4">No hay datos importados. Hacé clic en "Importar CSV" para subir un informe.</td></tr>';
+            paginator.render(informesData, (row, i) => {
                 const tr = document.createElement('tr');
                 tr.style.animation = 'fadeSlideUp 0.3s ease-out forwards';
                 tr.style.animationDelay = (Math.min(i, 20) * 0.04) + 's';
@@ -57,8 +52,8 @@
                 });
                 tr.innerHTML = cells;
                 makeTableRowInteractive(tr, () => openInformeDetailModal(row), 'Ver detalle del informe #' + row.rowIndex);
-                tbody.appendChild(tr);
-            });
+                return tr;
+            }, empty);
         }
 
         function openInformeDetailModal(row) {

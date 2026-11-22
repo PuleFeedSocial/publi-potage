@@ -93,7 +93,6 @@ let _lastSucursalesSnapshot = '';
         }
 
         function renderSucursales() {
-            const tbody = document.getElementById('sucursales-table-body');
             const empresaFilter = document.getElementById('sucursales-filter-empresa').value;
             const zonaFilter = document.getElementById('sucursales-filter-zona').value;
             const search = (document.getElementById('sucursales-search').value || '').toLowerCase().trim();
@@ -116,8 +115,10 @@ let _lastSucursalesSnapshot = '';
                 );
             }
 
-            tbody.innerHTML = '';
-            filtered.forEach((s, i) => {
+            const paginator = window._sucursalesPaginator || (window._sucursalesPaginator = createTablePaginator('sucursales-table-body', {
+                filterIds: ['sucursales-filter-empresa', 'sucursales-filter-zona', 'sucursales-search']
+            }));
+            paginator.render(filtered, (s, i) => {
                 const tr = document.createElement('tr');
                 tr.style.animation = 'fadeSlideUp 0.3s ease-out forwards';
                 tr.style.animationDelay = (i * 0.03) + 's';
@@ -139,11 +140,8 @@ let _lastSucursalesSnapshot = '';
                     </td>
                 `;
                 makeTableRowInteractive(tr, () => openSucursalDetailModal(s.rowIndex), 'Ver detalle de ' + (s.ubicacion || 'sucursal'));
-                tbody.appendChild(tr);
-            });
-            if (!filtered.length) {
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Sin resultados</td></tr>';
-            }
+                return tr;
+            }, '<tr><td colspan="8" class="text-center text-muted">Sin resultados</td></tr>');
         }
 
         function openAddSucursal() {

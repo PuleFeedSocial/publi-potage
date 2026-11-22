@@ -1026,7 +1026,101 @@ let historialData = [];
 let filterPeriod = 'all';
 let filterPeriodZonas = 'all';
 let pageActual = 1;
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 20;
+const TABLE_PAGE_SIZE = 20;
+
+// Paginador simple y reutilizable para tablas (20 filas por página).
+// Inserta sus controles debajo de la tabla si el HTML no los define.
+function createTablePaginator(tbodyId, options) {
+  const cfg = Object.assign({ pageSize: TABLE_PAGE_SIZE, filterIds: [] }, options || {});
+  let rows = [], renderRow = null, emptyHtml = '', page = 1, totalPages = 1, lastFilterKey = null;
+
+  const body = () => document.getElementById(tbodyId);
+  const controls = () => document.getElementById(tbodyId + '-pagination');
+  const info = () => document.getElementById(tbodyId + '-pag-info');
+
+  function filterKey() {
+    return cfg.filterIds.map(id => {
+      const el = document.getElementById(id);
+      if (!el) return '';
+      return el.type === 'checkbox' ? (el.checked ? '1' : '0') : (el.value || '');
+    }).join('\u0001');
+  }
+
+  function ensureControls() {
+    if (controls() || !body()) return;
+    const bar = document.createElement('div');
+    bar.className = 'd-flex justify-content-between align-items-center py-2 px-2 flex-wrap gap-2';
+    const span = document.createElement('span');
+    span.className = 'text-muted small';
+    span.id = tbodyId + '-pag-info';
+    const ul = document.createElement('ul');
+    ul.className = 'pagination-custom mb-0';
+    ul.id = tbodyId + '-pagination';
+    bar.append(span, ul);
+    const host = body().closest('.table-responsive') || body().closest('table') || body();
+    host.insertAdjacentElement('afterend', bar);
+  }
+
+  function drawControls() {
+    const ul = controls();
+    if (!ul) return;
+    let html = '';
+    if (totalPages > 1) {
+      html += `<li class="page-item ${page <= 1 ? 'disabled' : ''}"><button type="button" class="pag-btn" data-page="${page - 1}">&laquo;</button></li>`;
+      for (let p = 1; p <= totalPages; p++) {
+        if (p === 1 || p === totalPages || Math.abs(p - page) <= 2) {
+          html += `<li class="page-item ${p === page ? 'active' : ''}"><button type="button" class="pag-btn" data-page="${p}">${p}</button></li>`;
+        } else if (Math.abs(p - page) === 3) {
+          html += '<li class="page-item disabled"><span class="pag-dots">...</span></li>';
+        }
+      }
+      html += `<li class="page-item ${page >= totalPages ? 'disabled' : ''}"><button type="button" class="pag-btn" data-page="${page + 1}">&raquo;</button></li>`;
+    }
+    ul.innerHTML = html;
+    if (!ul._pagListener) {
+      ul._pagListener = true;
+      ul.addEventListener('click', function(e) {
+        const btn = e.target.closest('.pag-btn');
+        if (!btn || btn.closest('.disabled')) return;
+        page = parseInt(btn.dataset.page, 10) || 1;
+        draw();
+      });
+    }
+  }
+
+  function draw() {
+    const tbody = body();
+    if (!tbody) return;
+    totalPages = Math.max(1, Math.ceil(rows.length / cfg.pageSize));
+    page = Math.max(1, Math.min(page, totalPages));
+    tbody.innerHTML = '';
+    const start = (page - 1) * cfg.pageSize;
+    const visible = rows.slice(start, start + cfg.pageSize);
+    if (!visible.length) {
+      tbody.innerHTML = emptyHtml;
+    } else {
+      visible.forEach((row, i) => { const tr = renderRow(row, i); if (tr) tbody.appendChild(tr); });
+    }
+    const label = info();
+    if (label) label.textContent = totalPages > 1 ? `Página ${page} de ${totalPages} (${rows.length} registros)` : `${rows.length} registros`;
+    drawControls();
+  }
+
+  return {
+    render(data, rowRenderer, empty) {
+      const key = filterKey();
+      if (lastFilterKey !== null && key !== lastFilterKey) page = 1;
+      lastFilterKey = key;
+      rows = Array.isArray(data) ? data : [];
+      renderRow = rowRenderer || null;
+      if (empty !== undefined) emptyHtml = empty;
+      ensureControls();
+      draw();
+    },
+    reset() { page = 1; }
+  };
+}
 
 function isEstatusActivo(estatus) {
   return ['publicada','sin definir',''].includes(MarketingAnalysis.norm(estatus));
@@ -2139,9 +2233,6 @@ function openDetailModal(rowData) {
   if (typeof rowData === 'string') rowData = JSON.parse(decodeURIComponent(rowData));
   const row = rowData;
 
-  if (window._grupoChart) { window._grupoChart.destroy(); window._grupoChart = null; }
-  if (window._zonaChart) { window._zonaChart.destroy(); window._zonaChart = null; }
-
   const grupoInfo = (row.grupoFila && gruposData.find(g => g.rowIndex === Number(row.grupoFila))) || gruposData.find(g => g.nombre === row.grupo);
   const grupoLink = grupoInfo && grupoInfo.enlace && /^https?:\/\//i.test(grupoInfo.enlace) ? grupoInfo.enlace : null;
 
@@ -2170,43 +2261,6 @@ function openDetailModal(rowData) {
       </div>`;
   }
 
-  let chartHtml = '';
-  if (row.grupo && row.grupo !== 'Perfil Estandar') {
-    const gArg = encArg(row.grupo);
-    chartHtml = `
-      <hr class="my-3">
-      <h6 class="fw-semibold text-muted mb-2"><i class="bi bi-bar-chart-line me-1"></i>Métricas del grupo: ${escHtml(row.grupo)}</h6>
-      <div class="btn-group btn-group-sm mb-2 w-100" role="group">
-        <button type="button" class="btn btn-outline-secondary chart-grupo-metric active" data-metric="pubs" onclick="renderGrupoChart('${gArg}','pubs')">Publicaciones</button>
-        <button type="button" class="btn btn-outline-secondary chart-grupo-metric" data-metric="vis" onclick="renderGrupoChart('${gArg}','vis')">Visualizaciones</button>
-        <button type="button" class="btn btn-outline-secondary chart-grupo-metric" data-metric="ints" onclick="renderGrupoChart('${gArg}','ints')">Interacciones</button>
-        <button type="button" class="btn btn-outline-secondary chart-grupo-metric" data-metric="msjs" onclick="renderGrupoChart('${gArg}','msjs')">Mensajes</button>
-      </div>
-      <div style="height:200px;">
-        <canvas id="chartGrupo"></canvas>
-      </div>`;
-  }
-
-  let zonaChartHtml = '';
-  if (row.zona) {
-    const zoneRows = marketingData.filter(r => r.zona === row.zona && r.grupo !== 'Perfil Estandar' && isEstatusActivo(r.estatus) && zonaActiva(r.zona));
-    if (zoneRows.length) {
-      const zArg = encArg(row.zona);
-      zonaChartHtml = `
-      <hr class="my-3">
-      <h6 class="fw-semibold text-muted mb-2"><i class="bi bi-geo-alt me-1"></i>Métricas de sucursal: ${escHtml(row.zona)}</h6>
-      <div class="btn-group btn-group-sm mb-2 w-100" role="group">
-        <button type="button" class="btn btn-outline-secondary chart-zona-metric active" data-metric="pubs" onclick="renderZonaChart('${zArg}','pubs')">Publicaciones</button>
-        <button type="button" class="btn btn-outline-secondary chart-zona-metric" data-metric="vis" onclick="renderZonaChart('${zArg}','vis')">Visualizaciones</button>
-        <button type="button" class="btn btn-outline-secondary chart-zona-metric" data-metric="ints" onclick="renderZonaChart('${zArg}','ints')">Interacciones</button>
-        <button type="button" class="btn btn-outline-secondary chart-zona-metric" data-metric="msjs" onclick="renderZonaChart('${zArg}','msjs')">Mensajes</button>
-      </div>
-      <div style="height:200px;">
-        <canvas id="chartZona"></canvas>
-      </div>`;
-    }
-  }
-
   const html = `
     <div class="row g-3">
       <div class="col-6 col-md-4"><div class="text-muted small">Fecha</div><div class="fw-medium">${escHtml(row.fecha || '—')}</div></div>
@@ -2219,7 +2273,7 @@ function openDetailModal(rowData) {
       <div class="col-6 col-md-4"><div class="text-muted small">Sucursal</div><div class="fw-medium">${escHtml(row.zona || '—')}</div></div>
       <div class="col-6 col-md-4"><div class="text-muted small">Estatus</div><div class="fw-medium"><span class="badge-estatus est-${escHtml((row.estatus||'SIN DEFINIR').toLowerCase().replace(/ /g,'-'))}">${escHtml(row.estatus || 'SIN DEFINIR')}</span></div></div>
     </div>
-    ${histHtml}${chartHtml}${zonaChartHtml}`;
+    ${histHtml}`;
 
   const footer = `
     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
@@ -2241,20 +2295,6 @@ function openDetailModal(rowData) {
     openEditModal(row);
   };
   const modal = new bootstrap.Modal(document.getElementById('detailModal'));
-  if (row.grupo && row.grupo !== 'Perfil Estandar') {
-    const el = document.getElementById('detailModal');
-    el.addEventListener('shown.bs.modal', function onShown() {
-      el.removeEventListener('shown.bs.modal', onShown);
-      renderGrupoChart(row.grupo, 'pubs');
-      if (row.zona) renderZonaChart(row.zona, 'pubs');
-    });
-  } else if (row.zona) {
-    const el = document.getElementById('detailModal');
-    el.addEventListener('shown.bs.modal', function onShown() {
-      el.removeEventListener('shown.bs.modal', onShown);
-      renderZonaChart(row.zona, 'pubs');
-    });
-  }
   modal.show();
 }
 
@@ -2390,152 +2430,6 @@ function makeTableRowInteractive(row, handler, label) {
     handler.call(row, event);
   });
   return row;
-}
-
-function renderGrupoChart(grupo, metric) {
-  if (grupo != null) {
-    try { grupo = decodeURIComponent(grupo); } catch { /* ya decodificado */ }
-  }
-  metric = metric || 'pubs';
-  document.querySelectorAll('.chart-grupo-metric').forEach(b => {
-    b.classList.toggle('active', b.dataset.metric === metric);
-  });
-
-  if (window._grupoChart) { window._grupoChart.destroy(); window._grupoChart = null; }
-  const canvas = document.getElementById('chartGrupo');
-  if (!canvas) return;
-
-  const METRIC_FIELD = { pubs: 'publicaciones', vis: 'visualizaciones', ints: 'interacciones', msjs: 'mensajes' };
-  const METRIC_LABELS = { pubs: 'Publicaciones', vis: 'Visualizaciones', ints: 'Interacciones', msjs: 'Mensajes' };
-  const PAL = chartPalette();
-  const METRIC_COLORS = { pubs: PAL.pubs, vis: PAL.vis, ints: PAL.ints, msjs: PAL.msjs };
-  const field = METRIC_FIELD[metric] || 'publicaciones';
-
-  // Usar historial: filtrar por rowIndex del grupo (mas robusto que campo grupo)
-  const groupRows = new Set(marketingData.filter(r => r.grupo === grupo && isEstatusActivo(r.estatus) && zonaActiva(r.zona)).map(r => r.rowIndex));
-  const hEntries = historialData.filter(r => groupRows.has(r.filaOrigen));
-
-  // Solo la ultima entrada por fecha (no sumar)
-  const latest = {};
-  hEntries.forEach(r => { latest[r.fechaActualizacion] = r; });
-  const dates = Object.keys(latest).filter(Boolean).sort((a, b) => {
-    const da = parseDate(a), db = parseDate(b);
-    if (!da || !db) return 0;
-    return da - db;
-  });
-
-  const labels = dates.map(f => f.substring(0, 5));
-  const values = dates.map(f => (latest[f][field] || 0));
-
-  if (labels.length === 1) {
-    labels.unshift(''); labels.push('');
-    values.unshift(null); values.push(null);
-  }
-
-  applyChartThemeDefaults();
-  try {
-    window._grupoChart = new Chart(canvas, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [{
-          label: METRIC_LABELS[metric] || metric,
-          data: values,
-          borderColor: METRIC_COLORS[metric] || PAL.pubs,
-          backgroundColor: (METRIC_COLORS[metric] || PAL.pubs) + '20',
-          borderWidth: 2,
-          pointRadius: 4,
-          tension: 0.3,
-          fill: true
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          y: { beginAtZero: true, grid: { color: PAL.grid }, ticks: { color: PAL.tick, precision: 0 } },
-          x: { grid: { color: PAL.grid }, ticks: { color: PAL.tick } }
-        }
-      }
-    });
-  } catch (e) { console.warn('Grupo chart error:', e); }
-}
-
-function renderZonaChart(zona, metric) {
-  if (zona != null) {
-    try { zona = decodeURIComponent(zona); } catch { /* ya decodificado */ }
-  }
-  metric = metric || 'pubs';
-  document.querySelectorAll('.chart-zona-metric').forEach(b => {
-    b.classList.toggle('active', b.dataset.metric === metric);
-  });
-  if (window._zonaChart) { window._zonaChart.destroy(); window._zonaChart = null; }
-  const canvas = document.getElementById('chartZona');
-  if (!canvas) return;
-
-  const METRIC_FIELD = { pubs: 'publicaciones', vis: 'visualizaciones', ints: 'interacciones', msjs: 'mensajes' };
-  const METRIC_LABELS = { pubs: 'Publicaciones', vis: 'Visualizaciones', ints: 'Interacciones', msjs: 'Mensajes' };
-  const PAL = chartPalette();
-  const METRIC_COLORS = { pubs: PAL.pubs, vis: PAL.vis, ints: PAL.ints, msjs: PAL.msjs };
-  const field = METRIC_FIELD[metric] || 'publicaciones';
-
-  // Todos los rowIndex de la zona
-  const zoneRowIndexes = new Set(marketingData.filter(r => r.zona === zona && r.grupo !== 'Perfil Estandar' && isEstatusActivo(r.estatus) && zonaActiva(r.zona)).map(r => r.rowIndex));
-  const hEntries = historialData.filter(r => zoneRowIndexes.has(r.filaOrigen));
-
-  // Sumar por fecha (todos los grupos de la zona)
-  const summed = {};
-  hEntries.forEach(r => {
-    if (!r.fechaActualizacion) return;
-    if (!summed[r.fechaActualizacion]) summed[r.fechaActualizacion] = {};
-    ['publicaciones', 'visualizaciones', 'interacciones', 'comentarios', 'mensajes'].forEach(f => {
-      summed[r.fechaActualizacion][f] = (summed[r.fechaActualizacion][f] || 0) + (r[f] || 0);
-    });
-  });
-
-  const dates = Object.keys(summed).filter(Boolean).sort((a, b) => {
-    const da = parseDate(a), db = parseDate(b);
-    if (!da || !db) return 0;
-    return da - db;
-  });
-
-  const labels = dates.map(f => f.substring(0, 5));
-  const values = dates.map(f => summed[f][field] || 0);
-
-  if (labels.length === 1) {
-    labels.unshift(''); labels.push('');
-    values.unshift(null); values.push(null);
-  }
-
-  applyChartThemeDefaults();
-  try {
-    window._zonaChart = new Chart(canvas, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [{
-          label: METRIC_LABELS[metric] || metric,
-          data: values,
-          borderColor: METRIC_COLORS[metric] || PAL.pubs,
-          backgroundColor: (METRIC_COLORS[metric] || PAL.pubs) + '20',
-          borderWidth: 2,
-          pointRadius: 4,
-          tension: 0.3,
-          fill: true
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          y: { beginAtZero: true, grid: { color: PAL.grid }, ticks: { color: PAL.tick, precision: 0 } },
-          x: { grid: { color: PAL.grid }, ticks: { color: PAL.tick } }
-        }
-      }
-    });
-  } catch (e) { console.warn('Zona chart error:', e); }
 }
 
 function renderZonasDashboard() {
@@ -2695,7 +2589,7 @@ function initCharts(chartData) {
   applyChartThemeDefaults();
   const palette = chartPalette();
   const definitions = [
-    ['chartPublicaciones', 'publicaciones', 'Publicaciones', palette.pubs, 'bar'],
+    ['chartPublicaciones', 'visualizaciones', 'Visualizaciones', palette.vis, 'bar'],
     ['chartInteracciones', 'interacciones', 'Interacciones', palette.ints, 'line'],
     ['chartComparativo', 'mensajes', 'Mensajes', palette.msjs, 'bar']
   ];
@@ -2740,33 +2634,32 @@ function loadUsers() {
 }
 
 function renderUsers(users) {
-  const tbody = document.getElementById('users-table-body');
-  tbody.innerHTML = '';
   const session = getCurrentSession();
-  users.forEach(u => {
+  const paginator = window._usersPaginator || (window._usersPaginator = createTablePaginator('users-table-body'));
+  paginator.render(users, u => {
     const isSelf = session && session.id === u.id;
     const roleNorm = (u.role || '').toLowerCase();
     const isAdmin = roleNorm === 'admin';
     const canDelete = !isSelf && !isAdmin;
-    tbody.innerHTML += `
-      <tr>
-        <td class="fw-semibold text-dark">${escHtml(u.name)}</td>
-        <td>${escHtml(u.email)}</td>
-        <td>
-          <select class="form-select form-select-sm role-select" data-user-id="${u.id}" ${isSelf || isAdmin ? 'disabled' : ''}
-            onchange="updateUserRole(${u.id}, this.value)">
-            <option value="colaborador" ${!isAdmin ? 'selected' : ''}>Colaborador</option>
-            <option value="admin" ${isAdmin ? 'selected' : ''}>Admin</option>
-          </select>
-        </td>
-        <td>${u.fecha ? escHtml(u.fecha).substring(0, 10) : '-'}</td>
-        <td class="text-end">
-          <button class="btn btn-sm btn-link text-danger p-0" onclick="deleteUser(${u.id})" ${canDelete ? '' : 'disabled style="opacity:0.2;"'}>
-            <i class="bi bi-trash3-fill"></i>
-          </button>
-        </td>
-      </tr>`;
-  });
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="fw-semibold text-dark">${escHtml(u.name)}</td>
+      <td>${escHtml(u.email)}</td>
+      <td>
+        <select class="form-select form-select-sm role-select" data-user-id="${u.id}" ${isSelf || isAdmin ? 'disabled' : ''}
+          onchange="updateUserRole(${u.id}, this.value)">
+          <option value="colaborador" ${!isAdmin ? 'selected' : ''}>Colaborador</option>
+          <option value="admin" ${isAdmin ? 'selected' : ''}>Admin</option>
+        </select>
+      </td>
+      <td>${u.fecha ? escHtml(u.fecha).substring(0, 10) : '-'}</td>
+      <td class="text-end">
+        <button class="btn btn-sm btn-link text-danger p-0" onclick="deleteUser(${u.id})" ${canDelete ? '' : 'disabled style="opacity:0.2;"'}>
+          <i class="bi bi-trash3-fill"></i>
+        </button>
+      </td>`;
+    return tr;
+  }, '<tr><td colspan="5" class="text-center text-muted py-4">Sin resultados</td></tr>');
 }
 
 let permissionDefaults = {};
@@ -2800,22 +2693,21 @@ function loadRolesTable() {
   if (sessionRole() !== 'admin') return Promise.resolve();
   return apiFetch('/api/auth/roles').then(({ status, body }) => {
     if (status !== 200) return;
-    const tbody = document.getElementById('roles-table-body');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-    body.forEach(r => {
+    if (!document.getElementById('roles-table-body')) return;
+    const paginator = window._rolesPaginator || (window._rolesPaginator = createTablePaginator('roles-table-body'));
+    paginator.render(body, r => {
       const name = r.name || '';
       const label = r.label || name;
-      tbody.innerHTML += `
-        <tr>
-          <td class="fw-semibold text-dark">${escHtml(label)}</td>
-          <td class="text-muted small">${escHtml(name)}</td>
-          <td class="text-end">
-            <button class="btn btn-sm btn-outline-secondary me-1" onclick="openRolePerms(decodeURIComponent('${encArg(name)}'), decodeURIComponent('${encArg(label)}'))"><i class="bi bi-sliders me-1"></i>Ajustes</button>
-            <button class="btn btn-sm btn-link text-danger p-0" onclick="deleteRole(decodeURIComponent('${encArg(name)}'))"><i class="bi bi-trash3-fill"></i></button>
-          </td>
-        </tr>`;
-    });
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="fw-semibold text-dark">${escHtml(label)}</td>
+        <td class="text-muted small">${escHtml(name)}</td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-outline-secondary me-1" onclick="openRolePerms(decodeURIComponent('${encArg(name)}'), decodeURIComponent('${encArg(label)}'))"><i class="bi bi-sliders me-1"></i>Ajustes</button>
+          <button class="btn btn-sm btn-link text-danger p-0" onclick="deleteRole(decodeURIComponent('${encArg(name)}'))"><i class="bi bi-trash3-fill"></i></button>
+        </td>`;
+      return tr;
+    }, '<tr><td colspan="3" class="text-center text-muted py-4">Sin resultados</td></tr>');
     const sel = document.getElementById('input-role');
     if (sel) {
       sel.innerHTML = '';
@@ -3041,23 +2933,22 @@ function loadCodes() {
 }
 
 function renderCodes(codes) {
-  const tbody = document.getElementById('codes-table-body');
-  tbody.innerHTML = '';
-  codes.forEach(c => {
+  const paginator = window._codesPaginator || (window._codesPaginator = createTablePaginator('codes-table-body'));
+  paginator.render(codes, c => {
     const statusText = c.used ? 'Usado' : 'Disponible';
     const statusClass = c.used ? 'badge-colab' : 'badge-admin';
     const usedBy = c.used_by_name || '-';
-    tbody.innerHTML += `
-      <tr>
-        <td class="font-monospace fw-semibold">${escHtml(c.code)}</td>
-        <td><span class="user-role-badge ${statusClass}">${statusText}</span></td>
-        <td class="text-muted small">${escHtml(usedBy)}</td>
-        <td class="text-muted small">${c.created_at ? escHtml(c.created_at).substring(0, 10) : '-'}</td>
-        <td class="text-end">
-          ${!c.used ? '<button class="btn btn-sm btn-link text-danger p-0" onclick="deleteCode(' + c.id + ')"><i class="bi bi-trash3-fill"></i></button>' : ''}
-        </td>
-      </tr>`;
-  });
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="font-monospace fw-semibold">${escHtml(c.code)}</td>
+      <td><span class="user-role-badge ${statusClass}">${statusText}</span></td>
+      <td class="text-muted small">${escHtml(usedBy)}</td>
+      <td class="text-muted small">${c.created_at ? escHtml(c.created_at).substring(0, 10) : '-'}</td>
+      <td class="text-end">
+        ${!c.used ? '<button class="btn btn-sm btn-link text-danger p-0" onclick="deleteCode(' + c.id + ')"><i class="bi bi-trash3-fill"></i></button>' : ''}
+      </td>`;
+    return tr;
+  }, '<tr><td colspan="5" class="text-center text-muted py-4">Sin resultados</td></tr>');
   document.getElementById('codes-count').innerText = codes.filter(c => !c.used).length;
 }
 

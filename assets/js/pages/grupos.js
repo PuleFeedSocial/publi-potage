@@ -98,7 +98,7 @@
         function loadGruposPage(silent) {
             restoreGruposFilters();
             const tbody = document.getElementById('grupos-page-table-body');
-            if (!silent) tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Cargando...</td></tr>';
+            if (!silent) tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Cargando...</td></tr>';
             const load = () => Promise.all([
                 authFetch(API_BASE + '/api/grupos'),
                 authFetch(API_BASE + '/api/marketing'),
@@ -111,7 +111,7 @@
                 ]))
                 .then(([gruposRes, marketingRes, zonasRes]) => {
                     if (gruposRes.status !== 200) {
-                        if (!silent) tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">' + (gruposRes.body.error || 'Error') + '</td></tr>';
+                        if (!silent) tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">' + (gruposRes.body.error || 'Error') + '</td></tr>';
                         return;
                     }
                     const newGrupos = gruposRes.body.data || [];
@@ -150,14 +150,13 @@
 
                 })
                 .catch(() => {
-                    if (!silent) tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Error de conexión</td></tr>';
+                    if (!silent) tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Error de conexión</td></tr>';
                 });
             return silent ? load() : pageLoad(load, 'Cargando grupos…');
         }
 
         function groupMetricKey(name,zone){return normFilterVal(name)+'|'+normFilterVal(zone);}
         function renderGruposPage() {
-            const tbody = document.getElementById('grupos-page-table-body');
             const zonaFilter = document.getElementById('grupos-filter-zona').value;
             const sortMode = document.getElementById('grupos-sort').value;
             const soloProblemas = document.getElementById('grupos-solo-problemas').checked;
@@ -191,22 +190,15 @@
                     return 0;
                 });
             }
-            tbody.innerHTML = '';
-            filtered.forEach((g, i) => {
+            const paginator = window._gruposPaginator || (window._gruposPaginator = createTablePaginator('grupos-page-table-body', {
+                filterIds: ['grupos-filter-zona', 'grupos-sort', 'grupos-solo-problemas', 'grupos-search']
+            }));
+            paginator.render(filtered, (g, i) => {
                 const tr = document.createElement('tr');
                 tr.style.animation = 'fadeSlideUp 0.3s ease-out forwards';
                 tr.style.animationDelay = (i * 0.04) + 's';
                 const pubs = window._gruposPubs[groupMetricKey(g.nombre,g.zona)] || 0;
-                const est = window._gruposEstatus[groupMetricKey(g.nombre,g.zona)] || {};
                 const fechaDisplay = g.fechaIngreso || '—';
-                const malas = (est.SUPRIMIDA || 0) + (est.ELIMINADA || 0) + (est['EN REVISION'] || 0);
-                const buenas = (est.PUBLICADA || 0);
-                let rendBadge = '<span class="text-muted small">—</span>';
-                if (buenas > 0 || malas > 0) {
-                    const score = Math.round((buenas / (buenas + malas)) * 100);
-                    const cls = score >= 70 ? 'est-publicada' : (score >= 40 ? 'est-suprimida' : 'est-eliminada');
-                    rendBadge = '<span class="badge-estatus ' + cls + '">' + score + '%</span>';
-                }
                 const activoBadge = g.activo !== false
                     ? '<span class="badge-estatus est-publicada">Activo</span>'
                     : '<span class="badge-estatus est-eliminada">Inactivo</span>';
@@ -217,15 +209,11 @@
                     <td class="text-center small text-muted">${escHtml(fechaDisplay)}</td>
                     <td class="text-center fw-semibold text-primary">${pubs}</td>
                     <td class="text-center">${activoBadge}</td>
-                    <td class="text-center">${rendBadge}</td>
                 `;
                 setSafeGroupLink(tr.querySelector('.grupo-enlace'), g.enlace, { compact: true });
                 makeTableRowInteractive(tr, () => openGrupoDetailModal(g.rowIndex), 'Ver detalle del grupo ' + g.nombre);
-                tbody.appendChild(tr);
-            });
-            if (!filtered.length) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Sin resultados</td></tr>';
-            }
+                return tr;
+            }, '<tr><td colspan="6" class="text-center text-muted">Sin resultados</td></tr>');
             // Update total pubs
             const totalPubs = filtered.reduce((s, g) => s + (window._gruposPubs[groupMetricKey(g.nombre,g.zona)] || 0), 0);
             document.getElementById('grupos-pubs-total').innerText = totalPubs;document.getElementById('grupos-count').innerText=filtered.length+' de '+gruposPageData.length;
@@ -303,12 +291,6 @@
             if (!g) return;
             const est = window._gruposEstatus[groupMetricKey(g.nombre,g.zona)] || {};
             const pubs = (est.PUBLICADA || 0) + (est.ELIMINADA || 0) + (est.SUPRIMIDA || 0) + (est['EN REVISION'] || 0) + (est['SIN DEFINIR'] || 0);
-            const malas = (est.SUPRIMIDA || 0) + (est.ELIMINADA || 0) + (est['EN REVISION'] || 0);
-            const buenas = (est.PUBLICADA || 0);
-            let rendicion = '—';
-            if (buenas > 0 || malas > 0) {
-                rendicion = Math.round((buenas / (buenas + malas)) * 100) + '%';
-            }
 
             document.getElementById('detail-grupo-nombre').innerText = g.nombre;
             const enlaceEl = document.getElementById('detail-grupo-enlace');
@@ -319,7 +301,6 @@
             document.getElementById('detail-grupo-suprimida').innerText = est.SUPRIMIDA || 0;
             document.getElementById('detail-grupo-revision').innerText = est['EN REVISION'] || 0;
             document.getElementById('detail-grupo-sdef').innerText = est['SIN DEFINIR'] || 0;
-            document.getElementById('detail-grupo-rendimiento').innerText = rendicion;
 
             const modalEl = document.getElementById('grupoDetailModal');
             const footer = modalEl.querySelector('.modal-footer');

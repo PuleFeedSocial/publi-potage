@@ -14,16 +14,19 @@ async function loadRegions(){
  finally{regionsBusy=false;re('regions-refresh').disabled=false;re('regions-add').disabled=!regionsData;}
 }
 function renderRegions(){
- const body=re('regions-rows');body.replaceChildren();const query=regionText(re('regions-search').value);
- for(const region of regionsData.regiones.slice().sort((a,b)=>a.nombre_region.localeCompare(b.nombre_region,'es'))){
+ const query=regionText(re('regions-search').value);
+ const rows=regionsData.regiones.slice().sort((a,b)=>a.nombre_region.localeCompare(b.nombre_region,'es')).filter(region=>{
   const branches=regionsData.locales.filter(r=>r.region_id===region.region_id);
-  if(!regionText(region.nombre_region+' '+branches.map(r=>r.nombre_local).join(' ')).includes(query))continue;
+  return regionText(region.nombre_region+' '+branches.map(r=>r.nombre_local).join(' ')).includes(query);
+ });
+ const paginator=window._regionesPaginator||(window._regionesPaginator=createTablePaginator('regions-rows',{filterIds:['regions-search']}));
+ paginator.render(rows,region=>{
+  const branches=regionsData.locales.filter(r=>r.region_id===region.region_id);
   const tr=rn('tr');
   const types=Object.keys(regionTypes).filter(t=>regionEnabled(region.region_id,t)).map(t=>regionTypes[t]);
   for(const [label,value]of [['Región',region.nombre_region],['Estado',region.activa==='Sí'?'Activa':region.activa==='No'?'Inactiva':'Revisar estado'],['Sucursales',branches.map(r=>r.nombre_local).join(', ')||'Sin sucursales'],['Productos habilitados',types.join(', ')||'Ninguno']]){const td=rn('td',value);td.dataset.label=label;td.style.whiteSpace='normal';tr.append(td);}
-  makeTableRowInteractive(tr,()=>openRegionDetail(region),'Ver detalle de la región '+(region.nombre_region||''));body.append(tr);
- }
- if(!body.children.length){const td=rn('td','No hay regiones que coincidan.');td.colSpan=4;const tr=rn('tr');tr.append(td);body.append(tr);}
+  makeTableRowInteractive(tr,()=>openRegionDetail(region),'Ver detalle de la región '+(region.nombre_region||''));return tr;
+ },'<tr><td colspan="4" class="text-center text-muted">No hay regiones que coincidan.</td></tr>');
 }
 function openRegionDetail(region){
  if(!region)return;
