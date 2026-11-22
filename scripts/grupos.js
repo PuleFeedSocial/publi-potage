@@ -306,7 +306,11 @@
 
         function buildGrupoStats(grupo) {
             const key = groupMetricKey(grupo.nombre, grupo.zona);
-            const rows = (window._gruposMarketing || []).filter(r => r.grupo && groupMetricKey(r.grupo, r.zona) === key);
+            const rows = (window._gruposMarketing || []).filter(r => {
+                const asignado = r.grupoFila != null && r.grupoFila !== '' && String(r.grupoFila) === String(grupo.rowIndex);
+                const historico = !r.grupoFila && r.grupo && groupMetricKey(r.grupo, r.zona) === key;
+                return asignado || historico;
+            });
             const num = value => { try { return MarketingAnalysis.number(value); } catch { return 0; } };
             const totals = { publicaciones: 0, visualizaciones: 0, interacciones: 0, comentarios: 0, mensajes: 0 };
             const statuses = { PUBLICADA: 0, ELIMINADA: 0, SUPRIMIDA: 0, 'EN REVISION': 0, 'SIN DEFINIR': 0 };
