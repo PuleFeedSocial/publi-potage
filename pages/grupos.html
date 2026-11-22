@@ -323,7 +323,14 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
                 <div class="modal-body pt-2">
-                    <h6 id="grupo-stats-nombre" class="fw-bold mb-3"></h6>
+                    <h6 id="grupo-stats-nombre" class="fw-bold mb-2"></h6>
+                    <div class="d-flex flex-wrap gap-1 mb-2" role="group" aria-label="Período de estadísticas">
+                        <button type="button" class="btn btn-sm btn-outline-secondary grupo-stats-period active" data-period="all">Todo</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary grupo-stats-period" data-period="30">30D</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary grupo-stats-period" data-period="15">15D</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary grupo-stats-period" data-period="7">7D</button>
+                    </div>
+                    <div id="grupo-stats-period-label" class="small text-secondary mb-3"></div>
                     <div id="grupo-stats-loading" class="small text-secondary">Cargando estadísticas…</div>
                     <div id="grupo-stats-content" hidden>
                         <div class="row g-2 text-center mb-3 grupo-stats-kpis">

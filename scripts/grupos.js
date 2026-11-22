@@ -2,8 +2,11 @@
         let gruposMarketingRows = [];
         let grupoStatsChart = null;
         let grupoStatsMonthly = null;
+        let grupoStatsPeriod = 'all';
+        let grupoStatsCurrentGroup = null;
         const grupoNumberFormat = new Intl.NumberFormat('es-AR');
         const grupoPercentFormat = new Intl.NumberFormat('es-AR', { style: 'percent', maximumFractionDigits: 1 });
+        const grupoDateFormat = new Intl.DateTimeFormat('es-AR');
         const pageLoad = (task, message) => (typeof PageLoader !== 'undefined' ? PageLoader.track(task, message) : Promise.resolve().then(task));
 
         function statsNumber(value) {
@@ -315,17 +318,26 @@
         }
 
         function statsDateKey(value) {
-            const text = String(value || '').trim();
-            let match = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-            if (match) return Number(match[3]) * 10000 + Number(match[2]) * 100 + Number(match[1]);
-            match = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
-            return match ? Number(match[1]) * 10000 + Number(match[2]) * 100 + Number(match[3]) : 0;
+            const day = MarketingAnalysis.date(value);
+            return day ? day.getFullYear() * 10000 + (day.getMonth() + 1) * 100 + day.getDate() : 0;
+        }
+
+        function syncGrupoStatsPeriodButtons() {
+            const modalEl = document.getElementById('grupoStatsModal');
+            if (!modalEl || !modalEl.querySelectorAll) return;
+            modalEl.querySelectorAll('.grupo-stats-period').forEach(button => {
+                button.classList.toggle('active', button.dataset.period === grupoStatsPeriod);
+            });
         }
 
         function buildGrupoStatsData(grupo, rows) {
             const key = groupMetricKey(grupo.nombre, grupo.zona);
             const metrics = ['publicaciones', 'visualizaciones', 'interacciones', 'comentarios', 'mensajes'];
-            const matched = (rows || []).filter(r => r.grupo && groupMetricKey(r.grupo, r.zona) === key);
+            const today = new Date();
+            const limit = MarketingAnalysis.start(grupoStatsPeriod, today);
+            const matched = (rows || []).filter(r => r.grupo &&
+                groupMetricKey(r.grupo, r.zona) === key &&
+                (!limit || MarketingAnalysis.within(r.fecha, limit, today)));
             const totals = { publicaciones: 0, visualizaciones: 0, interacciones: 0, comentarios: 0, mensajes: 0 };
             const cleanRows = matched.map(r => {
                 const item = { fecha: r.fecha };
@@ -348,8 +360,11 @@
             let monthly;
             try { monthly = MarketingAnalysis.monthly(cleanRows); }
             catch { monthly = { keys: [], labels: [], series: {} }; }
+            const periodLabel = limit
+                ? 'Últimos ' + grupoStatsPeriod + ' días · ' + grupoDateFormat.format(limit) + ' — ' + grupoDateFormat.format(today)
+                : 'Todo el histórico';
             return {
-                totals, statuses, statusTotal, cleanRows, monthly,
+                totals, statuses, statusTotal, cleanRows, monthly, periodLabel,
                 first: dated.length ? dated[0].row.fecha : '',
                 last: dated.length ? dated[dated.length - 1].row.fecha : '',
                 bestFecha: best ? best.fecha : '',
@@ -399,6 +414,7 @@
             const totals = stats.totals;
             const hasData = stats.cleanRows.length > 0 || stats.statusTotal > 0;
             const set = (id, value) => { const element = document.getElementById(id); if (element) element.textContent = value; };
+            set('grupo-stats-period-label', stats.periodLabel);
             set('grupo-stats-vis', grupoNumberFormat.format(totals.visualizaciones));
             set('grupo-stats-int', grupoNumberFormat.format(totals.interacciones));
             set('grupo-stats-com', grupoNumberFormat.format(totals.comentarios));
@@ -421,6 +437,8 @@
 
         function openGrupoStatsModal(grupo) {
             const modalEl = document.getElementById('grupoStatsModal');
+            grupoStatsCurrentGroup = grupo;
+            syncGrupoStatsPeriodButtons();
             document.getElementById('grupo-stats-nombre').textContent = grupo.nombre;
             document.getElementById('grupo-stats-loading').hidden = false;
             document.getElementById('grupo-stats-content').hidden = true;
@@ -473,7 +491,19 @@
             guardPage('view_grupos');
             const statsModalEl = document.getElementById('grupoStatsModal');
             statsModalEl.addEventListener('shown.bs.modal', drawGrupoStatsChart);
-            statsModalEl.addEventListener('hidden.bs.modal', () => { destroyGrupoStatsChart(); grupoStatsMonthly = null; });
+            statsModalEl.addEventListener('hidden.bs.modal', () => {
+                destroyGrupoStatsChart();
+                grupoStatsMonthly = null;
+                grupoStatsCurrentGroup = null;
+            });
+            const periodButtons = statsModalEl.querySelectorAll('.grupo-stats-period');
+            periodButtons.forEach(button => button.addEventListener('click', () => {
+                const period = button.dataset.period;
+                if (!period || period === grupoStatsPeriod) return;
+                grupoStatsPeriod = period;
+                syncGrupoStatsPeriodButtons();
+                if (grupoStatsCurrentGroup) fillGrupoStatsModal(grupoStatsCurrentGroup, gruposMarketingRows);
+            }));
             const initials = session.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
             document.getElementById('display-avatar').innerText = initials;
             document.getElementById('display-user-name').innerText = session.name;
