@@ -18,7 +18,7 @@ function page(response) {
             return { json: async () => response };
         }
     });
-    vm.runInContext(fs.readFileSync(require.resolve('../assets/js/pages/informes'), 'utf8'), context);
+    vm.runInContext(fs.readFileSync(require.resolve('../scripts/informes'), 'utf8'), context);
     vm.runInContext('pendingImport = [{ "Hora de publicación": "10/28/2026 09:39", Fecha: "Total", Visualizaciones: 0 }];', context);
     context.loadInformes = () => { reloads++; };
     return { context, elements, button, requests, alerts, closed: () => closed, reloads: () => reloads };

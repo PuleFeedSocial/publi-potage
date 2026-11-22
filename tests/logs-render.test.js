@@ -4,7 +4,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
 
-const logsSource=fs.readFileSync(path.join(__dirname,'..','assets','js','pages','logs.js'),'utf8');
+const logsSource=fs.readFileSync(path.join(__dirname,'..','scripts','logs.js'),'utf8');
 const instrumented=logsSource+`
 ;globalThis.__logs={
   set data(v){logsData=v;},

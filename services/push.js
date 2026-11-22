@@ -152,7 +152,7 @@ function pushPayload(notification) {
   return {
     title: notification.title || 'Publi Potage',
     body: notification.message || '',
-    url: notification.link || 'dashboard.html',
+    url: notification.link || '/pages/dashboard.html',
     tag: notification.tag || 'notif',
     icon: '/img/icon-192.png',
     badge: '/img/icon-192.png'

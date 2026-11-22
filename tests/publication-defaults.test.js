@@ -3,8 +3,8 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const root=path.join(__dirname,'..');
-const html=fs.readFileSync(path.join(root,'dashboard.html'),'utf8');
-const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
+const html=fs.readFileSync(path.join(root,'pages','dashboard.html'),'utf8');
+const app=fs.readFileSync(path.join(root,'scripts','app.js'),'utf8');
 
 function inputValue(id){const m=html.match(new RegExp('id="'+id+'"[^>]*\\bvalue="([^"]*)"'));return m&&m[1];}
 function selectDefault(id){const m=html.match(new RegExp('<select[^>]*id="'+id+'"[^>]*>([\\s\\S]*?)</select>'));if(!m)return null;const o=m[1].match(/<option[^>]*\bselected\b[^>]*>([^<]*)</);return o?o[1].trim():null;}

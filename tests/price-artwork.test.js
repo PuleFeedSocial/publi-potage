@@ -1,6 +1,6 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const artwork=require('../price-artwork');
+const artwork=require('../scripts/price-artwork');
 function fixture(){return {regiones:[{region_id:'A',activa:'Sí'},{region_id:'C',activa:'Sí'}],regionProductos:[],huevos:['A','C'].flatMap(region_id=>['B1','B2','B3','C1','C2','C3'].map(tipo_huevo=>({region_id,tipo_huevo,lista_id:'GENERAL',categoria:'Estándar',precio_maple:region_id==='A'?4900:4700,precio_cajon:region_id==='A'?58800:56400}))) };}
 test('artwork reads only selected region standard eggs and separates Costa white/color rows',()=>{
  const data=fixture();assert.equal(artwork.rows(data,'A',artwork.templates.amba.defaults)[0].precio_maple,4900);

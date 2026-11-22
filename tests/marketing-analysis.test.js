@@ -1,4 +1,4 @@
-const {test}=require('node:test');const assert=require('node:assert/strict');const M=require('../marketing-analysis');const now=new Date(2026,9,28,12);
+const {test}=require('node:test');const assert=require('node:assert/strict');const M=require('../scripts/marketing-analysis');const now=new Date(2026,9,28,12);
 const row=(fecha,grupo,zona,pubs,views)=>({fecha,grupo,zona,estatus:'PUBLICADA',publicaciones:pubs,visualizaciones:views,interacciones:1,comentarios:0,mensajes:0});
 const rows=[row('29/08/2026','Grupo A','Merlo',100,1000),row('28/10/2026','Grupo A',' Merlo ',2,20),row('2026-10-28','grupo a','merlo',3,30),row('29/09/2026','Grupo B','Costa',4,40),row('28/09/2026','Grupo C','Costa',8,80),row('29/10/2026','Grupo D','Costa',16,160)];
 test('explicit 30 days include exactly today and previous 29 calendar dates, never future or old updated posts',()=>{const selected=M.select(rows,{period:'30',now});assert.equal(M.totals(selected).publicaciones,9);assert.equal(selected.length,3);assert.equal(M.start('30',now).getTime(),new Date(2026,8,29).getTime());});

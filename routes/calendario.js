@@ -149,7 +149,7 @@ async function notifyAssignChange(db, actor, oldResp, newResp, titulo, tipo, fec
       type: 'calendario_asignacion',
       title: 'Nuevo elemento asignado',
       message: `${tipo === 'evento' ? 'Evento' : 'Tarea'}: ${titulo} · ${fecha}`,
-      link: 'calendario.html',
+      link: '/pages/calendario.html',
       icon: 'bi-calendar-check'
     });
   } catch (err) {
@@ -251,7 +251,7 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
           type: 'calendario_general',
           title: tipo === 'evento' ? 'Nuevo evento en el calendario' : 'Nueva tarea en el calendario',
           message: `${titulo} · ${fecha}${serieTxt}`,
-          link: 'calendario.html',
+          link: '/pages/calendario.html',
           icon: 'bi-calendar-plus'
         }, req.user.id);
       }
@@ -434,7 +434,7 @@ router.patch('/:id/estado', authenticate, requirePermission('complete_calendario
         type: 'calendario_realizada',
         title: 'Tarea completada',
         message: `${req.user.name || req.user.email} marcó como realizada: ${existing.titulo}`,
-        link: 'calendario.html',
+        link: '/pages/calendario.html',
         icon: 'bi-check2-circle'
       }, req.user.id);
     }

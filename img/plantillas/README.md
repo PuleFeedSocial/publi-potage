@@ -28,6 +28,6 @@ Si no existe `fondo.*`, se usa el diseño estándar con el nombre de la empresa.
 
 ## Ajuste fino
 
-Las zonas donde se dibujan precios, sucursales y marca están en `company-templates.js`
+Las zonas donde se dibujan precios, sucursales y marca están en `scripts/company-templates.js`
 (`DEFAULT_ZONES` y, por empresa, `zones`). Cuando llegue una plantilla nueva se ajustan
 esas coordenadas sobre el lienzo de 2240 × 1880.

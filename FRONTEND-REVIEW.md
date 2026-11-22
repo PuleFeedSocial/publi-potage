@@ -45,7 +45,7 @@ reales:
   vistas de zonas y usuarios y las cuatro vistas del calendario.
 - Preferencia de tema del sistema y movimiento reducido.
 - Revisión de capturas de escritorio y móvil; sintaxis de los 11 scripts
-  de página y de `app.js`, `theme.js` y `sw.js`.
+  de página y de `scripts/app.js`, `scripts/theme.js` y `scripts/sw.js`.
 
 ## Límites
 

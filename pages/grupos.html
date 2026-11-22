@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Grupos — Potage</title>
+    <link rel="icon" type="image/png" href="/img/icon-192.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" sizes="180x180" href="/img/icon-180.png">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <script src="/scripts/theme.js"></script>
+    <link rel="stylesheet" href="/styles/style.css">
+    <link rel="stylesheet" href="/styles/grupos.css">
+</head>
+
+<body>
+
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="logo-box">
+                        <img src="/img/isotiposinfondo.png" alt="Potage" class="logo-img">
+                        <span class="logo-text">Potage</span>
+                    </div>
+                    <button data-page-event="grupos-1" class="sidebar-toggle">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+            </div>
+
+            <nav class="sidebar-menu" aria-label="Navegación principal">
+<div class="menu-section-label">Principal</div><div class="sidebar-nav-group" id="nav-marketing"><div class="menu-item nav-group-label"><i class="bi bi-megaphone" aria-hidden="true"></i><span>Redes / Marketing</span></div><div class="sidebar-submenu"><a href="/pages/dashboard.html" class="menu-item submenu-item" id="btn-nav-dashboard">
+                    <i class="bi bi-grid-1x2-fill"></i>
+                    <span>Publicaciones</span>
+                </a>
+<a href="/pages/informes.html" class="menu-item submenu-item" id="btn-nav-informes">
+                    <i class="bi bi-file-earmark-bar-graph-fill"></i>
+                    <span>Informes</span>
+                </a>
+<a href="/pages/grupos.html" class="menu-item submenu-item active" id="btn-nav-grupos">
+                    <i class="bi bi-diagram-3"></i>
+                    <span>Grupos</span>
+                </a>
+<a data-page-event="grupos-2" href="/pages/dashboard.html" class="menu-item submenu-item" id="btn-nav-zonas">
+                    <i class="bi bi-map-fill"></i>
+                    <span>Sucursales de redes</span>
+                </a></div></div><div class="sidebar-nav-group" id="nav-interno"><div class="menu-item nav-group-label"><i class="bi bi-building" aria-hidden="true"></i><span>Interno</span></div><div class="sidebar-submenu"><a href="/pages/productos.html" class="menu-item submenu-item" id="btn-nav-productos"><i class="bi bi-box-seam"></i><span>Productos</span></a>
+<a href="/pages/regiones.html" class="menu-item submenu-item" id="btn-nav-regiones"><i class="bi bi-globe-americas"></i><span>Regiones</span></a>
+<a href="/pages/sucursales.html" class="menu-item submenu-item" id="btn-nav-sucursales">
+                    <i class="bi bi-buildings-fill"></i>
+                    <span>Sucursales</span>
+                </a></div></div><a href="/pages/calendario.html" class="menu-item main-menu-link" id="btn-nav-calendario">
+                    <i class="bi bi-calendar3-fill"></i>
+                    <span>Calendario</span>
+                </a>
+<div class="menu-section-label" id="gestion-label">Gestión</div>
+                <div id="gestion-items">
+                    <a data-page-event="grupos-3" href="/pages/dashboard.html" class="menu-item submenu-item" id="btn-nav-users">
+                        <i class="bi bi-people-fill"></i>
+                        <span>Usuarios</span>
+                    </a>
+                    <a href="/pages/logs.html" class="menu-item submenu-item" id="btn-nav-logs">
+                        <i class="bi bi-journal-text"></i>
+                        <span>Logs</span>
+                    </a>
+                </div>
+            </nav>
+
+            <div class="sidebar-footer">
+                <a href="/pages/ayuda.html" class="menu-item submenu-item page-grupos-inline-1">
+                    <i class="bi bi-question-circle-fill"></i>
+                    <span>Ayuda</span>
+                </a>
+                <button data-page-event="grupos-4" type="button" class="theme-toggle-row" title="Cambiar tema">
+                    <i class="bi bi-moon-stars-fill theme-toggle-icon"></i>
+                    <span class="theme-toggle-label">Modo oscuro</span>
+                    <span class="theme-switch"><span class="theme-switch-thumb"></span></span>
+                </button>
+                <div class="user-profile-summary">
+                    <div class="avatar" id="display-avatar">VA</div>
+                    <div class="user-info">
+                        <div class="user-name" id="display-user-name">Víctor Alejandro</div>
+                        <div class="user-role-badge badge-admin" id="display-user-role">Admin</div>
+                    </div>
+                </div>
+            </div>
+            <div class="sidebar-credit">
+                <span class="text-decoration-none small">
+                    <i class="bi bi-cpu atlas-credit-icon"></i>Altas Engineering
+                </span>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-navbar">
+                <div class="d-flex align-items-center gap-3">
+                    <button data-page-event="grupos-5" class="sidebar-toggle">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <div class="page-context">
+                        <h1 class="page-title">Gestión de Grupos</h1>
+                        <p class="page-subtitle text-muted">Administrá los grupos, enlaces y sucursales desde la hoja Grupos
+                            de Google Sheets</p>
+                    </div>
+                </div>
+                <div class="top-navbar-actions">
+                    <div class="dropdown">
+                        <button class="btn profile-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="avatar-sm" id="nav-avatar">VA</span>
+                            <span class="fw-medium" id="nav-user-name">Víctor</span>
+                            <i class="bi bi-chevron-down ms-1"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 mt-2">
+                            <li><a class="dropdown-item" href="/pages/account-settings.html">
+                                    <i class="bi bi-gear me-2"></i>Ajustes de la cuenta
+                                </a></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li><a data-page-event="grupos-6" class="dropdown-item text-danger" href="#">
+                                    <i class="bi bi-box-arrow-right me-2"></i>Cerrar Sesión
+                                </a></li>
+                        </ul>
+                    </div>
+                </div>
+            </header>
+
+            <div class="view-section">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <span class="text-muted small" id="data-source-badge-grupos">
+                            <i class="bi bi-database"></i> Google Sheets
+                        </span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button data-page-event="grupos-7" class="btn btn-sm btn-outline-secondary" title="Recargar">
+                            <i class="bi bi-arrow-clockwise"></i> Recargar
+                        </button>
+                        <button data-page-event="grupos-8" class="btn btn-sm btn-action-primary">
+                            <i class="bi bi-plus-circle-fill me-1"></i> Agregar grupo
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card data-table-card">
+                    <div class="card-header-clean d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div>
+                            <h5 class="table-card-title">Listado de Grupos</h5>
+                            <span class="text-muted small">Datos desde la hoja "Grupos" · <span
+                                    id="grupos-count">0</span> grupos</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <select data-page-event="grupos-9" id="grupos-filter-zona" class="form-select form-select-sm custom-input page-grupos-inline-2">
+                                <option value="">Todas las sucursales</option>
+                            </select>
+                            <select data-page-event="grupos-10" id="grupos-sort" class="form-select form-select-sm custom-input page-grupos-inline-3">
+                                <option value="">Orden por defecto</option>
+                                <option value="peores">Menor puntuacion (supr+elim+revision)</option>
+                                <option value="mejores">Mayor puntuacion (más PUBLICADA)</option>
+                            </select>
+                            <label class="d-inline-flex align-items-center gap-1 small text-muted" title="Mostrar solo grupos con publicaciones suprimidas, eliminadas o en revisión">
+                                <input data-page-event="grupos-11" type="checkbox" id="grupos-solo-problemas" value="1"> Solo problemas
+                            </label>
+                            <input data-page-event="grupos-12" type="text" id="grupos-search" class="form-control form-control-sm custom-input page-grupos-inline-4" placeholder="Buscar...">
+                            <span class="text-muted small"><i class="bi bi-database"></i> <span
+                                    id="grupos-pubs-total">0</span> pubs</span>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table custom-table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Nombre del Grupo</th>
+                                    <th>Enlace</th>
+                                    <th>Sucursal</th>
+                                    <th class="text-center">Fec. Ingreso</th>
+                                    <th class="text-center">Pubs</th>
+                                    <th class="text-center">Activo</th>
+                                </tr>
+                            </thead>
+                            <tbody id="grupos-page-table-body">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <div class="modal fade" id="grupoPageModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content custom-modal">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-semibold text-dark" id="grupo-page-modal-title">
+                        <i class="bi bi-plus-circle-fill me-2"></i>Agregar Grupo
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form data-page-event="grupos-13" id="grupo-page-form">
+                    <div class="modal-body pt-3">
+                        <input type="hidden" id="grupo-page-row-index">
+                        <div class="mb-3">
+                            <label class="form-label small fw-medium text-secondary">Nombre del Grupo</label>
+                            <input type="text" id="grupo-page-nombre" class="form-control custom-input" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-medium text-secondary">Estado</label>
+                            <select id="grupo-page-activo" class="form-select custom-input">
+                                <option value="true">Activo</option>
+                                <option value="false">Inactivo</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-medium text-secondary">Enlace</label>
+                            <input type="text" id="grupo-page-enlace" class="form-control custom-input"
+                                placeholder="Enlace o &quot;Sin Link&quot;">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-medium text-secondary">Sucursal</label>
+                            <select id="grupo-page-zona" class="form-select custom-input">
+                                <option value="">Seleccionar...</option>
+                                <option value="Todos">Todos</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-medium text-secondary">Fecha de Ingreso</label>
+                            <input type="text" id="grupo-page-fecha" class="form-control custom-input"
+                                placeholder="dd/mm/aaaa">
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 pt-0">
+                        <button type="button" class="btn btn-sm btn-light-muted"
+                            data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-sm btn-action-primary">Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="grupoDetailModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content custom-modal">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-semibold" id="detail-grupo-title"><i class="bi bi-info-circle-fill me-2 text-primary"></i>Detalle del Grupo</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-2">
+                    <h6 id="detail-grupo-nombre" class="fw-bold mb-3"></h6>
+                    <div class="row g-2 mb-3">
+                        <div class="col-12">
+                            <span class="text-secondary small d-block mb-1">Enlace</span>
+                            <span id="detail-grupo-enlace" class="small"></span>
+                        </div>
+                    </div>
+                    <div class="row g-2 text-center mb-3">
+                        <div class="col">
+                            <div class="detail-kpi-box">
+                                <div class="fw-bold text-primary fs-5" id="detail-grupo-pubs">0</div>
+                                <div class="text-secondary small">Pubs</div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="detail-kpi-box">
+                                <div class="fw-bold text-success fs-5" id="detail-grupo-publicada">0</div>
+                                <div class="text-secondary small">Publicada</div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="detail-kpi-box">
+                                <div class="fw-bold text-danger fs-5" id="detail-grupo-eliminada">0</div>
+                                <div class="text-secondary small">Eliminada</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row g-2 text-center mb-3">
+                        <div class="col">
+                            <div class="detail-kpi-box">
+                                <div class="fw-bold text-warning fs-5" id="detail-grupo-suprimida">0</div>
+                                <div class="text-secondary small">Suprimida</div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="detail-kpi-box">
+                                <div class="fw-bold text-info fs-5" id="detail-grupo-revision">0</div>
+                                <div class="text-secondary small">Revisión</div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="detail-kpi-box">
+                                <div class="fw-bold text-secondary fs-5" id="detail-grupo-sdef">0</div>
+                                <div class="text-secondary small">S/Def</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-sm btn-light-muted" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/scripts/marketing-analysis.js"></script><script src="/scripts/app.js"></script>
+    <script src="/scripts/grupos.js"></script>
+    <script src="/scripts/grupos-events.js"></script>
+</body>
+
+</html>

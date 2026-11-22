@@ -1,7 +1,7 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const companies=require('../company-templates');
-const social=require('../social-artwork');
+const companies=require('../scripts/company-templates');
+const social=require('../scripts/social-artwork');
 test('resolves the four companies with accents, dots and legal suffixes',()=>{
  const cases=[
   ['Potage SRL','potage'],['POTAGE S.R.L.','potage'],['Potage','potage'],
@@ -16,19 +16,19 @@ test('resolves the four companies with accents, dots and legal suffixes',()=>{
 test('templates read assets from the documented folder and keep Potage fallbacks',()=>{
  const pluma=companies.forCompany('Pluma Blanca SRL');
  for(const [key,name] of [['background','fondo'],['logo','logo'],['eggs','huevos'],['chicken','pollos']]){
-  assert.ok(pluma.assets[key].includes('img/plantillas/pluma-blanca/'+name+'.png'));
-  assert.ok(pluma.assets[key].includes('img/plantillas/pluma-blanca/'+name+'.jpg'));
+  assert.ok(pluma.assets[key].includes('/img/plantillas/pluma-blanca/'+name+'.png'));
+  assert.ok(pluma.assets[key].includes('/img/plantillas/pluma-blanca/'+name+'.jpg'));
  }
  const potage=companies.forCompany('Potage SRL');
- assert.ok(potage.assets.logo.includes('img/precios/logo-potage.png'));
- assert.ok(potage.assets.eggs.includes('img/precios/costa.jpg'));
- assert.ok(potage.assets.chicken.includes('img/precios/pollos.png'));
- assert.ok(!pluma.assets.logo.includes('img/icon-512.png'));
+ assert.ok(potage.assets.logo.includes('/img/precios/logo-potage.png'));
+ assert.ok(potage.assets.eggs.includes('/img/precios/costa.jpg'));
+ assert.ok(potage.assets.chicken.includes('/img/precios/pollos.png'));
+ assert.ok(!pluma.assets.logo.includes('/img/icon-512.png'));
 });
 test('El Triángulo uses its own dynamic egg artwork instead of the generic Potage template',()=>{
  const triangle=companies.forCompany('El Triángulo S.A.');
  assert.equal(triangle.layout,'el-triangulo');
- assert.ok(triangle.assets.eggs.includes('img/plantillas/el-triangulo/huevos.png'));
+ assert.ok(triangle.assets.eggs.includes('/img/plantillas/el-triangulo/huevos.png'));
 });
 test('companies are discovered without mixing repeated names',()=>{
  const list=companies.companiesForBranches([{empresa:'Potage SRL'},{empresa:'Potage S.R.L.'},{empresa:'La Sorpresa SRL'},{empresa:''}]);

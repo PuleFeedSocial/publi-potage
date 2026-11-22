@@ -121,7 +121,7 @@ async function runCalendarReminders(db, user) {
         type: 'calendario_recordatorio',
         title: `Recordatorio: ${ev.titulo}`,
         message: `${cuando}${hora} · ${tipo}`,
-        link: 'calendario.html',
+        link: '/pages/calendario.html',
         icon: 'bi-alarm',
         dedupeKey: `reminder:${ev.id}:${user.id}:${today}`
       });

@@ -1,7 +1,7 @@
 const { google } = require('googleapis');
 const crypto = require('crypto');
-const eggPrices = require('../egg-prices');
-const sheetLabels = require('../sheet-labels');
+const eggPrices = require('../scripts/egg-prices');
+const sheetLabels = require('../scripts/sheet-labels');
 function validHeaders(kind,header=[]){return schemas[kind].fields.every((field,i)=>header[i]===field||header[i]===sheetLabels[kind][i]||(kind==='huevos'&&field==='precio_pallet'&&header[i]===undefined));}
 const SPREADSHEET_ID = process.env.PRODUCTS_SHEET_ID || '1hFGIgLe4YgF2Iz5V7wJQcE0tS3tXlKvDtEwKduSEUtg';
 const schemas = {
@@ -224,7 +224,7 @@ async function writeNow(kind,method,input,client=getClient()) {
   } else if(kind==='locales'&&method==='POST')throw fail('Seleccioná una sucursal del catálogo.');
   const row=validate(kind,input,all);
   if(kind==='carnes'){
-    const catalog=require('../chicken-catalog'),key=catalog.key(row);
+    const catalog=require('../scripts/chicken-catalog'),key=catalog.key(row);
     if(key&&all.carnes.some(r=>r._row!==current?._row&&r.region_id===row.region_id&&catalog.key(r)===key))throw fail('Esta presentación de pollo ya tiene un precio en la región. Editá el existente.',409);
   }
   if(kind==='huevos'&&row.lista_id==='GENERAL'&&input.price_source===undefined) {

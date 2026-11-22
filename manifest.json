@@ -3,7 +3,7 @@
   "short_name": "Potage",
   "description": "Panel de control para gestionar y analizar campañas en redes sociales",
   "lang": "es",
-  "start_url": "/dashboard.html",
+  "start_url": "/pages/dashboard.html",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",

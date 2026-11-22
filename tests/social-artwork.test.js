@@ -2,7 +2,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
-const social=require('../social-artwork');
+const social=require('../scripts/social-artwork');
 
 function fakeContext(){
  let matrix=[1,0,0,1,0,0];
@@ -99,14 +99,14 @@ test('El Triángulo artwork keeps the selected branch and replaces the reference
 test('the product generator exposes only the horizontal 2240 by 1880 export',()=>{
  assert.equal(social.WIDTH,2240);assert.equal(social.HEIGHT,1880);
  assert.equal(social.ASPECT_RATIO,2240/1880);assert.equal(social.WIDTH/social.HEIGHT,2240/1880);
- for(const file of ['social-artwork.js','price-artwork-ui.js']){
+ for(const file of ['scripts/social-artwork.js','scripts/price-artwork-ui.js']){
   const source=fs.readFileSync(path.join(__dirname,'..',file),'utf8');
   assert.doesNotMatch(source,/WIDTH\s*=\s*1080\s*,\s*HEIGHT\s*=\s*1080/,file);
   assert.doesNotMatch(source,/canvas\.width\s*=\s*1080[\s\S]{0,80}canvas\.height\s*=\s*1080/,file);
   assert.doesNotMatch(source,/1080\s*[×x]\s*1080/,file);
   assert.doesNotMatch(source,/1440\s*[×x]\s*1800/,file);
  }
- const ui=fs.readFileSync(path.join(__dirname,'..','price-artwork-ui.js'),'utf8');
+ const ui=fs.readFileSync(path.join(__dirname,'..','scripts','price-artwork-ui.js'),'utf8');
  assert.match(ui,/SocialArtwork\.verifyPngBlob\(blob\)/);
  assert.doesNotMatch(ui,/toDataURL/);
 });

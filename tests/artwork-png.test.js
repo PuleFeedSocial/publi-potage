@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const {createCanvas,loadImage}=require('@napi-rs/canvas');
-const social=require('../social-artwork');
+const social=require('../scripts/social-artwork');
 
 const BRANCHES=[
  {ubicacion:'SAN MIGUEL CENTRO',direccion:'Av. Dr. Ricardo Balbín 2815, Buenos Aires',contacto:'+54 9 11 2157-9792'},
@@ -116,7 +116,7 @@ test('the download verifier rejects old 1080 square and 1440 x 1800 exports',asy
 });
 
 test('the on-site preview preserves 2240:1880 without cover cropping',()=>{
- const css=fs.readFileSync(path.join(__dirname,'../productos.css'),'utf8');
+ const css=fs.readFileSync(path.join(__dirname,'../styles/productos.css'),'utf8');
  const rule=css.match(/#artwork-preview\{([^}]+)\}/);
  assert.ok(rule,'artwork preview rule exists');
  assert.match(rule[1],/aspect-ratio:2240\/1880/);
@@ -126,7 +126,7 @@ test('the on-site preview preserves 2240:1880 without cover cropping',()=>{
 });
 
 test('generator sources no longer contain vertical or old export formats',()=>{
- for(const file of ['social-artwork.js','price-artwork-ui.js','company-templates.js','productos.html']){
+ for(const file of ['scripts/social-artwork.js','scripts/price-artwork-ui.js','scripts/company-templates.js','pages/productos.html']){
   const source=fs.readFileSync(path.join(__dirname,'..',file),'utf8');
   assert.doesNotMatch(source,/1440\s*[×x]\s*1800/,file);
   assert.doesNotMatch(source,/1080\s*[×x]\s*1080/,file);
@@ -136,9 +136,9 @@ test('generator sources no longer contain vertical or old export formats',()=>{
 });
 
 test('the service worker ships a cache version that includes the new generator files',()=>{
- const source=fs.readFileSync(path.join(__dirname,'../sw.js'),'utf8');
+ const source=fs.readFileSync(path.join(__dirname,'../scripts/sw.js'),'utf8');
  const version=Number(source.match(/const CACHE = 'potage-v(\d+)'/)[1]);
  assert.ok(version>=90,'cache version: '+version);
- for(const file of ['/social-artwork.js','/price-artwork-ui.js','/company-templates.js'])assert.ok(source.includes("'"+file+"'"),file);
+ for(const file of ['/scripts/social-artwork.js','/scripts/price-artwork-ui.js','/scripts/company-templates.js'])assert.ok(source.includes("'"+file+"'"),file);
  assert.ok(source.includes("'/img/plantillas/el-triangulo/huevos.png'"),'El Triángulo artwork');
 });

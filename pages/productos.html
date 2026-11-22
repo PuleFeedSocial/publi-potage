@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Productos — Potage</title>
+    <link rel="icon" type="image/png" href="/img/icon-192.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" sizes="180x180" href="/img/icon-180.png">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <script src="/scripts/theme.js"></script>
+    <link rel="stylesheet" href="/styles/style.css">
+<link rel="stylesheet" href="/styles/productos.css">
+</head>
+
+<body>
+
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="logo-box">
+                        <img src="/img/isotiposinfondo.png" alt="Potage" class="logo-img">
+                        <span class="logo-text">Potage SRL</span>
+                    </div>
+                    <button data-page-event="productos-1" class="sidebar-toggle">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+            </div>
+
+            <nav class="sidebar-menu" aria-label="Navegación principal">
+<div class="menu-section-label">Principal</div><div class="sidebar-nav-group" id="nav-marketing"><div class="menu-item nav-group-label"><i class="bi bi-megaphone" aria-hidden="true"></i><span>Redes / Marketing</span></div><div class="sidebar-submenu"><a href="/pages/dashboard.html" class="menu-item submenu-item" id="btn-nav-dashboard">
+                    <i class="bi bi-grid-1x2-fill"></i>
+                    <span>Publicaciones</span>
+                </a>
+<a href="/pages/informes.html" class="menu-item submenu-item" id="btn-nav-informes">
+                    <i class="bi bi-file-earmark-bar-graph-fill"></i>
+                    <span>Informes</span>
+                </a>
+<a href="/pages/grupos.html" class="menu-item submenu-item" id="btn-nav-grupos">
+                    <i class="bi bi-diagram-3"></i>
+                    <span>Grupos</span>
+                </a>
+<a data-page-event="productos-2" href="/pages/dashboard.html" class="menu-item submenu-item" id="btn-nav-zonas">
+                    <i class="bi bi-map-fill"></i>
+                    <span>Sucursales de redes</span>
+                </a></div></div><div class="sidebar-nav-group" id="nav-interno"><div class="menu-item nav-group-label"><i class="bi bi-building" aria-hidden="true"></i><span>Interno</span></div><div class="sidebar-submenu"><a href="/pages/productos.html" class="menu-item submenu-item active" id="btn-nav-productos"><i class="bi bi-box-seam"></i><span>Productos</span></a>
+<a href="/pages/regiones.html" class="menu-item submenu-item" id="btn-nav-regiones"><i class="bi bi-globe-americas"></i><span>Regiones</span></a>
+<a href="/pages/sucursales.html" class="menu-item submenu-item" id="btn-nav-sucursales">
+                    <i class="bi bi-buildings-fill"></i>
+                    <span>Sucursales</span>
+                </a></div></div><a href="/pages/calendario.html" class="menu-item main-menu-link" id="btn-nav-calendario">
+                    <i class="bi bi-calendar3-fill"></i>
+                    <span>Calendario</span>
+                </a>
+<div class="menu-section-label" id="gestion-label">Gestión</div>
+                <div id="gestion-items">
+                    <a data-page-event="productos-3" href="/pages/dashboard.html" class="menu-item submenu-item" id="btn-nav-users">
+                        <i class="bi bi-people-fill"></i>
+                        <span>Usuarios</span>
+                    </a>
+                    <a href="/pages/logs.html" class="menu-item submenu-item" id="btn-nav-logs">
+                        <i class="bi bi-journal-text"></i>
+                        <span>Logs</span>
+                    </a>
+                </div>
+            </nav>
+
+            <div class="sidebar-footer">
+                <a href="/pages/ayuda.html" class="menu-item submenu-item page-productos-inline-1">
+                    <i class="bi bi-question-circle-fill"></i>
+                    <span>Ayuda</span>
+                </a>
+                <button data-page-event="productos-4" type="button" class="theme-toggle-row" title="Cambiar tema">
+                    <i class="bi bi-moon-stars-fill theme-toggle-icon"></i>
+                    <span class="theme-toggle-label">Modo oscuro</span>
+                    <span class="theme-switch"><span class="theme-switch-thumb"></span></span>
+                </button>
+                <div class="user-profile-summary">
+                    <div class="avatar" id="display-avatar">—</div>
+                    <div class="user-info">
+                        <div class="user-name" id="display-user-name">Tu cuenta</div>
+                        <div class="user-role-badge badge-admin" id="display-user-role">Admin</div>
+                    </div>
+                </div>
+            </div>
+            <div class="sidebar-credit">
+                <span class="text-decoration-none small">
+                    <i class="bi bi-cpu atlas-credit-icon"></i>Atlas Software &amp; Diseño
+                </span>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-navbar">
+                <div class="d-flex align-items-center gap-3">
+                    <button data-page-event="productos-5" class="sidebar-toggle">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <div class="page-context">
+                        <h1 class="page-title">Productos</h1>
+                    <p class="page-subtitle text-muted">Precios por región · Huevos, Pollos, Cerdos y Carnes</p>
+                </div>
+                </div>
+                <div class="top-navbar-actions">
+                    <div class="dropdown">
+                        <button class="btn profile-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="avatar-sm" id="nav-avatar">—</span>
+                            <span class="fw-medium" id="nav-user-name">Cuenta</span>
+                            <i class="bi bi-chevron-down ms-1"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 mt-2">
+                            <li><a class="dropdown-item" href="/pages/account-settings.html">
+                                <i class="bi bi-gear me-2"></i>Ajustes de la cuenta
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a data-page-event="productos-6" class="dropdown-item text-danger" href="#">
+                                <i class="bi bi-box-arrow-right me-2"></i>Cerrar Sesión
+                            </a></li>
+                        </ul>
+                    </div>
+                </div>
+            </header>
+
+            <section class="products-hero">
+<div class="product-heading"><span class="text-muted small">CATÁLOGO POR REGIÓN</span><div class="product-heading-actions"><button type="button" id="product-copy-text" class="btn btn-outline-secondary">Copiar texto</button><button type="button" id="product-artwork" class="btn btn-outline-secondary">Generar imagen</button><button type="button" id="products-refresh" class="btn btn-outline-secondary">Actualizar</button><button type="button" id="product-new" class="btn btn-action-primary" hidden>Añadir producto</button></div></div>
+<p id="products-status" class="products-status" role="status" aria-live="polite">Cargando productos…</p>
+<div id="product-controls" hidden>
+<div class="products-toolbar"><div><label for="product-region">Región</label><select id="product-region" class="form-select custom-input"></select></div><div><label for="product-local">Sucursal</label><select id="product-local" class="form-select custom-input"><option value="">Todas las sucursales</option></select></div><div class="product-search-field"><label for="product-search">Buscar por nombre</label><input id="product-search" type="search" class="form-control custom-input" placeholder="Buscar en todos los productos..."></div><div><label for="product-order">Ordenar por nombre</label><select id="product-order" class="form-select custom-input"><option value="asc">A → Z</option><option value="desc">Z → A</option></select></div></div>
+<div class="product-filter-tabs" id="product-type-filters"></div>
+<div class="product-region-summary"><div><h2 id="region-title"></h2><div id="product-locals" class="small text-muted"></div></div><button type="button" id="product-clear" class="btn btn-sm btn-outline-secondary">Limpiar filtros</button></div><p id="product-results" class="small text-muted mb-0" role="status"></p>
+</div></section>
+<div id="product-tables"></div>
+</main></div>
+
+
+<dialog id="product-create" class="product-secondary-dialog" aria-labelledby="product-create-title"><div class="product-heading"><h2 id="product-create-title">Añadir producto</h2><button type="button" data-close-dialog="product-create" class="btn btn-sm btn-outline-secondary">Cancelar</button></div><p class="text-muted">Elegí qué querés añadir a la región seleccionada.</p><div class="product-type-options"><button type="button" id="product-create-eggs" class="btn btn-outline-secondary">Huevos y especiales</button><button type="button" id="product-create-meat" class="btn btn-outline-secondary">Pollos / Cerdos / Carnes</button></div></dialog>
+<dialog id="product-dialog" aria-labelledby="product-form-title"><form id="product-form"><fieldset id="product-form-set"><h2 id="product-form-title"></h2><div id="product-fields"></div><p class="small text-muted mt-3">Los precios de huevos se calculan automáticamente al editar docena, maple o cajón. En huevos estándar también podés ingresar el pallet (25 cajones). Dejá precios pendientes vacíos. Los cambios se guardan en Google Sheets.</p><p id="product-form-error" role="status" aria-live="polite"></p><div class="product-form-actions"><button type="button" id="product-delete" class="btn btn-outline-danger" hidden>Eliminar</button><button type="button" id="product-cancel" class="btn btn-outline-secondary">Cancelar</button><button type="submit" class="btn btn-action-primary">Guardar</button></div></fieldset></form></dialog>
+<dialog id="price-text-dialog" class="product-secondary-dialog" aria-labelledby="price-text-title"><div class="product-heading"><h2 id="price-text-title" class="h4">Texto para publicar</h2><button type="button" id="price-text-close" class="btn btn-outline-secondary">Cerrar</button></div><p id="price-text-status" role="status" aria-live="polite"></p><label for="price-text-content" class="form-label">Vista previa del mensaje</label><textarea id="price-text-content" class="form-control custom-input" rows="16" readonly></textarea><div class="product-form-actions mt-3"><button type="button" id="price-text-copy" class="btn btn-action-primary" disabled>Copiar al portapapeles</button></div></dialog>
+<dialog id="artwork-dialog" class="product-secondary-dialog" aria-labelledby="artwork-title">
+<div class="product-heading"><h2 id="artwork-title">Imagen de precios</h2><button type="button" id="artwork-close" class="btn btn-outline-secondary">Cerrar</button></div>
+<p>Región: <strong id="artwork-region-name"></strong></p>
+<p class="small text-muted">Plantillas para feed de Facebook · PNG horizontal 2240 × 1880 px</p>
+<label for="artwork-company" class="form-label">Empresa</label><select id="artwork-company" class="form-select custom-input"><option value="">Cargando sucursales…</option></select>
+<label for="artwork-template" class="form-label">Productos de la imagen</label><select id="artwork-template" class="form-select custom-input"><option value="costa">Huevos</option><option value="pollos">Pollos</option></select>
+<p id="artwork-description" class="small text-muted mt-3">Huevos: elegí las filas que querés mostrar. Pollos: se muestran las 7 presentaciones del catálogo, con precios independientes. La imagen incluye dirección y contacto de todas las sucursales activas vinculadas a esta región, aunque filtres por una sola. Maple de 30 huevos · cajón de 12 maples.</p>
+<div id="artwork-selections"></div>
+<p id="artwork-status" role="status" aria-live="polite" class="mt-3"></p>
+<div id="artwork-page-picker" hidden><label for="artwork-page" class="form-label">Imagen para descargar</label><select id="artwork-page" class="form-select custom-input"></select></div><canvas id="artwork-preview" hidden role="img" aria-label="Vista previa de la lista de precios"></canvas>
+<div class="product-form-actions mt-3"><button type="button" id="artwork-refresh" class="btn btn-outline-secondary">Actualizar precios</button><button type="button" id="artwork-download" class="btn btn-action-primary" disabled>Descargar PNG</button></div>
+</dialog>
+<div class="modal fade" id="productDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content custom-modal">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-semibold text-dark"><i class="bi bi-box-seam me-2"></i>Detalle del producto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body pt-3" id="productDetailBody"></div>
+            <div class="modal-footer border-0 pt-0" id="productDetailFooter"></div>
+        </div>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script><script src="/scripts/marketing-analysis.js"></script><script src="/scripts/app.js"></script><script src="/scripts/egg-prices.js"></script><script src="/scripts/chicken-catalog.js"></script><script src="/scripts/productos.js"></script><script src="/scripts/company-templates.js"></script><script src="/scripts/price-artwork.js"></script><script src="/scripts/social-artwork.js"></script><script src="/scripts/price-artwork-ui.js"></script><script src="/scripts/price-text.js"></script>    <script src="/scripts/productos-events.js"></script>
+</body></html>

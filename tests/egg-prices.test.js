@@ -1,6 +1,6 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const {calculate}=require('../egg-prices');
+const {calculate}=require('../scripts/egg-prices');
 const {validate}=require('../services/products');
 test('standard eggs convert from any of the four price inputs',()=>{
  const expected={precio_docena:12000,precio_maple:30000,precio_cajon:360000,precio_pallet:9000000};

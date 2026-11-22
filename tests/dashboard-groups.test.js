@@ -2,8 +2,8 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const vm=require('node:vm');
 const fs=require('node:fs');
-const source=fs.readFileSync(require.resolve('../app.js'),'utf8');
-const context=vm.createContext({MarketingAnalysis:require('../marketing-analysis')});
+const source=fs.readFileSync(require.resolve('../scripts/app.js'),'utf8');
+const context=vm.createContext({MarketingAnalysis:require('../scripts/marketing-analysis')});
 vm.runInContext(source.slice(source.indexOf('function normFilterVal'),source.indexOf('function goToPage')),context);
 
 test('group filter keeps every catalog row of the selected branch, even duplicate names',()=>{

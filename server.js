@@ -40,12 +40,17 @@ app.use('/api', require('./services/validation').objectBody);
 // Archivos públicos: solo front-end. Nunca servir código del servidor,
 // node_modules, .env, package.json ni la base de datos.
 const PUBLIC_FILES = new Set([
-  ...require('./assets/page-assets.json'),
-  'index.html', '404.html', 'login.html', 'register.html', 'dashboard.html', 'grupos.html',
-  'informes.html', 'sucursales.html', 'calendario.html', 'logs.html', 'ayuda.html',
-  'account-settings.html', 'productos.html', 'productos.js', 'productos.css', 'egg-prices.js', 'regiones.html', 'regiones.js',
-  'price-artwork.js', 'price-artwork-ui.js', 'social-artwork.js', 'company-templates.js', 'price-text.js', 'chicken-catalog.js', 'sheet-labels.js', 'img/precios/pollos.png', 'img/precios/amba.jpg', 'img/precios/costa.jpg',
-  'app.js', 'marketing-analysis.js', 'account.js', 'theme.js', 'style.css', 'sw.js', 'manifest.json',
+  ...require('./config/page-assets.json'),
+  'pages/index.html', 'pages/404.html', 'pages/login.html', 'pages/register.html', 'pages/dashboard.html',
+  'pages/grupos.html', 'pages/informes.html', 'pages/sucursales.html', 'pages/calendario.html', 'pages/logs.html',
+  'pages/ayuda.html', 'pages/account-settings.html', 'pages/productos.html', 'pages/regiones.html',
+  'pages/generador-imagenes.html',
+  'scripts/app.js', 'scripts/marketing-analysis.js', 'scripts/account.js', 'scripts/theme.js', 'scripts/sw.js',
+  'scripts/productos.js', 'scripts/regiones.js', 'scripts/egg-prices.js', 'scripts/price-artwork.js',
+  'scripts/price-artwork-ui.js', 'scripts/social-artwork.js', 'scripts/company-templates.js', 'scripts/price-text.js',
+  'scripts/chicken-catalog.js', 'scripts/sheet-labels.js', 'scripts/generador-imagenes.js',
+  'styles/style.css', 'styles/productos.css', 'styles/generador-imagenes.css', 'manifest.json',
+  'img/precios/pollos.png', 'img/precios/amba.jpg', 'img/precios/costa.jpg',
   'output/pdf/politicas-privacidad-atlas.pdf', 'output/pdf/terminos-condiciones-atlas.pdf'
 ]);
 const PUBLIC_IMAGE = /^\/img\/(?:[a-zA-Z0-9_-]+\.(?:png|jpg|jpeg|webp|svg|ico)|plantillas\/[a-z0-9-]+\/[a-z0-9_-]+\.(?:png|jpg|jpeg|webp))$/i;
@@ -55,7 +60,12 @@ const servePublic = express.static(__dirname, {
     if (filePath.endsWith('.pdf')) {
       res.setHeader('Content-Disposition', 'attachment; filename="' + require('path').basename(filePath) + '"');
     }
-    res.setHeader('Cache-Control', filePath.endsWith('sw.js') ? 'no-store' : 'public, max-age=0, must-revalidate');
+    if (filePath.endsWith('scripts' + path.sep + 'sw.js')) {
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('Service-Worker-Allowed', '/');
+    } else {
+      res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+    }
   }
 });
 app.use((req, res, next) => {
@@ -67,7 +77,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get('/', (req, res) => res.redirect('/index.html'));
+app.get('/', (req, res) => res.redirect('/pages/index.html'));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/marketing', marketingRoutes);
@@ -116,7 +126,7 @@ app.use((req, res) => {
   if (req.path.startsWith('/api/') || !['GET', 'HEAD'].includes(req.method)) {
     return res.status(404).json({ error: 'Recurso no encontrado.' });
   }
-  res.status(404).sendFile(path.join(__dirname, '404.html'));
+  res.status(404).sendFile(path.join(__dirname, 'pages', '404.html'));
 });
 
 app.use((err, req, res, next) => {

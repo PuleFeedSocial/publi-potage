@@ -151,7 +151,7 @@ test('meat presentations keep independent prices and writes affect only the chos
 });
 
 test('human-readable and legacy headers both preserve row values and revisions',()=>{
- const labels=require('../sheet-labels');for(const kind of Object.keys(p.schemas)){
+ const labels=require('../scripts/sheet-labels');for(const kind of Object.keys(p.schemas)){
  const headers=p.schemas[kind].fields;
  assert.deepEqual(p.parse(kind,[labels[kind]]),p.parse(kind,[headers]));
  }

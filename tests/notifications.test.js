@@ -20,13 +20,13 @@ test('push delivery counts successes and removes expired subscriptions',async()=
  try{assert.equal(await push.sendToUser(db,1,{}),1);assert.equal(requests,2);assert.deepEqual(removed,[2]);}finally{webpush.sendNotification=original;}
 });
 test('notification and service worker links reject external URLs and executable schemes',()=>{
- const source=fs.readFileSync(require.resolve('../app.js'),'utf8');const c=vm.createContext({URL,window:{location:{origin:'https://example.test'}}});
+ const source=fs.readFileSync(require.resolve('../scripts/app.js'),'utf8');const c=vm.createContext({URL,window:{location:{origin:'https://example.test'}}});
  vm.runInContext(source.slice(source.indexOf('function safeNotifLink'),source.indexOf('async function handleNotifClick')),c);
- assert.equal(c.safeNotifLink('calendario.html'),'https://example.test/calendario.html');
+ assert.equal(c.safeNotifLink('/pages/calendario.html'),'https://example.test/pages/calendario.html');
  for(const url of ['javascript:alert(1)','//evil.test','https://evil.test'])assert.equal(c.safeNotifLink(url),'');
- const sw=fs.readFileSync(require.resolve('../sw.js'),'utf8');const worker=vm.createContext({URL,self:{location:{origin:'https://example.test'}}});
+ const sw=fs.readFileSync(require.resolve('../scripts/sw.js'),'utf8');const worker=vm.createContext({URL,self:{location:{origin:'https://example.test'}}});
  vm.runInContext(sw.slice(sw.indexOf('function absoluteUrl'),sw.indexOf("self.addEventListener('push'")),worker);
- assert.equal(worker.absoluteUrl('javascript:alert(1)'),'https://example.test/dashboard.html');
+ assert.equal(worker.absoluteUrl('javascript:alert(1)'),'https://example.test/pages/dashboard.html');
 });
 
 test('reminder throttling allows new calendar items later in the same day',async()=>{
@@ -38,7 +38,7 @@ test('reminder throttling allows new calendar items later in the same day',async
 
 for (const scenario of ['cancel', 'failure', 'success']) {
   test('clear notification UI: ' + scenario, async () => {
-    const source = fs.readFileSync(require.resolve('../app.js'), 'utf8');
+    const source = fs.readFileSync(require.resolve('../scripts/app.js'), 'utf8');
     let calls = 0;
     const context = vm.createContext({
       confirm: () => scenario !== 'cancel', AbortSignal,

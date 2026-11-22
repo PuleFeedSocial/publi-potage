@@ -54,7 +54,7 @@ router.post('/test', async (req, res) => {
     const delivered = await sendToUser(db, req.user.id, pushPayload({
       title: 'Publi Potage',
       message: 'Aviso de prueba para tus dispositivos registrados.',
-      link: 'dashboard.html',
+      link: '/pages/dashboard.html',
       tag: 'push-test-' + Date.now()
     }));
     if (!delivered) return res.status(502).json({ error: 'El proveedor no aceptó el aviso. Revisá la activación e intentá nuevamente.' });

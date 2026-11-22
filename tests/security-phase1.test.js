@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const { isHttpOrHttpsUrl } = require('../services/validation');
 
-const groupPageSource = fs.readFileSync(require.resolve('../assets/js/pages/grupos.js'), 'utf8');
+const groupPageSource = fs.readFileSync(require.resolve('../scripts/grupos.js'), 'utf8');
 
 test('group links accept only absolute HTTP and HTTPS URLs', () => {
   for (const value of ['https://example.com', 'http://example.com/path?x=1']) {

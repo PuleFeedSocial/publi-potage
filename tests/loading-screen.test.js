@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+const appSource = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'app.js'), 'utf8');
 const loaderSource = appSource.slice(
   appSource.indexOf('const PageLoader = (() => {'),
   appSource.indexOf('function showPageLoader(')

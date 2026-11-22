@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
-const source = fs.readFileSync(require.resolve('../app.js'), 'utf8');
+const source = fs.readFileSync(require.resolve('../scripts/app.js'), 'utf8');
 
 test('inline arguments preserve names without allowing quote injection', () => {
   const context = vm.createContext({});

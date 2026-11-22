@@ -1,6 +1,6 @@
 # Productos por región
 
-La página `productos.html` consulta y modifica las cuatro pestañas del archivo de precios. No utiliza la hoja de métricas de publicaciones.
+La página `pages/productos.html` consulta y modifica las cuatro pestañas del archivo de precios. No utiliza la hoja de métricas de publicaciones.
 
 ## Configuración en Render
 
@@ -46,7 +46,7 @@ La pestaña opcional `Productos por región` se crea automáticamente con encabe
 
 Productos permite vincular sucursales del catálogo existente (hoja `Sucursales` de `GOOGLE_SHEET_ID`) a una región de precios. En Regiones → Modificar, las asociaciones antiguas deben desmarcarse y seleccionarse las sucursales correspondientes; no se emparejan por nombre automáticamente porque pueden existir nombres repetidos. Cada sucursal pertenece a una sola región. Desvincular no elimina la sucursal del catálogo.
 
-El botón Ver precios de Sucursales abre `productos.html?sucursal=ID` con región y sucursal seleccionadas. Si no existe una asociación disponible, muestra un aviso sin ofrecer precios de otra sucursal. La identidad se deriva de empresa, ubicación y dirección, independientemente de la fila y del teléfono; después de cambiar alguno de esos tres campos, hay que volver a vincularla. Los nombres técnicos de la pestaña `Locales` y sus encabezados se conservan por compatibilidad; la interfaz usa Sucursal.
+El botón Ver precios de Sucursales abre `pages/productos.html?sucursal=ID` con región y sucursal seleccionadas. Si no existe una asociación disponible, muestra un aviso sin ofrecer precios de otra sucursal. La identidad se deriva de empresa, ubicación y dirección, independientemente de la fila y del teléfono; después de cambiar alguno de esos tres campos, hay que volver a vincularla. Los nombres técnicos de la pestaña `Locales` y sus encabezados se conservan por compatibilidad; la interfaz usa Sucursal.
 
 Las regiones aceptan Sí/No, booleanos, 1/0 y Activa/Inactiva; un estado vacío usa Activa. Un No explícito se conserva. Los valores desconocidos requieren revisión.
 
@@ -63,7 +63,7 @@ En Generar imagen, seleccionar Pollos para usar la plantilla propia, sin mezclar
 
 ## Hoja legible (26/10/2026)
 
-La misma hoja de producción mantiene sus pestañas y posiciones de columnas. El lector admite tanto encabezados técnicos antiguos como los nombres en español de sheet-labels.js. Se verificó la lectura con datos reales después del cambio. La pestaña LEER PRIMERO documenta la edición, reglas de precios y códigos de región. Las columnas técnicas y registros antiguos están ocultos, no eliminados; hay respaldos ocultos del estado previo. No se agregaron fórmulas que escriban sobre precios ni otra base que haya que sincronizar.
+La misma hoja de producción mantiene sus pestañas y posiciones de columnas. El lector admite tanto encabezados técnicos antiguos como los nombres en español de `scripts/sheet-labels.js`. Se verificó la lectura con datos reales después del cambio. La pestaña LEER PRIMERO documenta la edición, reglas de precios y códigos de región. Las columnas técnicas y registros antiguos están ocultos, no eliminados; hay respaldos ocultos del estado previo. No se agregaron fórmulas que escriban sobre precios ni otra base que haya que sincronizar.
 
 ## Imágenes para el feed de Facebook
 
@@ -79,7 +79,7 @@ La imagen se elige por empresa: Potage SRL, Pluma Blanca SRL, El Triangulo SA y 
 - `logo.png`: logo con transparencia (opcional; Potage usa `img/icon-512.png` como respaldo).
 - `huevos.png` / `pollos.png`: fotografías propias para la tabla (opcionales).
 
-Si `fondo.*` existe, el generador dibuja esa plantilla y superpone precios y sucursales en las zonas configuradas en `company-templates.js`. Si no existe, usa el diseño estándar con el nombre y color de la empresa. Las imágenes se cargan en el navegador; no se suben a ningún servidor.
+Si `fondo.*` existe, el generador dibuja esa plantilla y superpone precios y sucursales en las zonas configuradas en `scripts/company-templates.js`. Si no existe, usa el diseño estándar con el nombre y color de la empresa. Las imágenes se cargan en el navegador; no se suben a ningún servidor.
 
 Hasta tres sedes se incluyen nombre, dirección y contacto. Con más de tres se muestran nombre de sede y teléfono, sin dirección. Si hay más de seis sedes, se generan páginas numeradas de hasta seis sedes cada una, con el mismo catálogo de precios. El selector del modal permite descargar cada página individualmente. Ninguna sede se omite por falta de espacio. Los textos extensos se ajustan dentro del área reservada; si no pueden mostrarse legiblemente, el generador informa el dato que hay que revisar y bloquea la descarga.
 

@@ -123,7 +123,7 @@ router.post('/register', async (req, res) => {
       type: 'usuario_registro',
       title: 'Nuevo usuario registrado',
       message: `${name.trim()} (${email}) se registró como colaborador.`,
-      link: 'dashboard.html',
+      link: '/pages/dashboard.html',
       icon: 'bi-person-plus'
     });
 

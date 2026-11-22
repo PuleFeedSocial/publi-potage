@@ -5,8 +5,8 @@ const path = require('node:path');
 const vm = require('node:vm');
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-for-calendar-ui';
 
-const html = fs.readFileSync(path.join(__dirname, '../calendario.html'), 'utf8');
-const script = fs.readFileSync(path.join(__dirname, '../assets/js/pages/calendario.js'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '../pages/calendario.html'), 'utf8');
+const script = fs.readFileSync(path.join(__dirname, '../scripts/calendario.js'), 'utf8');
 
 function calendar(user, overrides = {}) {
   const elements = new Map();

@@ -136,7 +136,7 @@ test('only explicitly public files can be downloaded', async () => {
   for (const path of ['/server.js','/tokens.js','/database.sqlite','/routes/auth.js','/node_modules/express/package.json','/package.json','/.env','/services/sheets.js','/%73erver.js']) {
     assert.equal((await request(path)).status, 404, path);
   }
-  for (const path of ['/dashboard.html','/app.js','/theme.js','/style.css','/img/icon-192.png']) assert.equal((await request(path)).status, 200, path);
+  for (const path of ['/pages/dashboard.html','/scripts/app.js','/scripts/theme.js','/styles/style.css','/img/icon-192.png']) assert.equal((await request(path)).status, 200, path);
   assert.equal((await request('/api/seed')).status, 404);
 });
 test('products protect writes and service account details with server-side permissions', async () => {
@@ -153,7 +153,7 @@ test('products protect writes and service account details with server-side permi
   assert.equal(config.status, 200);
   assert.deepEqual(Object.keys(config.data).sort(), ['email','spreadsheetId']);
   assert.equal((await request('/services/products.js')).status, 404);
-  for (const path of ['/productos.html','/productos.js','/productos.css','/regiones.html','/regiones.js','/price-artwork.js','/price-artwork-ui.js','/img/precios/amba.jpg','/img/precios/costa.jpg']) assert.equal((await request(path)).status, 200);
+  for (const path of ['/pages/productos.html','/scripts/productos.js','/styles/productos.css','/pages/regiones.html','/scripts/regiones.js','/scripts/price-artwork.js','/scripts/price-artwork-ui.js','/img/precios/amba.jpg','/img/precios/costa.jpg']) assert.equal((await request(path)).status, 200);
 });
 
 test('authentication rejects absent, removed and revoked sessions', async () => {
@@ -327,7 +327,7 @@ test('calendar rejects default end times that would not follow start times', asy
 });
 
 test('pages prevent framing and restrict unnecessary browser capabilities', async () => {
-  const res = await fetch(base + '/index.html', { headers: { Origin: 'https://untrusted.example' } });
+  const res = await fetch(base + '/pages/index.html', { headers: { Origin: 'https://untrusted.example' } });
   assert.equal(res.status, 200);
   assert.equal(res.headers.get('x-frame-options'), 'DENY');
   assert.match(res.headers.get('content-security-policy'), /frame-ancestors 'none'/);
@@ -343,12 +343,12 @@ test('legal links download PDFs and HTML pages and sources stay private', async 
     assert.equal(pdf.headers.get('content-disposition'), 'attachment; filename="' + slug + '-atlas.pdf"');
     assert.equal(Buffer.from(await pdf.arrayBuffer()).subarray(0, 5).toString(), '%PDF-');
     assert.equal((await fetch(base + '/' + slug + '.html')).status, 404);
-    for (const page of ['/index.html', '/login.html', '/register.html']) {
+    for (const page of ['/pages/index.html', '/pages/login.html', '/pages/register.html']) {
       const html = await (await fetch(base + page)).text();
-      assert.ok(html.includes('href="output/pdf/' + slug + '-atlas.pdf" download'));
+      assert.ok(html.includes('href="/output/pdf/' + slug + '-atlas.pdf" download'));
     }
   }
-  for (const path of ['/scripts/build-legal-pdfs.py', '/scripts/legal-content.json']) {
+  for (const path of ['/tools/build-legal-pdfs.py', '/tools/legal-content.json']) {
     assert.equal((await fetch(base + path)).status, 404);
   }
 });
@@ -359,12 +359,12 @@ test('missing pages render the branded 404 screen while API 404 stays JSON', asy
   assert.match(page.headers.get('content-type'), /text\/html/);
   const html = await page.text();
   assert.match(html, /No encontramos esta página/);
-  assert.match(html, /href="\/index\.html"/);
-  assert.match(html, /href="\/style\.css"/);
-  assert.match(html, /src="\/app\.js"/);
+  assert.match(html, /href="\/pages\/index\.html"/);
+  assert.match(html, /href="\/styles\/style\.css"/);
+  assert.match(html, /src="\/scripts\/app\.js"/);
   const nested = await fetch(base + '/seccion/inexistente');
   assert.equal(nested.status, 404);
-  assert.match(await nested.text(), /href="\/index\.html"/);
+  assert.match(await nested.text(), /href="\/pages\/index\.html"/);
   const api = await fetch(base + '/api/ruta-inexistente');
   assert.equal(api.status, 404);
   assert.match(api.headers.get('content-type'), /application\/json/);
@@ -450,6 +450,6 @@ test('marketing branch links reject unknown branches and enforce unique associat
 });
 
 test('extracted page assets are public without exposing their server-side manifest', async()=>{
- for(const asset of require('../assets/page-assets.json'))assert.equal((await request('/'+asset)).status,200,asset);
- assert.equal((await request('/assets/page-assets.json')).status,404);
+ for(const asset of require('../config/page-assets.json'))assert.equal((await request('/'+asset)).status,200,asset);
+ assert.equal((await request('/config/page-assets.json')).status,404);
 });
