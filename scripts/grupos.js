@@ -1,7 +1,23 @@
         let gruposPageData = [];
+        let gruposMarketingData = [];
         let grupoStatsChart = null;
-        let grupoMarketingCache = null;
-        const grupoNum = value => { try { return MarketingAnalysis.number(value); } catch { return 0; } };
+        const grupoNum = value => {
+            if (value == null || value === '') return 0;
+            try { return MarketingAnalysis.number(value); } catch {}
+            if (typeof value === 'number') return Number.isFinite(value) && value >= 0 ? value : 0;
+            let text = String(value).trim().replace(/[^\d.,-]/g, '');
+            if (!text) return 0;
+            const lastDot = text.lastIndexOf('.'), lastComma = text.lastIndexOf(',');
+            if (lastDot > -1 && lastComma > -1) {
+                const decimal = lastDot > lastComma ? '.' : ',';
+                const thousands = decimal === '.' ? ',' : '.';
+                text = text.split(thousands).join('').replace(decimal, '.');
+            } else if (lastComma > -1) {
+                text = /,\d{3}(\D|$)/.test(text) ? text.replace(/,/g, '') : text.replace(',', '.');
+            }
+            const number = Number(text);
+            return Number.isFinite(number) && number >= 0 ? number : 0;
+        };
         const grupoNumberFormat = new Intl.NumberFormat('es-AR');
         const grupoPercentFormat = new Intl.NumberFormat('es-AR', { style: 'percent', maximumFractionDigits: 1 });
         const pageLoad = (task, message) => (typeof PageLoader !== 'undefined' ? PageLoader.track(task, message) : Promise.resolve().then(task));
@@ -133,7 +149,7 @@
                     if (zonasRes.status === 200) window.zonasData = newZonas;
                     const marketingData = newMarketing;
                     window._gruposMarketing = marketingData;
-                    grupoMarketingCache = marketingData;
+                    gruposMarketingData = marketingData;
                     // Compute pubs per group
                     window._gruposPubs = {};
                     window._gruposEstatus = {};
@@ -307,51 +323,26 @@
             return match ? Number(match[1]) * 10000 + Number(match[2]) * 100 + Number(match[3]) : 0;
         }
 
-        async function getGrupoMarketingRows() {
-            if (grupoMarketingCache && grupoMarketingCache.length) return grupoMarketingCache;
-            if (window._gruposMarketing && window._gruposMarketing.length) {
-                grupoMarketingCache = window._gruposMarketing;
-                return grupoMarketingCache;
-            }
-            const res = await authFetch(API_BASE + '/api/marketing');
-            const body = await res.json();
-            grupoMarketingCache = res.status === 200 ? (body.data || []) : [];
-            window._gruposMarketing = grupoMarketingCache;
-            return grupoMarketingCache;
-        }
-
         function grupoPertenece(r, grupo) {
-            const asignado = r.grupoFila != null && r.grupoFila !== '' && String(r.grupoFila) === String(grupo.rowIndex);
-            const historico = !r.grupoFila && r.grupo && groupMetricKey(r.grupo, r.zona) === groupMetricKey(grupo.nombre, grupo.zona);
-            return asignado || historico;
+            return !!r.grupo && groupMetricKey(r.grupo, r.zona) === groupMetricKey(grupo.nombre, grupo.zona);
         }
 
-        function buildGrupoEstatus(rows, grupo) {
-            const estatus = { PUBLICADA: 0, ELIMINADA: 0, SUPRIMIDA: 0, 'EN REVISION': 0, 'SIN DEFINIR': 0 };
-            rows.filter(r => grupoPertenece(r, grupo)).forEach(r => {
-                const key = normFilterVal(r.estatus || 'SIN DEFINIR').toUpperCase();
-                if (estatus[key] !== undefined) estatus[key] += grupoNum(r.publicaciones);
-            });
-            return estatus;
-        }
-
-        function buildGrupoStats(grupo, marketingRows) {
-            const rows = (marketingRows || []).filter(r => grupoPertenece(r, grupo));
+        function buildGrupoStats(grupo, estatus) {
+            const rows = gruposMarketingData.filter(r => grupoPertenece(r, grupo));
             const num = grupoNum;
+            const est = estatus || {};
             const totals = { publicaciones: 0, visualizaciones: 0, interacciones: 0, comentarios: 0, mensajes: 0 };
             const statuses = { PUBLICADA: 0, ELIMINADA: 0, SUPRIMIDA: 0, 'EN REVISION': 0, 'SIN DEFINIR': 0 };
             let best = null;
             const dated = [];
             rows.forEach(r => {
-                const pubs = num(r.publicaciones);
-                totals.publicaciones += pubs;
+                totals.publicaciones += num(r.publicaciones);
                 ['visualizaciones', 'interacciones', 'comentarios', 'mensajes'].forEach(field => { totals[field] += num(r[field]); });
-                const estatus = normFilterVal(r.estatus || 'SIN DEFINIR').toUpperCase();
-                if (statuses[estatus] !== undefined) statuses[estatus] += pubs;
                 if (!best || num(r.visualizaciones) > num(best.visualizaciones)) best = r;
                 const fecha = grupoFechaKey(r.fecha);
                 if (fecha) dated.push({ fecha, row: r });
             });
+            Object.keys(statuses).forEach(key => { statuses[key] = num(est[key]); });
             dated.sort((a, b) => a.fecha - b.fecha);
             const cleanRows = rows.map(r => ({
                 ...r,
@@ -504,9 +495,11 @@
             } catch (error) { console.warn('Grupos chart error:', error); }
         }
 
-        function renderGrupoStats(grupo, marketingRows) {
-            const stats = buildGrupoStats(grupo, marketingRows);
+        function renderGrupoStats(grupo, estatus) {
+            const stats = buildGrupoStats(grupo, estatus);
             const totals = stats.totals, statuses = stats.statuses;
+            const pubs = statuses.PUBLICADA + statuses.ELIMINADA + statuses.SUPRIMIDA + statuses['EN REVISION'] + statuses['SIN DEFINIR'];
+            if (pubs) totals.publicaciones = pubs;
             document.getElementById('grupo-stats-nombre').textContent = grupo.nombre;
             document.getElementById('grupo-stats-vis').textContent = grupoNumberFormat.format(totals.visualizaciones);
             document.getElementById('grupo-stats-int').textContent = grupoNumberFormat.format(totals.interacciones);
@@ -514,7 +507,7 @@
             document.getElementById('grupo-stats-msj').textContent = grupoNumberFormat.format(totals.mensajes);
             document.getElementById('grupo-stats-pubs').textContent = grupoNumberFormat.format(totals.publicaciones);
             document.getElementById('grupo-stats-rate').textContent = totals.visualizaciones ? grupoPercentFormat.format(totals.interacciones / totals.visualizaciones) : '—';
-            const divisor = totals.publicaciones || 1;
+            const divisor = pubs || totals.publicaciones || 1;
             document.getElementById('grupo-stats-averages').textContent = 'Promedio por publicación: ' +
                 grupoNumberFormat.format(Math.round(totals.visualizaciones / divisor)) + ' visualizaciones · ' +
                 grupoNumberFormat.format(Math.round(totals.interacciones / divisor)) + ' interacciones · ' +
@@ -529,46 +522,36 @@
             const empty = document.getElementById('grupo-stats-empty');
             const body = document.getElementById('grupo-stats-body');
             const chartWrapper = document.getElementById('grupo-stats-chart-wrapper');
-            empty.hidden = stats.rows.length > 0;
-            body.hidden = stats.rows.length === 0;
-            chartWrapper.hidden = stats.rows.length === 0;
-            if (!stats.rows.length) { destroyGrupoStatsChart(); return; }
-            drawGrupoStatsChart(stats.monthly);
+            const hasData = stats.rows.length > 0 || pubs > 0;
+            empty.hidden = hasData;
+            body.hidden = !hasData;
+            chartWrapper.hidden = !hasData || !stats.monthly.keys.length;
+            if (!hasData) { destroyGrupoStatsChart(); return; }
+            requestAnimationFrame(() => {
+                if (!chartWrapper.hidden) drawGrupoStatsChart(stats.monthly);
+            });
         }
 
         function showGrupoStatsView(grupo) {
             const views = getGrupoModalViews();
+            const estatus = window._gruposEstatus[groupMetricKey(grupo.nombre, grupo.zona)] || {};
             document.getElementById('detail-grupo-title').innerHTML = '<i class="bi bi-bar-chart-line me-2 text-primary"></i>Estadísticas del Grupo';
             views.detail.hidden = true;
             views.stats.hidden = false;
             views.modalEl.classList.add('is-stats');
             renderGrupoDetailFooter(grupo, true).querySelector('#grupo-detail-back').focus();
-            const loading = document.getElementById('grupo-stats-loading');
-            const content = document.getElementById('grupo-stats-content');
-            loading.hidden = false;
-            content.hidden = true;
-            getGrupoMarketingRows().then(rows => {
-                if (views.stats.hidden) return;
-                loading.hidden = true;
-                content.hidden = false;
-                applyGrupoDetailValues(grupo, buildGrupoEstatus(rows, grupo));
-                renderGrupoStats(grupo, rows);
-            }).catch(() => {
-                if (views.stats.hidden) return;
-                loading.hidden = true;
-                content.hidden = false;
-                applyGrupoDetailValues(grupo, {});
-                renderGrupoStats(grupo, []);
-            });
+            document.getElementById('grupo-stats-loading').hidden = true;
+            document.getElementById('grupo-stats-content').hidden = false;
+            applyGrupoDetailValues(grupo, estatus);
+            renderGrupoStats(grupo, estatus);
         }
 
-        async function openGrupoDetailModal(rowIndexOrNombre) {
+        function openGrupoDetailModal(rowIndexOrNombre) {
             const g = gruposPageData.find(x => String(x.rowIndex) === String(rowIndexOrNombre)) ||
                 gruposPageData.find(x => x.nombre === rowIndexOrNombre);
             if (!g) return;
-            let rows = [];
-            try { rows = await getGrupoMarketingRows(); } catch {}
-            applyGrupoDetailValues(g, buildGrupoEstatus(rows, g));
+            const estatus = window._gruposEstatus[groupMetricKey(g.nombre, g.zona)] || {};
+            applyGrupoDetailValues(g, estatus);
             const modalEl = document.getElementById('grupoDetailModal');
             resetGrupoModalView();
             document.getElementById('detail-grupo-title').innerHTML = '<i class="bi bi-info-circle-fill me-2 text-primary"></i>Detalle del Grupo';
