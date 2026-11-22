@@ -1,5 +1,18 @@
         let gruposPageData = [];
+        let gruposMarketingRows = [];
+        let grupoStatsChart = null;
+        let grupoStatsMonthly = null;
+        const grupoNumberFormat = new Intl.NumberFormat('es-AR');
+        const grupoPercentFormat = new Intl.NumberFormat('es-AR', { style: 'percent', maximumFractionDigits: 1 });
         const pageLoad = (task, message) => (typeof PageLoader !== 'undefined' ? PageLoader.track(task, message) : Promise.resolve().then(task));
+
+        function statsNumber(value) {
+            if (value == null || value === '') return 0;
+            try { return MarketingAnalysis.number(value); } catch {}
+            const text = String(value).replace(/[^\d.,-]/g, '').replace(/,/g, '.');
+            const number = Number(text);
+            return Number.isFinite(number) && number >= 0 ? number : 0;
+        }
 
         function setSafeGroupLink(container, value, options = {}) {
             container.replaceChildren();
@@ -127,6 +140,7 @@
                     gruposPageData = newGrupos;
                     if (zonasRes.status === 200) window.zonasData = newZonas;
                     const marketingData = newMarketing;
+                    if (marketingData.length || !gruposMarketingRows.length) gruposMarketingRows = marketingData;
                     // Compute pubs per group
                     window._gruposPubs = {};
                     window._gruposEstatus = {};
@@ -292,6 +306,131 @@
                 });
         }
 
+        function getGrupoMarketingRows() {
+            if (gruposMarketingRows.length) return Promise.resolve(gruposMarketingRows);
+            return authFetch(API_BASE + '/api/marketing')
+                .then(res => res.status === 200 ? res.json() : { data: [] })
+                .then(body => { gruposMarketingRows = (body && body.data) || []; return gruposMarketingRows; })
+                .catch(() => []);
+        }
+
+        function statsDateKey(value) {
+            const text = String(value || '').trim();
+            let match = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+            if (match) return Number(match[3]) * 10000 + Number(match[2]) * 100 + Number(match[1]);
+            match = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            return match ? Number(match[1]) * 10000 + Number(match[2]) * 100 + Number(match[3]) : 0;
+        }
+
+        function buildGrupoStatsData(grupo, rows) {
+            const key = groupMetricKey(grupo.nombre, grupo.zona);
+            const metrics = ['publicaciones', 'visualizaciones', 'interacciones', 'comentarios', 'mensajes'];
+            const matched = (rows || []).filter(r => r.grupo && groupMetricKey(r.grupo, r.zona) === key);
+            const totals = { publicaciones: 0, visualizaciones: 0, interacciones: 0, comentarios: 0, mensajes: 0 };
+            const cleanRows = matched.map(r => {
+                const item = { fecha: r.fecha };
+                metrics.forEach(metric => {
+                    item[metric] = statsNumber(r[metric]);
+                    totals[metric] += item[metric];
+                });
+                return item;
+            });
+            const statuses = { PUBLICADA: 0, ELIMINADA: 0, SUPRIMIDA: 0, 'EN REVISION': 0, 'SIN DEFINIR': 0 };
+            matched.forEach(r => {
+                const status = normFilterVal(r.estatus || 'SIN DEFINIR').toUpperCase();
+                if (statuses[status] !== undefined) statuses[status] += statsNumber(r.publicaciones);
+            });
+            const statusTotal = Object.keys(statuses).reduce((sum, name) => sum + statuses[name], 0);
+            if (statusTotal) totals.publicaciones = statusTotal;
+            const dated = cleanRows.map(row => ({ row, order: statsDateKey(row.fecha) })).filter(x => x.order).sort((a, b) => a.order - b.order);
+            let best = null;
+            cleanRows.forEach(row => { if (!best || row.visualizaciones > best.visualizaciones) best = row; });
+            let monthly;
+            try { monthly = MarketingAnalysis.monthly(cleanRows); }
+            catch { monthly = { keys: [], labels: [], series: {} }; }
+            return {
+                totals, statuses, statusTotal, cleanRows, monthly,
+                first: dated.length ? dated[0].row.fecha : '',
+                last: dated.length ? dated[dated.length - 1].row.fecha : '',
+                bestFecha: best ? best.fecha : '',
+                bestVis: best ? best.visualizaciones : 0
+            };
+        }
+
+        function destroyGrupoStatsChart() {
+            if (!grupoStatsChart) return;
+            try { grupoStatsChart.destroy(); } catch {}
+            grupoStatsChart = null;
+        }
+
+        function drawGrupoStatsChart() {
+            destroyGrupoStatsChart();
+            const canvas = document.getElementById('grupo-stats-chart');
+            const wrapper = document.getElementById('grupo-stats-chart-wrapper');
+            const modalEl = document.getElementById('grupoStatsModal');
+            if (!canvas || !wrapper || wrapper.hidden || (modalEl && !modalEl.classList.contains('show')) || !grupoStatsMonthly || !grupoStatsMonthly.keys || !grupoStatsMonthly.keys.length || typeof Chart === 'undefined') return;
+            applyChartThemeDefaults();
+            const palette = chartPalette();
+            try {
+                grupoStatsChart = new Chart(canvas, {
+                    type: 'bar',
+                    data: {
+                        labels: grupoStatsMonthly.labels,
+                        datasets: [
+                            { type: 'bar', label: 'Visualizaciones', data: grupoStatsMonthly.series.visualizaciones, backgroundColor: palette.vis + 'c0', borderRadius: 5, maxBarThickness: 38 },
+                            { type: 'line', label: 'Interacciones', data: grupoStatsMonthly.series.interacciones, borderColor: palette.ints, backgroundColor: palette.ints + '18', borderWidth: 2, tension: .25, pointRadius: 3 }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false, animation: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: { legend: { display: true, labels: { color: palette.tick } }, tooltip: { callbacks: { label: context => context.dataset.label + ': ' + grupoNumberFormat.format(context.parsed.y) } } },
+                        scales: {
+                            y: { beginAtZero: true, grid: { color: palette.grid }, ticks: { color: palette.tick, precision: 0, maxTicksLimit: 5 } },
+                            x: { grid: { display: false }, ticks: { color: palette.tick, maxRotation: 30 } }
+                        }
+                    }
+                });
+            } catch {}
+        }
+
+        function fillGrupoStatsModal(grupo, rows) {
+            const stats = buildGrupoStatsData(grupo, rows);
+            const totals = stats.totals;
+            const hasData = stats.cleanRows.length > 0 || stats.statusTotal > 0;
+            const set = (id, value) => { const element = document.getElementById(id); if (element) element.textContent = value; };
+            set('grupo-stats-vis', grupoNumberFormat.format(totals.visualizaciones));
+            set('grupo-stats-int', grupoNumberFormat.format(totals.interacciones));
+            set('grupo-stats-com', grupoNumberFormat.format(totals.comentarios));
+            set('grupo-stats-msj', grupoNumberFormat.format(totals.mensajes));
+            set('grupo-stats-pubs', grupoNumberFormat.format(totals.publicaciones));
+            set('grupo-stats-rate', totals.visualizaciones ? grupoPercentFormat.format(totals.interacciones / totals.visualizaciones) : '—');
+            const divisor = totals.publicaciones || 1;
+            set('grupo-stats-averages', 'Promedio por publicación: ' + grupoNumberFormat.format(Math.round(totals.visualizaciones / divisor)) + ' visualizaciones · ' + grupoNumberFormat.format(Math.round(totals.interacciones / divisor)) + ' interacciones · ' + grupoNumberFormat.format(Math.round(totals.mensajes / divisor)) + ' mensajes');
+            const statusIds = { PUBLICADA: 'publicada', ELIMINADA: 'eliminada', SUPRIMIDA: 'suprimida', 'EN REVISION': 'revision', 'SIN DEFINIR': 'sdef' };
+            Object.keys(statusIds).forEach(name => set('grupo-stats-status-' + statusIds[name], grupoNumberFormat.format(stats.statuses[name])));
+            set('grupo-stats-best', 'Mejor publicación: ' + (stats.bestFecha || '—') + ' · ' + grupoNumberFormat.format(stats.bestVis) + ' visualizaciones');
+            set('grupo-stats-range', 'Rango de fechas: ' + (stats.first || '—') + ' — ' + (stats.last || '—'));
+            document.getElementById('grupo-stats-loading').hidden = true;
+            document.getElementById('grupo-stats-content').hidden = !hasData;
+            document.getElementById('grupo-stats-empty').hidden = hasData;
+            document.getElementById('grupo-stats-chart-wrapper').hidden = !hasData || !stats.monthly.keys.length;
+            grupoStatsMonthly = stats.monthly;
+            requestAnimationFrame(drawGrupoStatsChart);
+        }
+
+        function openGrupoStatsModal(grupo) {
+            const modalEl = document.getElementById('grupoStatsModal');
+            document.getElementById('grupo-stats-nombre').textContent = grupo.nombre;
+            document.getElementById('grupo-stats-loading').hidden = false;
+            document.getElementById('grupo-stats-content').hidden = true;
+            document.getElementById('grupo-stats-empty').hidden = true;
+            grupoStatsMonthly = null;
+            destroyGrupoStatsChart();
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            getGrupoMarketingRows().then(rows => fillGrupoStatsModal(grupo, rows));
+        }
+
         function openGrupoDetailModal(rowIndexOrNombre) {
             const g = gruposPageData.find(x => String(x.rowIndex) === String(rowIndexOrNombre)) ||
                 gruposPageData.find(x => x.nombre === rowIndexOrNombre);
@@ -313,9 +452,11 @@
             const footer = modalEl.querySelector('.modal-footer');
             const canEdit = hasPermission('edit_grupos');
             footer.innerHTML = '<button type="button" class="btn btn-sm btn-light-muted" data-bs-dismiss="modal">Cerrar</button>' +
+                '<button type="button" class="btn btn-sm btn-light-muted" id="grupo-detail-stats"><i class="bi bi-bar-chart-line me-1"></i>Estadísticas</button>' +
                 (canEdit ? '<button type="button" class="btn btn-sm btn-action-primary" id="grupo-detail-edit"><i class="bi bi-pencil-fill me-1"></i>Editar</button>' +
                     '<button type="button" class="btn btn-sm btn-outline-danger" id="grupo-detail-delete"><i class="bi bi-trash3-fill me-1"></i>Eliminar</button>' : '');
             const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            footer.querySelector('#grupo-detail-stats').onclick = () => openGrupoStatsModal(g);
             if (canEdit) {
                 footer.querySelector('#grupo-detail-edit').onclick = () => { modal.hide(); editGrupoPage(g.rowIndex); };
                 footer.querySelector('#grupo-detail-delete').onclick = () => { modal.hide(); deleteGrupoPage(g.rowIndex); };
@@ -330,6 +471,9 @@
                 return;
             }
             guardPage('view_grupos');
+            const statsModalEl = document.getElementById('grupoStatsModal');
+            statsModalEl.addEventListener('shown.bs.modal', drawGrupoStatsChart);
+            statsModalEl.addEventListener('hidden.bs.modal', () => { destroyGrupoStatsChart(); grupoStatsMonthly = null; });
             const initials = session.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
             document.getElementById('display-avatar').innerText = initials;
             document.getElementById('display-user-name').innerText = session.name;

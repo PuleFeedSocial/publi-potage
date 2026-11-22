@@ -5,3 +5,13 @@ html .page-grupos-inline-1 { border-radius:8px;margin-bottom:8px }
 html .page-grupos-inline-2 { width:auto;min-width:140px }
 html .page-grupos-inline-3 { width:auto;min-width:200px }
 html .page-grupos-inline-4 { width:auto;min-width:140px }
+
+/* Estadísticas del grupo (modal independiente) */
+#grupoStatsModal .modal-dialog { max-width:720px }
+#grupoStatsModal [hidden] { display:none !important }
+#grupoStatsModal .modal-body { min-height:0 }
+.grupo-stats-chart-wrapper { position:relative;height:220px }
+@media (max-width:576px) {
+  .grupo-stats-kpis > .col,.grupo-stats-statuses > .col { flex:0 0 33.333333%;max-width:33.333333% }
+  .grupo-stats-chart-wrapper { height:200px }
+}
