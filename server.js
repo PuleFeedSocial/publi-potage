@@ -14,6 +14,7 @@ const calendarioRoutes = require('./routes/calendario');
 const notificacionesRoutes = require('./routes/notificaciones');
 const pushRoutes = require('./routes/push');
 const { runDailyReminders } = require('./services/notifications');
+const { runScheduledPublications } = require('./services/scheduled-publications');
 const { router: logsRoutes } = require('./routes/logs');
 const { authenticate, requireAdmin } = require('./middleware/auth');
 
@@ -81,6 +82,7 @@ app.get('/', (req, res) => res.redirect('/pages/index.html'));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/marketing', marketingRoutes);
+app.use('/api/programadas', require('./routes/programadas'));
 app.use('/api/grupos', gruposRoutes);
 app.use('/api/historial', historialRoutes);
 app.use('/api/informes', informesRoutes);
@@ -157,6 +159,12 @@ async function start() {
   };
   setTimeout(reminderTick, 30000).unref();
   setInterval(reminderTick, 30 * 60 * 1000).unref();
+
+  // Las publicaciones programadas se escriben en Google Sheets aunque nadie tenga la app abierta.
+  const scheduledTick = () => { runScheduledPublications().catch(() => {}); };
+  setTimeout(scheduledTick, 20000).unref();
+  setInterval(scheduledTick, 60 * 1000).unref();
+
   process.once('SIGTERM', () => {
     const deadline = setTimeout(() => process.exit(1), 30000);
     deadline.unref();

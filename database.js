@@ -155,6 +155,35 @@ async function initializeDb() {
     )
   `);
 
+  // Cola de publicaciones programadas: se escriben en Google Sheets al llegar su fecha/hora.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS publicaciones_programadas (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      email TEXT NOT NULL DEFAULT '',
+      ip TEXT DEFAULT '',
+      programada_para TIMESTAMP NOT NULL,
+      fecha DATE NOT NULL,
+      hora TEXT NOT NULL,
+      grupo TEXT NOT NULL,
+      zona TEXT NOT NULL,
+      grupo_fila TEXT DEFAULT '',
+      publicaciones INTEGER NOT NULL DEFAULT 0,
+      visualizaciones INTEGER NOT NULL DEFAULT 0,
+      interacciones INTEGER NOT NULL DEFAULT 0,
+      comentarios INTEGER NOT NULL DEFAULT 0,
+      mensajes INTEGER NOT NULL DEFAULT 0,
+      estatus TEXT NOT NULL DEFAULT 'PUBLICADA',
+      estado TEXT NOT NULL DEFAULT 'pendiente',
+      intentos INTEGER NOT NULL DEFAULT 0,
+      ultimo_error TEXT DEFAULT '',
+      fila_origen INTEGER,
+      publicada_en TIMESTAMP,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_publicaciones_programadas_due ON publicaciones_programadas (estado, programada_para)`);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS role_permissions (
       role TEXT NOT NULL,

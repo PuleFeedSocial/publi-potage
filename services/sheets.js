@@ -45,6 +45,18 @@ function sheetError(res, err) {
 // Serialize writes within this server and prevent reads from repopulating a stale cache.
 let version = 0;
 let queue = Promise.resolve();
+
+// Same lock used by the HTTP middleware and by the scheduled-publishing worker.
+function runSerialized(work) {
+  const previous = queue;
+  let release;
+  queue = new Promise(resolve => { release = resolve; });
+  return previous.then(() => {
+    version++;
+    return Promise.resolve().then(work).finally(() => { version++; release(); });
+  }, err => { release(); throw err; });
+}
+
 function mutation(req, res, next) {
   if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return next();
   const previous = queue;
@@ -105,4 +117,4 @@ function validateRow(router, sheet, lastColumn, getClient = sheets) {
   });
 }
 
-module.exports = { sheets, count, sheetError, mutation, setupSheet, validateFields, validateRow, revision: () => version };
+module.exports = { sheets, count, sheetError, mutation, runSerialized, setupSheet, validateFields, validateRow, revision: () => version };

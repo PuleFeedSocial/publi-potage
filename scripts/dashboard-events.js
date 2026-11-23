@@ -132,4 +132,16 @@
   { const element = document.querySelector("[data-page-event=\"dashboard-44\"]");
     if (element && !element.onclick) element.onclick = function(event) { copiarInforme() };
   }
+  { const element = document.querySelector("[data-page-event=\"dashboard-45\"]");
+    if (element && !element.onclick) element.onclick = function(event) { openScheduleModal() };
+  }
+  { const element = document.querySelector("[data-page-event=\"dashboard-46\"]");
+    if (element && !element.onchange) element.onchange = function(event) { filterGruposSchedule() };
+  }
+  { const element = document.querySelector("[data-page-event=\"dashboard-47\"]");
+    if (element && !element.oninput) element.oninput = function(event) { filterGruposScheduleSearch() };
+  }
+  { const element = document.querySelector("[data-page-event=\"dashboard-48\"]");
+    if (element && !element.onclick) element.onclick = function(event) { saveScheduledMarketing() };
+  }
 })();

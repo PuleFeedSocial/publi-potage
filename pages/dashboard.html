@@ -272,6 +272,9 @@
                             <button data-page-event="dashboard-19" class="btn btn-sm btn-outline-secondary">
                                 <i class="bi bi-layers-fill me-1"></i> Carga múltiple
                             </button>
+                            <button data-page-event="dashboard-45" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-clock-history me-1"></i> Programar
+                            </button>
                             <button data-page-event="dashboard-20" id="btn-informe" class="btn btn-sm btn-outline-secondary">
                                 <i class="bi bi-clipboard-data me-1"></i> Realizar Informe
                             </button>
@@ -789,6 +792,83 @@
                     <button type="button" class="btn btn-sm btn-light-muted" data-bs-dismiss="modal">Cancelar</button>
                     <button data-page-event="dashboard-42" type="button" class="btn btn-sm btn-action-primary">
                         <i class="bi bi-check-lg me-1"></i>Publicar en 0 grupos
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Programar Publicaciones -->
+    <div class="modal fade" id="scheduleModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content custom-modal">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-semibold text-dark">
+                        <i class="bi bi-clock-history me-2"></i>Programar Publicaciones
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-3">
+                    <p class="small text-muted mb-3">Las filas se agregarán a Google Sheets automáticamente cuando llegue la fecha y hora (hora de Argentina). Podés cancelarlas mientras estén pendientes.</p>
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small fw-medium text-secondary" for="schedule-fecha-hora">Fecha y hora de publicación</label>
+                            <input type="datetime-local" id="schedule-fecha-hora" class="form-control custom-input" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small fw-medium text-secondary" for="schedule-zona">Sucursal</label>
+                            <select data-page-event="dashboard-46" id="schedule-zona" class="form-select custom-input">
+                                <option value="">Seleccionar...</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-medium text-secondary" for="schedule-grupo-search">Grupos</label>
+                            <input data-page-event="dashboard-47" type="text" id="schedule-grupo-search" class="form-control form-control-sm mb-2" placeholder="Buscar grupo...">
+                            <div id="schedule-grupos-container" class="bulk-grupos-list"></div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small fw-medium text-secondary">Publicaciones</label>
+                            <input type="number" id="schedule-pubs" class="form-control custom-input" value="1" min="0">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small fw-medium text-secondary">Visualizaciones</label>
+                            <input type="number" id="schedule-vis" class="form-control custom-input" value="0" min="0">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small fw-medium text-secondary">Interacciones</label>
+                            <input type="number" id="schedule-int" class="form-control custom-input" value="0" min="0">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small fw-medium text-secondary">Comentarios</label>
+                            <input type="number" id="schedule-com" class="form-control custom-input" value="0" min="0">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small fw-medium text-secondary">Mensajes</label>
+                            <input type="number" id="schedule-msj" class="form-control custom-input" value="0" min="0">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small fw-medium text-secondary">Estatus</label>
+                            <select id="schedule-estatus" class="form-select custom-input">
+                                <option value="SIN DEFINIR">SIN DEFINIR</option>
+                                <option value="PUBLICADA" selected>PUBLICADA</option>
+                                <option value="ELIMINADA">ELIMINADA</option>
+                                <option value="SUPRIMIDA">SUPRIMIDA</option>
+                                <option value="EN REVISION">EN REVISION</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="border-top pt-3 mt-4">
+                        <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                            <h6 class="fw-semibold mb-0">Programaciones pendientes</h6>
+                            <button type="button" id="schedule-refresh" class="btn btn-sm btn-outline-secondary">Actualizar</button>
+                        </div>
+                        <div id="schedule-pendientes" class="small text-secondary">Cargando…</div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-sm btn-light-muted" data-bs-dismiss="modal">Cancelar</button>
+                    <button data-page-event="dashboard-48" type="button" class="btn btn-sm btn-action-primary">
+                        <i class="bi bi-clock-history me-1"></i>Programar en 0 grupos
                     </button>
                 </div>
             </div>

@@ -1943,6 +1943,179 @@ function saveBulkMarketing() {
   });
 }
 
+// --- Programación de publicaciones ---
+function datetimeLocalValue(date) {
+  const pad = n => String(n).padStart(2, '0');
+  return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + 'T' + pad(date.getHours()) + ':' + pad(date.getMinutes());
+}
+
+function scheduleNextHour() {
+  const date = new Date();
+  date.setHours(date.getHours() + 1, 0, 0, 0);
+  return datetimeLocalValue(date);
+}
+
+function openScheduleModal() {
+  const input = document.getElementById('schedule-fecha-hora');
+  input.min = datetimeLocalValue(new Date());
+  input.value = scheduleNextHour();
+  document.getElementById('schedule-pubs').value = 1;
+  document.getElementById('schedule-vis').value = 0;
+  document.getElementById('schedule-int').value = 0;
+  document.getElementById('schedule-com').value = 0;
+  document.getElementById('schedule-msj').value = 0;
+  document.getElementById('schedule-estatus').value = 'PUBLICADA';
+
+  let zonas = [...new Set(zonasData.map(r => r.nombre).filter(Boolean)), ...new Set(marketingData.map(r => r.zona).filter(Boolean))];
+  const selZona = document.getElementById('schedule-zona');
+  selZona.innerHTML = '<option value="">Seleccionar...</option>';
+  [...new Set(zonas)].forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v; opt.textContent = v;
+    selZona.appendChild(opt);
+  });
+
+  document.getElementById('schedule-grupo-search').value = '';
+  filterGruposSchedule(true);
+  const refresh = document.getElementById('schedule-refresh');
+  if (refresh) refresh.onclick = loadScheduledPublications;
+  loadScheduledPublications();
+  new bootstrap.Modal(document.getElementById('scheduleModal')).show();
+}
+
+function filterGruposSchedule(resetSelection) {
+  const zona = document.getElementById('schedule-zona').value;
+  const container = document.getElementById('schedule-grupos-container');
+  const checked = resetSelection ? [] : [...container.querySelectorAll('input[type=checkbox]:checked')].map(cb => cb.value);
+  const grupos = dashboardGroupOptions(gruposData, marketingData, zona)
+    .filter(entry => entry.activo !== false && zonaActiva(entry.zona) && normFilterVal(entry.nombre) !== normFilterVal('Perfil Estandar'));
+  const labelFor = groupOptionLabels(grupos);
+
+  container.replaceChildren();
+  grupos.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es') || Number(a.rowIndex || 0) - Number(b.rowIndex || 0)).forEach(entry => {
+    const key = groupOptionKey(entry);
+    const label = document.createElement('label');
+    label.className = 'bulk-grupo-item';
+    label.title = (entry.rowIndex ? 'Grupo #' + entry.rowIndex : 'Grupo histórico') + (entry.zona ? ' · ' + entry.zona : '') + (entry.enlace ? ' · ' + entry.enlace : '');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = key;
+    cb.dataset.nombre = entry.nombre;
+    cb.dataset.zona = entry.zona || '';
+    if (entry.rowIndex) cb.dataset.grupoFila = String(entry.rowIndex);
+    if (checked.includes(key)) cb.checked = true;
+    cb.addEventListener('change', updateScheduleButtonText);
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(' ' + labelFor(entry)));
+    container.appendChild(label);
+  });
+
+  updateScheduleButtonText();
+  filterGruposScheduleSearch();
+}
+
+function filterGruposScheduleSearch() {
+  const search = (document.getElementById('schedule-grupo-search').value || '').toLowerCase().trim();
+  document.querySelectorAll('#schedule-grupos-container .bulk-grupo-item').forEach(label => {
+    label.style.display = !search || label.textContent.toLowerCase().includes(search) ? '' : 'none';
+  });
+}
+
+function updateScheduleButtonText() {
+  const container = document.getElementById('schedule-grupos-container');
+  if (!container) return;
+  const count = container.querySelectorAll('input[type=checkbox]:checked').length;
+  const btn = document.querySelector('#scheduleModal .btn-action-primary');
+  if (btn) btn.innerHTML = '<i class="bi bi-clock-history me-1"></i>Programar en ' + count + ' grupo' + (count !== 1 ? 's' : '');
+}
+
+async function saveScheduledMarketing() {
+  const fechaHora = document.getElementById('schedule-fecha-hora').value.trim();
+  const zona = document.getElementById('schedule-zona').value;
+  const selected = [...document.querySelectorAll('#schedule-grupos-container input[type=checkbox]:checked')].map(cb => ({
+    nombre: cb.dataset.nombre || '',
+    zona: cb.dataset.zona || '',
+    grupoFila: cb.dataset.grupoFila || ''
+  })).filter(entry => entry.nombre);
+
+  if (!fechaHora) return alert('Indicá la fecha y hora de publicación.');
+  if (!zona) return alert('Seleccioná una sucursal.');
+  if (!selected.length) return alert('Seleccioná al menos un grupo.');
+
+  const payload = {
+    fechaHora,
+    zona,
+    grupos: selected,
+    publicaciones: parseInt(document.getElementById('schedule-pubs').value) || 0,
+    visualizaciones: parseInt(document.getElementById('schedule-vis').value) || 0,
+    interacciones: parseInt(document.getElementById('schedule-int').value) || 0,
+    comentarios: parseInt(document.getElementById('schedule-com').value) || 0,
+    mensajes: parseInt(document.getElementById('schedule-msj').value) || 0,
+    estatus: document.getElementById('schedule-estatus').value
+  };
+
+  try {
+    const res = await apiFetch('/api/programadas', { method: 'POST', body: JSON.stringify(payload) });
+    if (res.status !== 201) return alert(res.body.error || 'No se pudieron guardar las programaciones.');
+    try { bootstrap.Modal.getInstance(document.getElementById('scheduleModal')).hide(); } catch {}
+    showToast((res.body.count || selected.length) + ' publicaciones programadas', 'success');
+    loadScheduledPublications();
+  } catch {
+    alert('No se pudo conectar con el servidor. Intentá de nuevo.');
+  }
+}
+
+function formatScheduleStamp(value) {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+  return match ? match[3] + '/' + match[2] + '/' + match[1] + ' ' + match[4] + ':' + match[5] : String(value || '—');
+}
+
+async function loadScheduledPublications() {
+  const container = document.getElementById('schedule-pendientes');
+  if (!container) return;
+  container.textContent = 'Cargando…';
+  try {
+    const res = await apiFetch('/api/programadas');
+    if (res.status !== 200) { container.textContent = 'No se pudieron cargar las programaciones.'; return; }
+    const rows = (res.body.data || []).filter(row => row.estado !== 'cancelada');
+    if (!rows.length) { container.textContent = 'No hay programaciones registradas.'; return; }
+    container.replaceChildren();
+    rows.forEach(row => {
+      const item = document.createElement('div');
+      item.className = 'd-flex justify-content-between align-items-center gap-2 border-bottom py-1';
+      const text = document.createElement('span');
+      let label = formatScheduleStamp(row.programada_para) + ' · ' + row.grupo + ' · ' + (row.zona || '') + ' · ' + (row.publicaciones || 0) + ' pubs';
+      if (row.estado && row.estado !== 'pendiente') label += ' · ' + row.estado;
+      if (row.ultimo_error) label += ' · ' + row.ultimo_error;
+      text.textContent = label;
+      item.appendChild(text);
+      if (row.estado === 'pendiente') {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-sm btn-outline-danger';
+        btn.textContent = 'Cancelar';
+        btn.onclick = () => cancelScheduledPublication(row.id);
+        item.appendChild(btn);
+      }
+      container.appendChild(item);
+    });
+  } catch {
+    container.textContent = 'No se pudieron cargar las programaciones.';
+  }
+}
+
+async function cancelScheduledPublication(id) {
+  if (!confirm('¿Cancelar esta publicación programada?')) return;
+  try {
+    const res = await apiFetch('/api/programadas/' + encodeURIComponent(id), { method: 'DELETE' });
+    if (res.status !== 200) return alert(res.body.error || 'No se pudo cancelar.');
+    showToast('Programación cancelada', 'success');
+    loadScheduledPublications();
+  } catch {
+    alert('No se pudo conectar con el servidor. Intentá de nuevo.');
+  }
+}
+
 let _appLastGruposSnapshot = '';
 function loadGrupos(silent) {
   const blocking = !silent && !!document.getElementById('marketing-table-body');

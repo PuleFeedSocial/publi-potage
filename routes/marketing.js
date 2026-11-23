@@ -1,5 +1,5 @@
 const express = require('express');
-const { sheets, count, sheetError, mutation, revision, validateFields, validateRow } = require('../services/sheets');
+const { sheets, count, sheetError, mutation, runSerialized, revision, validateFields, validateRow } = require('../services/sheets');
 const router = express.Router();
 const { authenticate, requirePermission } = require('../middleware/auth');
 router.use(authenticate, mutation);
@@ -14,6 +14,39 @@ const GROUPS_SHEET = 'Grupos';
 function groupRowIndex(value) {
   const n = Number(value);
   return Number.isSafeInteger(n) && n >= 2 ? n : null;
+}
+
+// Shared by the manual form and by the scheduled-publishing worker so both
+// write the exact same ten-cell row to Google Sheets.
+async function appendMarketingRow(body, { serialized = true } = {}) {
+  const s = sheets();
+  if (!s) throw Object.assign(new Error('Google Sheets no configurado.'), { status: 503 });
+
+  const { fecha, grupo, publicaciones, visualizaciones, interacciones, comentarios, mensajes, zona, estatus, grupoFila } = body || {};
+  const filaGrupo = grupoFila == null || grupoFila === '' ? '' : groupRowIndex(grupoFila);
+  if (filaGrupo === null) throw Object.assign(new Error('Grupo inválido: grupoFila'), { status: 400 });
+
+  const write = async () => {
+    const appendRes = await s.spreadsheets.values.append({
+      spreadsheetId: SHEET_ID,
+      range: TARGET_SHEET + '!A:J',
+      valueInputOption: 'RAW',
+      insertDataOption: 'INSERT_ROWS',
+      resource: {
+        values: [[
+          fecha || '', grupo || '', publicaciones || 0, visualizaciones || 0,
+          interacciones || 0, comentarios || 0, mensajes || 0, zona || '', estatus || 'SIN DEFINIR', filaGrupo
+        ]]
+      }
+    });
+    const updatedRange = appendRes.data.updates?.updatedRange || '';
+    const rowMatch = updatedRange.match(/!\$?[A-Z]+\$?(\d+)/i);
+    invalidateCache();
+    return { rowIndex: rowMatch ? Number(rowMatch[1]) : 0 };
+  };
+
+  // HTTP requests already hold the middleware lock; the worker does not.
+  return serialized ? runSerialized(write) : write();
 }
 
 function groupKey(value) {
@@ -136,36 +169,11 @@ router.get('/refresh', requirePermission('sync_marketing'), async (req, res) => 
 
 router.post('/', requirePermission('edit_marketing'), async (req, res) => {
   try {
-    const s = sheets();
-    if (!s) return res.status(503).json({ error: 'Google Sheets no configurado.' });
-
-    const { fecha, grupo, publicaciones, visualizaciones, interacciones, comentarios, mensajes, zona, estatus, grupoFila } = req.body;
-    const filaGrupo = grupoFila == null || grupoFila === '' ? '' : groupRowIndex(grupoFila);
-    if (filaGrupo === null) return res.status(400).json({ error: 'Grupo inválido: grupoFila' });
-
-    const appendRes = await s.spreadsheets.values.append({
-      spreadsheetId: SHEET_ID,
-      range: TARGET_SHEET + '!A:J',
-      valueInputOption: 'RAW',
-      insertDataOption: 'INSERT_ROWS',
-      resource: {
-        values: [[
-          fecha || '', grupo || '', publicaciones || 0, visualizaciones || 0,
-          interacciones || 0, comentarios || 0, mensajes || 0, zona || '', estatus || 'SIN DEFINIR', filaGrupo
-        ]]
-      }
-    });
-
-    const updatedRange = appendRes.data.updates?.updatedRange || '';
-    const rowMatch = updatedRange.match(/!\$?[A-Z]+\$?(\d+)/i);
-    const rowIndex = rowMatch ? Number(rowMatch[1]) : 0;
-
-    invalidateCache();
-
-    logAction(req.user.id, req.user.email, 'Creación de publicación', `Grupo: ${grupo || ''}, Fecha: ${fecha || ''}`, req.ip);
-
+    const { rowIndex } = await appendMarketingRow(req.body, { serialized: false });
+    logAction(req.user.id, req.user.email, 'Creación de publicación', `Grupo: ${req.body.grupo || ''}, Fecha: ${req.body.fecha || ''}`, req.ip);
     res.status(201).json({ message: 'Fila agregada correctamente.', rowIndex });
   } catch (err) {
+    if (err.status === 400) return res.status(400).json({ error: err.message });
     sheetError(res, err);
   }
 });
@@ -233,3 +241,4 @@ router.delete('/:rowIndex', requirePermission('edit_marketing'), async (req, res
 });
 
 module.exports = router;
+module.exports.appendMarketingRow = appendMarketingRow;
